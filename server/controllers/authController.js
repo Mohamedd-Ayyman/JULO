@@ -9,7 +9,7 @@ router.post("/signup", async (req, res) => {
     const user = await User.findOne({ email: req.body.email });
 
     if (user) {
-      return res.status(400).send({
+      return res.send({
         message: "User already exists",
         success: false,
       });
@@ -38,7 +38,7 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).send({
+      return res.send({
         message: "Please enter a registered email",
         success: false,
       });
@@ -46,9 +46,7 @@ router.post("/login", async (req, res) => {
 
     const validPass = await bcrypt.compare(req.body.password, user.password);
     if (!validPass) {
-      return res
-        .status(400)
-        .send({ message: "Incorrect Password", success: false });
+      return res.send({ message: "Incorrect Password", success: false });
     }
 
     const authToken = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, {
