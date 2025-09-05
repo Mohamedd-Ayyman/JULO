@@ -23,6 +23,7 @@ function Login() {
       response = await loginUser(user);
       if (response.success) {
         toast.success(response.message);
+        localStorage.setItem("token", response.token);
         navigate("/");
       } else {
         toast.error(response.message);
