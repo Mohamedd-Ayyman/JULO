@@ -1,17 +1,21 @@
-// Update ProtectedRoute.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import getLoggedUser from "../apiCalls/users";
+import { useDispatch } from "react-redux";
+import { hideLoader, showLoader } from "../redux/loaderSlice";
+import { setUser } from "../redux/usersSlice";
 
 const ProtectedRoute = ({ children }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const dispatch = useDispatch();
 
   const getUserData = async () => {
     try {
+      dispatch(showLoader());
       const response = await getLoggedUser();
+      dispatch(hideLoader());
       if (response.success) {
-        setUser(response.data);
+        dispatch(setUser(response.data));
       } else {
         navigate("/login");
       }
@@ -32,12 +36,7 @@ const ProtectedRoute = ({ children }) => {
     fetchUser();
   }, []);
 
-  return (
-    <div>
-      <p>Hello {user?.firstname}</p>
-      {children}
-    </div>
-  );
+  return <div>{children}</div>;
 };
 
 export default ProtectedRoute;

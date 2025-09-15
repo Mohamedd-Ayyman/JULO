@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import moonImg from "../../assets/images/futuristic-moon-background.jpg";
 import { loginUser } from "../../apiCalls/auth";
 import toast from "react-hot-toast";
+import { hideLoader, showLoader } from "../../redux/loaderSlice";
+import { useDispatch } from "react-redux";
 
 function Login() {
   const [user, setUser] = useState({
@@ -10,6 +12,7 @@ function Login() {
     password: "",
   });
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
     setUser({ ...user, [e.target.name]: e.target.value });
@@ -20,7 +23,9 @@ function Login() {
     let response = null;
 
     try {
+      dispatch(showLoader());
       response = await loginUser(user);
+      dispatch(hideLoader());
       if (response.success) {
         toast.success(response.message);
         localStorage.setItem("token", response.token);
@@ -29,7 +34,9 @@ function Login() {
         toast.error(response.message);
       }
     } catch (error) {
+      dispatch(showLoader());
       toast.error(error);
+      dispatch(hideLoader());
     }
   };
   return (

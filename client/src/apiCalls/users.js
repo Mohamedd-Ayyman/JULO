@@ -9,4 +9,4 @@ const getLoggedUser = async () => {
   }
 };
 
-export default getLoggedUser;
+export default getLoggedUser; 
