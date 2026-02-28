@@ -38,13 +38,15 @@ const Timer = () => {
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <h3 className="text-xl font-semibold text-foreground ">
-              Time since launch
+              Time to launch
             </h3>
           </div>
           <div className="backdrop-blur-lg bg-glass/20 border border-glass-border/30 px-3 py-1 rounded-full">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-foreground text-sm font-medium">Live</span>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+              <span className="text-foreground text-sm font-medium">
+                Coming Soon
+              </span>
             </div>
           </div>
         </div>
