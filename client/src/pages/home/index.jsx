@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import getLoggedUser from "../../apiCalls/users.js";
 import heroBackground from "../../assets/images/futuristic-moon-background.jpg";
-import Header from "./header.jsx";
-import UserDashboard from "./dashboard.jsx";
-import QuickActions from "./actions.jsx";
+import Header from "./components/header.jsx";
+import Sidebar from "./components/sidebar.jsx";
+import UserDashboard from "./components/dashboard.jsx";
+import QuickActions from "./components/actions.jsx";
 import Timer from "../../components/Timer.jsx";
 import { setUser } from "../../redux/usersSlice.js";
 import { hideLoader, showLoader } from "../../redux/loaderSlice.js";
@@ -83,19 +84,23 @@ const Home = () => {
       <div className="absolute inset-0 bg-background/40" />
 
       <div className="relative z-10 min-h-screen w-full overflow-x-hidden">
-        <Header />
+        <Sidebar />
 
-        <main className="w-full">
-          <Timer />
-          <UserDashboard userData={user} />
-          <QuickActions />
-        </main>
+        <div className="ml-80 transition-all duration-300">
+          <Header />
 
-        <footer className="p-6 text-center flex-shrink-0">
-          <p className="text-muted-foreground">
-            © 2024 ChatFlow. Experience the future of communication.
-          </p>
-        </footer>
+          <main className="w-full">
+            <Timer />
+            <UserDashboard userData={user} />
+            <QuickActions />
+          </main>
+
+          <footer className="p-6 text-center flex-shrink-0">
+            <p className="text-muted-foreground">
+              © 2026 Quick-chat. Experience the future of communication.
+            </p>
+          </footer>
+        </div>
       </div>
     </div>
   );
