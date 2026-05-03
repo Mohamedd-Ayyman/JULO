@@ -128,7 +128,12 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
 
   if (deleted) return null;
 
-  const author = display.author || {};
+  const originalPost = post.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
+  const originalAuthor =
+    originalPost && originalPost.author && typeof originalPost.author === "object"
+      ? originalPost.author
+      : null;
+  const author = isRepost && originalAuthor ? originalAuthor : display.author || {};
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
   const sharerName = sharer
     ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim()
@@ -145,7 +150,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
       {isRepost && sharer && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
           <Repeat2 className="w-3.5 h-3.5" />
-          <span>🔁 {sharerIsMe ? "You" : sharerName} shared</span>
+          <span>{sharerIsMe ? "You" : sharerName || "Someone"} shared</span>
         </div>
       )}
 

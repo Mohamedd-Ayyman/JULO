@@ -145,21 +145,24 @@ export default function PostDetailView({ postId, onClose }) {
       </div>
 
       {/* Compose */}
-      <div className="flex items-center gap-2 mb-4">
-        <Avatar src={user?.profilepic} name={user?.firstname || ""} size={36} />
-        <div className="flex-1 relative">
+      <div className="mt-3 flex items-center gap-2 mb-4">
+        <span className="flex-shrink-0 inline-flex items-center">
+          <Avatar src={user?.profilepic} name={user?.firstname || ""} size={36} />
+        </span>
+        <div className="flex-1 relative flex items-center">
           <input
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submitComment()}
             placeholder="Add a comment…"
-            className="input rounded-full pr-10 text-sm"
+            className="input rounded-full text-sm h-10 py-0 pl-4 pr-12 w-full"
           />
           <button
             onClick={submitComment}
             disabled={!comment.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 btn btn-primary btn-icon disabled:opacity-40"
+            className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center rounded-full bg-gradient-primary text-white disabled:opacity-40 hover:scale-105 transition-transform"
             style={{ width: 32, height: 32 }}
+            aria-label="Send"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

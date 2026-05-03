@@ -82,8 +82,11 @@ export class PostService {
     query = scopeByTenant(query, tenantId);
     const post = await query
       .populate("author", "firstname lastname profilepic isOnline")
-      .populate("originalPost", "author text image likeCount commentCount")
-      .populate("originalPost.author", "firstname lastname profilepic");
+      .populate({
+        path: "originalPost",
+        select: "author text image likeCount commentCount",
+        populate: { path: "author", select: "firstname lastname profilepic" },
+      });
     if (!post) {
       const err = new Error("Post not found");
       err.statusCode = 404;
@@ -135,7 +138,11 @@ export class PostService {
 
     return Post.findById(repost._id)
       .populate("author", "firstname lastname profilepic isOnline")
-      .populate("originalPost.author", "firstname lastname profilepic");
+      .populate({
+        path: "originalPost",
+        select: "author text image likeCount commentCount",
+        populate: { path: "author", select: "firstname lastname profilepic" },
+      });
   }
 
   async delete(postId, userId) {
@@ -168,8 +175,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
-        .populate("originalPost", "author text image")
-        .populate("originalPost.author", "firstname lastname profilepic")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       scopeByTenant(Post.countDocuments({ author: userId }), tenantId),
     ]);
