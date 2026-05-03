@@ -1,6 +1,6 @@
-# Nuvora Server
+# JULO Server
 
-Real-time backend for Nuvora social platform.
+Real-time backend for JULO social platform.
 
 ## Setup
 

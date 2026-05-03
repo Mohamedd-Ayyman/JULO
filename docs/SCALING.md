@@ -1,4 +1,4 @@
-# Nuvora — Scaling Strategy
+# JULO — Scaling Strategy
 
 ## Infrastructure Overview
 
@@ -15,7 +15,7 @@
                 └───────────┬───────────────────┘
                             │ HTTP / WebSocket
               ┌─────────────▼──────────────┐
-              │  Nuvora Server Replicas     │
+              │  JULO Server Replicas     │
               │  (auto-scaled, stateless)   │
               │  Node.js + Socket.IO        │
               └─────────────┬──────────────┘

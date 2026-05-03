@@ -1,4 +1,4 @@
-name: Nuvora CI
+name: JULO CI
 
 on:
   push:
@@ -179,7 +179,7 @@ jobs:
     steps:
       - name: CI Summary
         run: |
-          echo "## Nuvora CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "## JULO CI Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY

@@ -21,11 +21,11 @@ export default function Login() {
     setLoading(true);
     const res = await login(form);
     setLoading(false);
-    if (res.success && res.user) {
-      dispatch(setUser(res.user));
-      localStorage.setItem("token", res.token);
+    if (res.success) {
+      dispatch(setUser(res.data.user));
+      localStorage.setItem("token", res.data.token);
       connectSocket();
-      toast.success(`Welcome back, ${res.user.firstname}!`);
+      toast.success(`Welcome back, ${res.data.user.firstname}!`);
       navigate("/");
     } else toast.error(res.message || "Login failed");
   };

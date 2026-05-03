@@ -30,4 +30,4 @@ db.messages.createIndex({ chatId: 1, createdAt: -1 });
 db.notifications.createIndex({ recipient: 1, createdAt: -1 });
 db.follows.createIndex({ follower: 1, following: 1 }, { unique: true });
 
-print("Nuvora MongoDB initialized successfully");
+print("JULO MongoDB initialized successfully");
