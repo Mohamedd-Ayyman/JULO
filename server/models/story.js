@@ -23,6 +23,12 @@ const storySchema = new mongoose.Schema(
       enum: ["image", "video"],
       default: "image",
     },
+    caption: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "",
+    },
     viewers: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
@@ -47,12 +53,12 @@ storySchema.statics.getStoriesForFeed = async function (currentUserId) {
   const now = new Date();
   const stories = await this.aggregate([
     { $match: { expiresAt: { $gt: now } } },
-    { $sort: { createdAt: -1 } },
+    { $sort: { createdAt: 1 } },
     {
       $group: {
         _id: "$userId",
-        stories: { $push: { _id: "$_id", mediaUrl: "$mediaUrl", mediaType: "$mediaType", createdAt: "$createdAt", viewers: "$viewers" } },
-        latestStory: { $first: "$$ROOT" },
+        stories: { $push: { _id: "$_id", mediaUrl: "$mediaUrl", mediaType: "$mediaType", caption: "$caption", createdAt: "$createdAt", viewers: "$viewers", viewCount: { $size: "$viewers" } } },
+        latestStory: { $last: "$$ROOT" },
         hasUnseen: {
           $max: {
             $cond: [{ $and: [{ $gt: ["$createdAt", now] }, { $not: { $in: [currentUserId, "$viewers"] } }] }, 1, 0],

@@ -812,47 +812,89 @@ function SecuritySection() {
 
 /* ─── Appearance section ──────────────────────────────────────────────── */
 
-function AppearanceSection({ user, dispatch }) {
-  const savedTheme = localStorage.getItem("julo_theme") || "dark";
-  const [theme, setTheme] = useState(savedTheme);
-  const [reducedMotion, setReducedMotion] = useState(localStorage.getItem("julo_reduced_motion") === "true");
+function AppearanceSection() {
+  const systemReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const storedMotion = localStorage.getItem("julo_reduced_motion");
+
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("julo_theme") || "dark",
+  );
+  const [reducedMotion, setReducedMotion] = useState(
+    () => (storedMotion === null ? !!systemReduced : storedMotion === "true"),
+  );
+
+  // Ensure DOM reflects current state on mount (in case settings page is opened first)
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("reduced-motion", reducedMotion);
+  }, [reducedMotion]);
 
   const applyTheme = (t) => {
     setTheme(t);
     localStorage.setItem("julo_theme", t);
     document.documentElement.setAttribute("data-theme", t);
+    toast.success(`Theme set to ${t.charAt(0).toUpperCase() + t.slice(1)}`);
   };
 
   const applyMotion = (val) => {
     setReducedMotion(val);
     localStorage.setItem("julo_reduced_motion", String(val));
-    if (val) {
-      document.documentElement.style.setProperty("--motion-duration", "0.01ms");
-    } else {
-      document.documentElement.style.removeProperty("--motion-duration");
-    }
+    document.documentElement.classList.toggle("reduced-motion", val);
   };
+
+  const themes = [
+    {
+      id: "dark",
+      label: "Dark",
+      colors: ["#07060f", "#1a1830", "#8b7cff"],
+    },
+    {
+      id: "midnight",
+      label: "Midnight",
+      colors: ["#0d0b1f", "#1e1b4b", "#6c5ce7"],
+    },
+    {
+      id: "aurora",
+      label: "Aurora",
+      colors: ["#0f1729", "#22d3ee", "#f472b6"],
+    },
+  ];
 
   return (
     <Card title="Appearance" desc="Customise how JULO looks for you">
+      <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
+        Theme
+      </p>
       <div className="grid grid-cols-3 gap-3">
-        {[
-          { id: "dark", label: "Dark", colors: ["#07060f", "#1a1830", "#8b7cff"] },
-          { id: "midnight", label: "Midnight", colors: ["#0d0b1f", "#1e1b4b", "#6c5ce7"] },
-          { id: "aurora", label: "Aurora", colors: ["#0f1729", "#22d3ee", "#f472b6"] },
-        ].map((t) => (
+        {themes.map((t) => (
           <button
             key={t.id}
             onClick={() => applyTheme(t.id)}
-            className={`card p-3 text-center transition-all ${theme === t.id ? "border-glass-border-strong glow-primary-soft" : "hover-lift"}`}
+            className={`card p-3 text-center transition-all ${
+              theme === t.id
+                ? "border-glass-border-strong glow-primary-soft"
+                : "hover-lift"
+            }`}
+            aria-pressed={theme === t.id}
           >
             <div className="flex gap-1 justify-center mb-2">
               {t.colors.map((c, i) => (
-                <div key={i} className="w-6 h-6 rounded-full" style={{ background: c }} />
+                <div
+                  key={i}
+                  className="w-6 h-6 rounded-full border border-glass-border"
+                  style={{ background: c }}
+                />
               ))}
             </div>
             <p className="text-xs font-semibold text-foreground">{t.label}</p>
-            {theme === t.id && <CheckCircle2 className="w-4 h-4 text-primary mx-auto mt-1" />}
+            {theme === t.id && (
+              <CheckCircle2 className="w-4 h-4 text-primary mx-auto mt-1" />
+            )}
           </button>
         ))}
       </div>
@@ -864,6 +906,11 @@ function AppearanceSection({ user, dispatch }) {
           checked={reducedMotion}
           onChange={applyMotion}
         />
+        {storedMotion === null && systemReduced && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            Following your system preference. Toggle to override.
+          </p>
+        )}
       </div>
 
       <p className="text-xs text-muted-foreground mt-3">
