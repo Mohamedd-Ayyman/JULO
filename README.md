@@ -1,4 +1,4 @@
-# Nuvora
+# JULO
 
 Production-ready real-time social platform — MERN + Socket.IO + Redis + BullMQ.
 
