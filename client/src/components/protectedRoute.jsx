@@ -1,42 +1,21 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import getLoggedUser from "../apiCalls/users";
-import { useDispatch } from "react-redux";
-import { hideLoader, showLoader } from "../redux/loaderSlice";
-import { setUser } from "../redux/usersSlice";
+import { Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
-const ProtectedRoute = ({ children }) => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+export default function ProtectedRoute({ children, authReady = true }) {
+  const token = localStorage.getItem("token");
+  const { user } = useSelector((state) => state.userReducer);
 
-  const getUserData = async () => {
-    try {
-      dispatch(showLoader());
-      const response = await getLoggedUser();
-      dispatch(hideLoader());
-      if (response.success) {
-        dispatch(setUser(response.data));
-      } else {
-        navigate("/login");
-      }
-    } catch (error) {
-      navigate("/login");
-    }
-  };
+  if (!authReady) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (localStorage.getItem("token")) {
-        await getUserData();
-      } else {
-        navigate("/login");
-      }
-    };
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
 
-    fetchUser();
-  }, []);
-
-  return <div>{children}</div>;
-};
-
-export default ProtectedRoute;
+  return children;
+}
