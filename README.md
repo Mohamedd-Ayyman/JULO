@@ -1,8 +1,37 @@
 # JULO
 
-Production-ready real-time social platform — MERN + Socket.IO + Redis + BullMQ.
+JULO is a real‑time social platform for communities and teams. Share updates, chat instantly, and stay in sync — all in one place.
 
-## Quick Start
+![JULO hero](docs/assets/julo-hero.svg)
+
+## What JULO Does
+
+- **Share and discuss** posts with comments, likes, bookmarks, and replies.
+- **Stay connected** with real-time messaging and notifications.
+- **Show moments** through stories with quick viewer feedback.
+- **Keep control** with privacy settings and personal preferences.
+
+## Visual Overview
+
+![JULO overview](docs/assets/julo-overview.svg)
+
+## Who It’s For
+
+- Teams who want a private social hub
+- Communities looking for a fast, modern feed
+- Creators who want to share and engage in real time
+
+## Start Using JULO (for Non‑Technical Users)
+
+1. Open the app
+2. Create your account
+3. Post an update, chat with your people, and explore the feed
+
+## For Developers
+
+Full API documentation: `docs/API.md`
+
+### Quick Start
 
 ```bash
 # Development
@@ -19,7 +48,7 @@ cp server/.env.example server/.env
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-## Architecture
+### Architecture
 
 ```
 client/         React 19, Vite, Tailwind 4, Redux Toolkit, Socket.IO client
@@ -33,7 +62,7 @@ server/
   queues/        BullMQ notification + email job queues
 ```
 
-## Tech Stack
+### Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -48,7 +77,7 @@ server/
 | Observability | Winston (JSON logs), request tracing, Prometheus metrics |
 | Containerization | Docker + Docker Compose |
 
-## Features
+### Features
 
 - Real-time messaging with typing indicators + reactions + edit/delete
 - Social feed with like, comment, share, bookmark
@@ -62,7 +91,7 @@ server/
 - Health check (`/api/v1/health`)
 - Service layer architecture (controllers → services → data access)
 
-## Environment Variables
+### Environment Variables
 
 **Server** (`server/config.env` or `server/.env`):
 
@@ -76,7 +105,7 @@ server/
 | `JWT_EXPIRES_IN` | Token expiry (default: 7d) | No |
 | `CLOUDINARY_*` | Image upload credentials | No |
 
-## Scripts
+### Scripts
 
 ```bash
 npm run dev          # Server with nodemon
