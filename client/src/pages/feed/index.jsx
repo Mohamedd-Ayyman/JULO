@@ -8,7 +8,7 @@ import { Loader2, Sparkles, Plus } from "lucide-react";
 import PostDetailModal from "../postDetail/PostDetailModal.jsx";
 import { PostSkeleton } from "../../components/Skeletons.jsx";
 import { EmptyFeedState } from "../../components/EmptyStates.jsx";
-import StoriesRail from "../../components/StoriesRail.jsx";
+import StoriesRail from "../../components/stories/StoriesRail.jsx";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);

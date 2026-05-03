@@ -11,7 +11,7 @@ router.post(
   "/create",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { mediaUrl, mediaType = "image" } = req.body;
+    const { mediaUrl, mediaType = "image", caption = "" } = req.body;
     if (!mediaUrl) throw new AppError("mediaUrl is required", 400);
     if (!["image", "video"].includes(mediaType)) throw new AppError("mediaType must be 'image' or 'video'", 400);
 
@@ -20,6 +20,7 @@ router.post(
       tenantId: req.user.tenantId,
       mediaUrl,
       mediaType,
+      caption,
     });
 
     await invalidateCache("stories:*");
@@ -56,6 +57,17 @@ router.post(
     const { storyId } = req.params;
     await storyService.markViewed(storyId, req.user.userId);
     res.send({ success: true, statusCode: 200 });
+  })
+);
+
+// ── Get viewers for a story (owner only) ───────────────────────────────
+router.get(
+  "/:storyId/viewers",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { storyId } = req.params;
+    const viewers = await storyService.getStoryViewers(storyId, req.user.userId);
+    res.send({ success: true, data: viewers, statusCode: 200 });
   })
 );
 

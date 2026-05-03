@@ -138,9 +138,31 @@ export const updatePrivacySettings = async (settings) => {
 
 // ── Stories ────────────────────────────────────────────────────────────
 
-export const createStory = async (mediaUrl, mediaType = "image") => {
+export const uploadStoryMedia = async (file, onProgress) => {
   try {
-    const response = await axiosInstance.post("/api/stories/create", { mediaUrl, mediaType });
+    const formData = new FormData();
+    formData.append("media", file);
+    const response = await axiosInstance.post("/api/upload/story", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+      },
+    });
+    const raw = response.data;
+    return {
+      success: raw.success !== false,
+      url: raw.url || raw.data?.url || raw.data,
+      mediaType: raw.mediaType || (file.type?.startsWith("video/") ? "video" : "image"),
+      message: raw.message,
+    };
+  } catch (error) {
+    return error.response?.data || { success: false, message: "Upload failed" };
+  }
+};
+
+export const createStory = async (mediaUrl, mediaType = "image", caption = "") => {
+  try {
+    const response = await axiosInstance.post("/api/stories/create", { mediaUrl, mediaType, caption });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
@@ -156,9 +178,27 @@ export const getStories = async () => {
   }
 };
 
+export const getMyStories = async () => {
+  try {
+    const response = await axiosInstance.get("/api/stories/mine");
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
 export const markStoryViewed = async (storyId) => {
   try {
     const response = await axiosInstance.post(`/api/stories/${storyId}/view`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const getStoryViewers = async (storyId) => {
+  try {
+    const response = await axiosInstance.get(`/api/stories/${storyId}/viewers`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
