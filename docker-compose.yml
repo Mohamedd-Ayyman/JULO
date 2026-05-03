@@ -1,0 +1,135 @@
+services:
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: nuvora-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-nuvora}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-nuvora_secure_pass}
+      MONGO_INITDB_DATABASE: nuvora
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - nuvora-net
+
+  # ── Redis ──────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nuvora-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nuvora-net
+
+  # ── API Server ────────────────────────────────────────────────────────────────
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: server-runner
+    container_name: nuvora-server
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT_NUMBER: 3000
+      CONN_STRING: mongodb://nuvora:nuvora_secure_pass@mongodb:27017/nuvora?authSource=admin
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
+      REDIS_URL: redis://redis:6379/0
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - nuvora-net
+
+  # ── Client (NGINX) ────────────────────────────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: client-runner
+    container_name: nuvora-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      VITE_BASE_URL: http://localhost:3000
+    ports:
+      - "80:80"
+    networks:
+      - nuvora-net
+
+  # ── Redis Commander (dev) ──────────────────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: nuvora-redis-ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    profiles:
+      - dev
+    networks:
+      - nuvora-net
+
+  # ── Mongo Express (dev) ──────────────────────────────────────────────────────
+  mongo-express:
+    image: mongo-express:latest
+    container_name: nuvora-mongo-ui
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://nuvora:nuvora_secure_pass@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    ports:
+      - "8082:8081"
+    depends_on:
+      - mongodb
+    profiles:
+      - dev
+    networks:
+      - nuvora-net
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  nuvora-net:
+    driver: bridge
