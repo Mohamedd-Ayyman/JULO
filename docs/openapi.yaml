@@ -1,0 +1,849 @@
+openapi: 3.0.3
+info:
+  title: JULO API
+  version: 1.0.0
+  description: Swagger/OpenAPI specification for the JULO platform.
+servers:
+  - url: /api/v1
+tags:
+  - name: Auth
+  - name: Users
+  - name: Posts
+  - name: Follows
+  - name: Notifications
+  - name: Chats
+  - name: Messages
+  - name: Stories
+  - name: Uploads
+  - name: Billing
+  - name: Health
+  - name: Webhooks
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+        statusCode:
+          type: integer
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+security:
+  - BearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /metrics:
+    get:
+      tags: [Health]
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Legacy signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstname, lastname, email, password]
+              properties:
+                firstname: { type: string }
+                lastname: { type: string }
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "201": { description: Created }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Legacy login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200": { description: OK }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Legacy logout
+      responses:
+        "200": { description: OK }
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        "200": { description: OK }
+  /auth/sessions:
+    get:
+      tags: [Auth]
+      summary: List active sessions
+      responses:
+        "200": { description: OK }
+  /auth/sessions/{sessionId}:
+    delete:
+      tags: [Auth]
+      summary: Revoke a session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /auth/sessions/revoke-others:
+    post:
+      tags: [Auth]
+      summary: Revoke other sessions
+      responses:
+        "200": { description: OK }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200": { description: OK }
+  /user/get-logged-in:
+    get:
+      tags: [Users]
+      summary: Get current user
+      responses:
+        "200": { description: OK }
+  /user/get-all-users:
+    get:
+      tags: [Users]
+      summary: List users
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /user/update-profile:
+    put:
+      tags: [Users]
+      summary: Update profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstname: { type: string }
+                lastname: { type: string }
+                bio: { type: string }
+                coverImage: { type: string }
+      responses:
+        "200": { description: OK }
+  /user/search:
+    get:
+      tags: [Users]
+      summary: Search users
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /user/{userId}:
+    get:
+      tags: [Users]
+      summary: Get user by id
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /user/notifications:
+    put:
+      tags: [Users]
+      summary: Update notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200": { description: OK }
+  /user/privacy:
+    put:
+      tags: [Users]
+      summary: Update privacy settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200": { description: OK }
+  /user/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate account
+      responses:
+        "200": { description: OK }
+  /user/account:
+    delete:
+      tags: [Users]
+      summary: Delete account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "200": { description: OK }
+  /post/create:
+    post:
+      tags: [Posts]
+      summary: Create post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                image: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+                visibility: { type: string }
+      responses:
+        "201": { description: Created }
+  /post/feed:
+    get:
+      tags: [Posts]
+      summary: Get feed
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /post/{postId}:
+    get:
+      tags: [Posts]
+      summary: Get post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+    delete:
+      tags: [Posts]
+      summary: Delete post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /post/{postId}/like:
+    put:
+      tags: [Posts]
+      summary: Toggle like
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /post/{postId}/share:
+    put:
+      tags: [Posts]
+      summary: Share post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "201": { description: Created }
+  /post/user/{userId}:
+    get:
+      tags: [Posts]
+      summary: Get user posts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /post/{postId}/comment:
+    post:
+      tags: [Posts]
+      summary: Add comment
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                parentComment: { type: string }
+      responses:
+        "201": { description: Created }
+  /post/comment/{commentId}/like:
+    put:
+      tags: [Posts]
+      summary: Toggle comment like
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /post/{postId}/comments:
+    get:
+      tags: [Posts]
+      summary: List comments
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /post/search/query:
+    get:
+      tags: [Posts]
+      summary: Search posts
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /post/{postId}/bookmark:
+    put:
+      tags: [Posts]
+      summary: Toggle bookmark
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /post/bookmarks:
+    get:
+      tags: [Posts]
+      summary: List bookmarks
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /follow/follow/{userId}:
+    post:
+      tags: [Follows]
+      summary: Follow user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /follow/unfollow/{userId}:
+    delete:
+      tags: [Follows]
+      summary: Unfollow user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /follow/status/{userId}:
+    get:
+      tags: [Follows]
+      summary: Follow status
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /follow/followers/{userId}:
+    get:
+      tags: [Follows]
+      summary: List followers
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /follow/following/{userId}:
+    get:
+      tags: [Follows]
+      summary: List following
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /follow/suggestions:
+    get:
+      tags: [Follows]
+      summary: Suggested users
+      responses:
+        "200": { description: OK }
+  /notification/all:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      responses:
+        "200": { description: OK }
+  /notification/read-all:
+    put:
+      tags: [Notifications]
+      summary: Mark all read
+      responses:
+        "200": { description: OK }
+  /notification/{notificationId}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark one read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /notification/{notificationId}:
+    delete:
+      tags: [Notifications]
+      summary: Delete notification
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /chat/create-new-chat:
+    post:
+      tags: [Chats]
+      summary: Create or find chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [members]
+              properties:
+                members:
+                  type: array
+                  items: { type: string }
+      responses:
+        "201": { description: Created }
+  /chat/get-all-user-chats:
+    get:
+      tags: [Chats]
+      summary: List chats
+      responses:
+        "200": { description: OK }
+  /chat/mark-read:
+    put:
+      tags: [Chats]
+      summary: Mark chat read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId]
+              properties:
+                chatId: { type: string }
+      responses:
+        "200": { description: OK }
+  /chat/new-message:
+    post:
+      tags: [Chats]
+      summary: Send message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId, text]
+              properties:
+                chatId: { type: string }
+                text: { type: string }
+                receiverId: { type: string }
+      responses:
+        "201": { description: Created }
+  /chat/retrieve-chat/{chatId}:
+    get:
+      tags: [Chats]
+      summary: List messages
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /message/mark-read:
+    put:
+      tags: [Messages]
+      summary: Mark chat read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId]
+              properties:
+                chatId: { type: string }
+      responses:
+        "200": { description: OK }
+  /message/new-message:
+    post:
+      tags: [Messages]
+      summary: Send message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chatId, text]
+              properties:
+                chatId: { type: string }
+                text: { type: string }
+                receiverId: { type: string }
+      responses:
+        "201": { description: Created }
+  /message/retrieve-chat/{chatId}:
+    get:
+      tags: [Messages]
+      summary: List messages
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200": { description: OK }
+  /message/{messageId}:
+    put:
+      tags: [Messages]
+      summary: Edit message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+      responses:
+        "200": { description: OK }
+    delete:
+      tags: [Messages]
+      summary: Delete message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /message/{messageId}/react:
+    put:
+      tags: [Messages]
+      summary: React to message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emoji]
+              properties:
+                emoji: { type: string }
+      responses:
+        "200": { description: OK }
+  /stories:
+    get:
+      tags: [Stories]
+      summary: List stories for feed
+      responses:
+        "200": { description: OK }
+  /stories/create:
+    post:
+      tags: [Stories]
+      summary: Create story
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mediaUrl]
+              properties:
+                mediaUrl: { type: string }
+                mediaType: { type: string }
+      responses:
+        "201": { description: Created }
+  /stories/mine:
+    get:
+      tags: [Stories]
+      summary: List my stories
+      responses:
+        "200": { description: OK }
+  /stories/{storyId}/view:
+    post:
+      tags: [Stories]
+      summary: Mark story viewed
+      parameters:
+        - name: storyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /stories/{storyId}:
+    delete:
+      tags: [Stories]
+      summary: Delete story
+      parameters:
+        - name: storyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /upload/avatar:
+    post:
+      tags: [Uploads]
+      summary: Upload avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200": { description: OK }
+  /upload/cover:
+    post:
+      tags: [Uploads]
+      summary: Upload cover image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200": { description: OK }
+  /upload/post-image:
+    post:
+      tags: [Uploads]
+      summary: Upload post image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "201": { description: Created }
+  /upload/story:
+    post:
+      tags: [Uploads]
+      summary: Upload story media
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                media:
+                  type: string
+                  format: binary
+      responses:
+        "201": { description: Created }
+  /billing/plans:
+    get:
+      tags: [Billing]
+      summary: List plans
+      responses:
+        "200": { description: OK }
+  /billing/checkout:
+    post:
+      tags: [Billing]
+      summary: Create checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan: { type: string }
+      responses:
+        "200": { description: OK }
+  /billing/subscription:
+    get:
+      tags: [Billing]
+      summary: Get subscription status
+      responses:
+        "200": { description: OK }
+  /billing/portal:
+    post:
+      tags: [Billing]
+      summary: Create customer portal session
+      responses:
+        "200": { description: OK }
+  /webhooks/stripe:
+    post:
+      tags: [Webhooks]
+      summary: Stripe webhook
+      description: This route is mounted at the app root, not under /api/v1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200": { description: OK }
