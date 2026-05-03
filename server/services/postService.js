@@ -40,8 +40,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
-        .populate("originalPost", "author text image likeCount commentCount")
-        .populate("originalPost.author", "firstname lastname profilepic")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       scopeByTenant(Post.countDocuments({ visibility: "public" }), tenantId),
       userId ? Follow.find({ follower: userId }).select("following").lean() : [],
@@ -258,6 +261,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       Post.countDocuments({ text: { $regex: query, $options: "i" }, visibility: "public" }),
     ]);
@@ -286,6 +294,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       Post.countDocuments({ savedBy: userId }),
     ]);

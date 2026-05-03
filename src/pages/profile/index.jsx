@@ -223,13 +223,7 @@ export default function ProfilePage() {
             ) : posts
               .filter((p) => p.isRepost || p.originalPost)
               .map((p, i) => (
-                <div key={p._id} className="relative">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 pl-1">
-                    <Share2 className="w-3 h-3" />
-                    <span>{fullName} reposted</span>
-                  </div>
-                  <PostCard post={p.originalPost || p} index={i} currentUserId={user?._id} />
-                </div>
+                <PostCard key={p._id} post={p} index={i} currentUserId={user?._id} />
               ))
           )}
           {(tab === "followers" || tab === "following") && (

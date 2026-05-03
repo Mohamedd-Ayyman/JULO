@@ -16,15 +16,19 @@ import Avatar from "../../components/Avatar.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
 
 export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
-  const [liked, setLiked] = useState(post.likes?.includes(currentUserId));
+  const isRepost = !!(post.isRepost || post.originalPost);
+  const sharer = post.author || null;
+  const display = post.originalPost || post;
+
+  const [liked, setLiked] = useState(display.likes?.includes(currentUserId));
   const [animate, setAnimate] = useState(false);
-  const [likesCount, setLikesCount] = useState(post.likeCount ?? post.likes?.length ?? 0);
+  const [likesCount, setLikesCount] = useState(display.likeCount ?? display.likes?.length ?? 0);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [showComments, setShowComments] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
-  const [shareCount, setShareCount] = useState(post.shareCount || 0);
-  const [bookmarked, setBookmarked] = useState(!!post.bookmarked);
+  const [shareCount, setShareCount] = useState(display.shareCount || 0);
+  const [bookmarked, setBookmarked] = useState(!!display.bookmarked);
   const { user } = useSelector((s) => s.userReducer);
   const navigate = useNavigate();
 
@@ -33,9 +37,8 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
     setLikesCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     setAnimate(true);
     setTimeout(() => setAnimate(false), 500);
-    const res = await likePost(post._id);
+    const res = await likePost(display._id);
     if (!res.success) {
-      // rollback
       setLiked((v) => !v);
       setLikesCount((c) => (liked ? c + 1 : Math.max(0, c - 1)));
     }
@@ -43,7 +46,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
 
   const handleBookmark = async () => {
     setBookmarked((v) => !v);
-    const res = await bookmarkPost(post._id);
+    const res = await bookmarkPost(display._id);
     if (!res.success) setBookmarked((v) => !v);
     else toast.success(bookmarked ? "Removed bookmark" : "Bookmarked");
   };
@@ -51,7 +54,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
   const toggleComments = async () => {
     setShowComments((v) => !v);
     if (!commentsLoaded) {
-      const res = await getComments(post._id);
+      const res = await getComments(display._id);
       if (res.success) setComments(res.data || []);
       setCommentsLoaded(true);
     }
@@ -61,7 +64,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
     if (!comment.trim()) return;
     const text = comment;
     setComment("");
-    const res = await addComment(post._id, text);
+    const res = await addComment(display._id, text);
     if (res.success) {
       setComments((c) => [res.data, ...c]);
       setShowComments(true);
@@ -73,7 +76,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
   };
 
   const handleShare = async () => {
-    const res = await sharePost(post._id);
+    const res = await sharePost(display._id);
     if (res.success) {
       setShareCount((p) => p + 1);
       toast.success("Shared to your feed");
@@ -82,17 +85,29 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
   };
 
   const openDetail = () => {
-    navigate(ROUTES.POST_DETAIL(post._id), { state: { modal: true } });
+    navigate(ROUTES.POST_DETAIL(display._id), { state: { modal: true } });
   };
 
-  const author = post.author || {};
+  const originalPost = post.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
+  const originalAuthor = originalPost?.author && typeof originalPost.author === "object" ? originalPost.author : null;
+  const author = isRepost && originalAuthor ? originalAuthor : display.author || {};
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
+  const sharerName = sharer ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim() : "";
+  const sharerIsMe = sharer && currentUserId && String(sharer._id) === String(currentUserId);
 
   return (
     <article
       className="card p-4 sm:p-5 animate-fade-in-up hover-lift"
       style={{ animationDelay: `${index * 50}ms` }}
     >
+      {/* Repost banner */}
+      {isRepost && sharer && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+          <Share2 className="w-3.5 h-3.5" />
+          <span>{sharerIsMe ? "You" : sharerName || "Someone"} reposted</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -107,7 +122,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
               {authorName || "Unknown"}
             </Link>
             <p className="text-xs text-muted-foreground">
-              {formatTime(post.createdAt)}
+              {formatTime(display.createdAt)}
             </p>
           </div>
         </div>
@@ -117,18 +132,18 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
       </header>
 
       {/* Body */}
-      {post.text && (
+      {display.text && (
         <button onClick={openDetail} className="text-left w-full">
           <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-            {post.text}
+            {display.text}
           </p>
         </button>
       )}
-      {post.image && (
+      {display.image && (
         <button onClick={openDetail} className="block w-full mt-3 group">
           <div className="overflow-hidden rounded-xl border border-glass-border">
             <img
-              src={post.image}
+              src={display.image}
               alt=""
               loading="lazy"
               className="w-full max-h-[480px] object-cover transition-transform duration-700 group-hover:scale-[1.03]"
@@ -138,10 +153,10 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
       )}
 
       {/* Stats line */}
-      {(likesCount > 0 || post.commentCount > 0 || shareCount > 0) && (
+      {(likesCount > 0 || display.commentCount > 0 || shareCount > 0) && (
         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
           {likesCount > 0 && <span>{likesCount} {likesCount === 1 ? "like" : "likes"}</span>}
-          {post.commentCount > 0 && <span>{post.commentCount} comments</span>}
+          {display.commentCount > 0 && <span>{display.commentCount} comments</span>}
           {shareCount > 0 && <span>{shareCount} shares</span>}
         </div>
       )}

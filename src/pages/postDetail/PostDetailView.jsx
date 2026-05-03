@@ -104,24 +104,40 @@ export default function PostDetailView({ postId, onClose }) {
     );
   }
 
-  const author = post.author || {};
+  const isRepost = !!(post?.isRepost || post?.originalPost);
+  const sharer = post?.author || null;
+  const display = post?.originalPost || post;
+
+  const originalPost = post?.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
+  const originalAuthor = originalPost?.author && typeof originalPost.author === "object" ? originalPost.author : null;
+  const author = isRepost && originalAuthor ? originalAuthor : display?.author || {};
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
+  const sharerName = sharer ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim() : "";
+  const sharerIsMe = sharer && user?._id && String(sharer._id) === String(user._id);
 
   return (
     <Wrapper onClose={onClose}>
+      {/* Repost banner */}
+      {isRepost && sharer && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 px-1">
+          <Share2 className="w-3.5 h-3.5" />
+          <span>{sharerIsMe ? "You" : sharerName || "Someone"} shared</span>
+        </div>
+      )}
+
       {/* Author */}
       <div className="flex items-center gap-3 mb-4 animate-fade-in">
         <Avatar src={author.profilepic} name={authorName} size={44} ring />
         <div>
-          <p className="text-sm font-bold text-foreground">{authorName}</p>
-          <p className="text-xs text-muted-foreground">{formatTime(post.createdAt)}</p>
+          <p className="text-sm font-bold text-foreground">{authorName || "Unknown"}</p>
+          <p className="text-xs text-muted-foreground">{formatTime(display?.createdAt || post?.createdAt)}</p>
         </div>
       </div>
 
       {/* Content */}
-      {post.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{post.text}</p>}
-      {post.image && (
-        <img src={post.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
+      {display?.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{display.text}</p>}
+      {display?.image && (
+        <img src={display.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
       )}
 
       {/* Actions */}
@@ -132,15 +148,15 @@ export default function PostDetailView({ postId, onClose }) {
           style={{ color: liked ? "var(--color-like)" : "var(--color-muted-foreground)" }}
         >
           <Heart className={`w-5 h-5 ${liked ? "fill-current heart-pop" : ""}`} />
-          {post.likeCount || 0}
+          {display?.likeCount || 0}
         </button>
         <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
           <MessageCircle className="w-5 h-5" />
-          {post.commentCount || comments.length}
+          {display?.commentCount || 0}
         </div>
         <button onClick={handleShare} className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105">
           <Share2 className="w-5 h-5" />
-          {post.shareCount || 0}
+          {display?.shareCount || 0}
         </button>
       </div>
 
