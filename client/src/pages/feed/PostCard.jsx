@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { likePost, addComment, getComments, sharePost, bookmarkPost } from "../../apiCalls/post.js";
+import { likePost, addComment, getComments, sharePost, bookmarkPost, deletePost } from "../../apiCalls/post.js";
 import {
   Heart,
   MessageCircle,
@@ -8,6 +8,10 @@ import {
   Send,
   Bookmark,
   MoreHorizontal,
+  Trash2,
+  Flag,
+  Link2,
+  Repeat2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -15,27 +19,42 @@ import { ROUTES } from "../../lib/constants.js";
 import Avatar from "../../components/Avatar.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
 
-export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
-  const [liked, setLiked] = useState(post.likes?.includes(currentUserId));
+export default function PostCard({ post, currentUserId, onShare, onDelete, index = 0 }) {
+  // If this is a repost wrapper, render the original post but with a banner above.
+  const isRepost = !!(post.isRepost || post.originalPost);
+  const sharer = post.author || post.sharedBy || null;
+  const display = post.originalPost || post;
+
+  const [liked, setLiked] = useState(display.likes?.includes(currentUserId));
   const [animate, setAnimate] = useState(false);
-  const [likesCount, setLikesCount] = useState(post.likeCount ?? post.likes?.length ?? 0);
+  const [likesCount, setLikesCount] = useState(display.likeCount ?? display.likes?.length ?? 0);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [showComments, setShowComments] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
-  const [shareCount, setShareCount] = useState(post.shareCount || 0);
-  const [bookmarked, setBookmarked] = useState(!!post.bookmarked);
+  const [shareCount, setShareCount] = useState(display.shareCount || 0);
+  const [bookmarked, setBookmarked] = useState(!!display.bookmarked);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  const menuRef = useRef(null);
   const { user } = useSelector((s) => s.userReducer);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    if (menuOpen) document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
 
   const handleLike = async () => {
     setLiked((v) => !v);
     setLikesCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     setAnimate(true);
     setTimeout(() => setAnimate(false), 500);
-    const res = await likePost(post._id);
+    const res = await likePost(display._id);
     if (!res.success) {
-      // rollback
       setLiked((v) => !v);
       setLikesCount((c) => (liked ? c + 1 : Math.max(0, c - 1)));
     }
@@ -43,7 +62,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
 
   const handleBookmark = async () => {
     setBookmarked((v) => !v);
-    const res = await bookmarkPost(post._id);
+    const res = await bookmarkPost(display._id);
     if (!res.success) setBookmarked((v) => !v);
     else toast.success(bookmarked ? "Removed bookmark" : "Bookmarked");
   };
@@ -51,7 +70,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
   const toggleComments = async () => {
     setShowComments((v) => !v);
     if (!commentsLoaded) {
-      const res = await getComments(post._id);
+      const res = await getComments(display._id);
       if (res.success) setComments(res.data || []);
       setCommentsLoaded(true);
     }
@@ -61,7 +80,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
     if (!comment.trim()) return;
     const text = comment;
     setComment("");
-    const res = await addComment(post._id, text);
+    const res = await addComment(display._id, text);
     if (res.success) {
       setComments((c) => [res.data, ...c]);
       setShowComments(true);
@@ -73,7 +92,7 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
   };
 
   const handleShare = async () => {
-    const res = await sharePost(post._id);
+    const res = await sharePost(display._id);
     if (res.success) {
       setShareCount((p) => p + 1);
       toast.success("Shared to your feed");
@@ -81,18 +100,55 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
     } else toast.error(res.message || "Share failed");
   };
 
-  const openDetail = () => {
-    navigate(ROUTES.POST_DETAIL(post._id), { state: { modal: true } });
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}${ROUTES.POST_DETAIL(display._id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn't copy");
+    }
+    setMenuOpen(false);
   };
 
-  const author = post.author || {};
+  const handleDelete = async () => {
+    setMenuOpen(false);
+    if (!confirm("Delete this post?")) return;
+    const res = await deletePost(display._id);
+    if (res.success) {
+      setDeleted(true);
+      toast.success("Post deleted");
+      onDelete?.(display._id);
+    } else toast.error(res.message || "Couldn't delete");
+  };
+
+  const openDetail = () => {
+    navigate(ROUTES.POST_DETAIL(display._id), { state: { modal: true } });
+  };
+
+  if (deleted) return null;
+
+  const author = display.author || {};
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
+  const sharerName = sharer
+    ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim()
+    : "";
+  const sharerIsMe = sharer && currentUserId && String(sharer._id) === String(currentUserId);
+  const isAuthor = currentUserId && String(author._id) === String(currentUserId);
 
   return (
     <article
       className="card p-4 sm:p-5 animate-fade-in-up hover-lift"
       style={{ animationDelay: `${index * 50}ms` }}
     >
+      {/* Repost banner */}
+      {isRepost && sharer && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+          <Repeat2 className="w-3.5 h-3.5" />
+          <span>🔁 {sharerIsMe ? "You" : sharerName} shared</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -107,28 +163,47 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
               {authorName || "Unknown"}
             </Link>
             <p className="text-xs text-muted-foreground">
-              {formatTime(post.createdAt)}
+              {formatTime(display.createdAt)}
             </p>
           </div>
         </div>
-        <button className="btn btn-ghost btn-icon">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+
+        {/* 3-dot menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="btn btn-ghost btn-icon"
+            aria-label="More options"
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 z-30 min-w-[180px] card p-1 animate-fade-in shadow-xl">
+              <MenuItem onClick={handleCopyLink} icon={Link2} label="Copy link" />
+              <MenuItem onClick={() => { setMenuOpen(false); handleBookmark(); }} icon={Bookmark} label={bookmarked ? "Remove bookmark" : "Save post"} />
+              {isAuthor ? (
+                <MenuItem onClick={handleDelete} icon={Trash2} label="Delete post" danger />
+              ) : (
+                <MenuItem onClick={() => { setMenuOpen(false); toast.success("Reported. Thank you."); }} icon={Flag} label="Report post" danger />
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Body */}
-      {post.text && (
+      {display.text && (
         <button onClick={openDetail} className="text-left w-full">
           <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-            {post.text}
+            {display.text}
           </p>
         </button>
       )}
-      {post.image && (
+      {display.image && (
         <button onClick={openDetail} className="block w-full mt-3 group">
           <div className="overflow-hidden rounded-xl border border-glass-border">
             <img
-              src={post.image}
+              src={display.image}
               alt=""
               loading="lazy"
               className="w-full max-h-[480px] object-cover transition-transform duration-700 group-hover:scale-[1.03]"
@@ -137,11 +212,11 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
         </button>
       )}
 
-      {/* Stats line */}
-      {(likesCount > 0 || post.commentCount > 0 || shareCount > 0) && (
+      {/* Stats */}
+      {(likesCount > 0 || display.commentCount > 0 || shareCount > 0) && (
         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
           {likesCount > 0 && <span>{likesCount} {likesCount === 1 ? "like" : "likes"}</span>}
-          {post.commentCount > 0 && <span>{post.commentCount} comments</span>}
+          {display.commentCount > 0 && <span>{display.commentCount} comments</span>}
           {shareCount > 0 && <span>{shareCount} shares</span>}
         </div>
       )}
@@ -169,22 +244,25 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
         </ActionButton>
       </div>
 
-      {/* Comment input */}
+      {/* Comment composer — perfectly aligned row */}
       <div className="mt-3 flex items-center gap-2">
-        <Avatar src={user?.profilepic} name={`${user?.firstname || ""}`} size={32} />
-        <div className="flex-1 relative">
+        <span className="flex-shrink-0 inline-flex items-center">
+          <Avatar src={user?.profilepic} name={`${user?.firstname || ""}`} size={36} />
+        </span>
+        <div className="flex-1 relative flex items-center">
           <input
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleComment()}
             placeholder="Write a comment…"
-            className="input rounded-full pr-10 py-2.5 text-sm"
+            className="input rounded-full text-sm h-10 py-0 pl-4 pr-12 w-full"
           />
           <button
             onClick={handleComment}
             disabled={!comment.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 btn btn-icon btn-primary disabled:opacity-40"
+            className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center rounded-full bg-gradient-primary text-white disabled:opacity-40 hover:scale-105 transition-transform"
             style={{ width: 32, height: 32 }}
+            aria-label="Send"
           >
             <Send className="w-3.5 h-3.5" />
           </button>
@@ -215,6 +293,20 @@ export default function PostCard({ post, currentUserId, onShare, index = 0 }) {
         </div>
       )}
     </article>
+  );
+}
+
+function MenuItem({ icon: Icon, label, onClick, danger }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-glass-hover ${
+        danger ? "text-error" : "text-foreground"
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+      {label}
+    </button>
   );
 }
 

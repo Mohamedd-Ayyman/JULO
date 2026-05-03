@@ -36,6 +36,19 @@ function App() {
   const dispatch = useDispatch();
   const [authReady, setAuthReady] = useState(false);
 
+  // Apply persisted appearance preferences (theme + reduced motion) on boot
+  useEffect(() => {
+    const theme = localStorage.getItem("julo_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", theme);
+
+    const stored = localStorage.getItem("julo_reduced_motion");
+    const systemPref =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduced = stored === null ? systemPref : stored === "true";
+    document.documentElement.classList.toggle("reduced-motion", !!reduced);
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
