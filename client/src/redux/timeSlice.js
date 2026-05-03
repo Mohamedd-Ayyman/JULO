@@ -1,23 +1,22 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const launchDate = new Date("2026-03-10T00:00:00");
+const initialState = {
+  now: new Date().toISOString(),
+};
 
 const timeSlice = createSlice({
   name: "time",
-  initialState: {
-    startTime: launchDate.getTime(),
-    elapsed: 0,
-  },
+  initialState,
   reducers: {
-    tick: (state) => {
-      state.elapsed = Math.floor(-(Date.now() - state.startTime) / 1000);
+    setNow: (state, action) => {
+      state.now = action.payload;
     },
-    resetTimer: (state) => {
-      state.startTime = Date.now();
-      state.elapsed = 0;
+    refreshNow: (state) => {
+      state.now = new Date().toISOString();
     },
   },
 });
 
-export const { tick, resetTimer } = timeSlice.actions;
+export const { setNow, refreshNow } = timeSlice.actions;
+
 export default timeSlice.reducer;
