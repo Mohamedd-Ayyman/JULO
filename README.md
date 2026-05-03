@@ -29,7 +29,8 @@ JULO is a real‑time social platform for communities and teams. Share updates, 
 
 ## For Developers
 
-Full API documentation: `docs/API.md`
+- Swagger UI: `/api/docs`
+- OpenAPI spec: `docs/openapi.yaml`
 
 ### Quick Start
 

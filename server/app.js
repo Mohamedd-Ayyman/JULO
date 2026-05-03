@@ -10,11 +10,31 @@ import { requestTracer, perUserRateLimit } from "./middlewares/cacheMiddleware.j
 import { initRedis } from "./config/redis.js";
 import { initSocket } from "./utils/socket.js";
 import logger from "./utils/logger.js";
+import swaggerUi from "swagger-ui-express";
+import { readFile } from "fs/promises";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+import YAML from "yaml";
 
 // ── Pre-boot: Redis ─────────────────────────────────────────────────────────────
 await initRedis();
 
 const app = express();
+
+// ── Swagger UI ───────────────────────────────────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const openApiPath = resolve(__dirname, "../docs/openapi.yaml");
+let openApiSpec = null;
+try {
+  const raw = await readFile(openApiPath, "utf8");
+  openApiSpec = YAML.parse(raw);
+} catch (err) {
+  logger.warn("[Swagger] OpenAPI spec not loaded", { error: err.message, path: openApiPath });
+}
+if (openApiSpec) {
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, { explorer: true }));
+}
 
 // ── Security ────────────────────────────────────────────────────────────────────
 app.use(helmet({
