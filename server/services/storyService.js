@@ -5,9 +5,9 @@ export class StoryService {
   /**
    * Create a new story. Expires in 24 hours from creation.
    */
-  async createStory({ userId, tenantId, mediaUrl, mediaType = "image" }) {
+  async createStory({ userId, tenantId, mediaUrl, mediaType = "image", caption = "" }) {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const story = await Story.create({ userId, tenantId, mediaUrl, mediaType, expiresAt });
+    const story = await Story.create({ userId, tenantId, mediaUrl, mediaType, caption, expiresAt });
     logger.info(`[Story] Created: ${story._id} by user ${userId} — expires ${expiresAt.toISOString()}`);
     return story;
   }
@@ -27,7 +27,7 @@ export class StoryService {
   async getMyStories(userId) {
     const now = new Date();
     return Story.find({ userId, expiresAt: { $gt: now } })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
   }
 
@@ -62,6 +62,27 @@ export class StoryService {
     }
     logger.info(`[Story] Deleted: ${storyId} by user ${userId}`);
     return { deleted: true };
+  }
+
+  /**
+   * Get viewers for a story (owner only).
+   */
+  async getStoryViewers(storyId, userId) {
+    const story = await Story.findById(storyId)
+      .select("userId viewers")
+      .populate("viewers", "firstname lastname profilepic")
+      .lean();
+    if (!story) {
+      const err = new Error("Story not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (String(story.userId) !== String(userId)) {
+      const err = new Error("Not authorized");
+      err.statusCode = 403;
+      throw err;
+    }
+    return story.viewers || [];
   }
 
   /**
