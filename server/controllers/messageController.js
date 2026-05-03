@@ -1,61 +1,72 @@
 import express from "express";
-import authMiddleware from "../middlewares/authMiddleware.js";
-import Chat from "../models/chat.js";
-import Message from "../models/message.js";
+import chatService from "../services/chatService.js";
+import { requireAuth } from "../middlewares/authMiddleware.js";
+import { asyncHandler } from "../utils/AppError.js";
+import { validate, messageSchema } from "../utils/validate.js";
+import { invalidateCache } from "../middlewares/cacheMiddleware.js";
 
 const router = express.Router();
 
-router.post("/new-message", authMiddleware, async (req, res) => {
-  try {
-    //save the new message to db
+router.put(
+  "/mark-read",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await chatService.markRead(req.body.chatId, req.user.userId);
+    res.send({ success: true, message: "Messages marked as read", statusCode: 200 });
+  })
+);
 
-    const newMessage = new Message(req.body);
-    const savedMessage = await newMessage.save();
+router.post(
+  "/new-message",
+  requireAuth,
+  validate(messageSchema),
+  asyncHandler(async (req, res) => {
+    const message = await chatService.sendMessage(req.body.chatId, req.user.userId, req.body);
+    await invalidateCache(`chat:${req.body.chatId}:*`);
+    res.status(201).send({ success: true, message: "Message sent", data: message, statusCode: 201 });
+  })
+);
 
-    //update last message
+router.get(
+  "/retrieve-chat/:chatId",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const result = await chatService.getMessages(req.params.chatId, req.user.userId, req.query);
+    res.send({ success: true, data: result.messages, total: result.total, statusCode: 200 });
+  })
+);
 
-    // const currentChat = Chat.findById(req.body.chatId);
-    // currentChat.lastMessage = savedMessage._id;
-    // await currentChat.save();
+router.put(
+  "/:messageId",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const message = await chatService.editMessage(req.params.messageId, req.user.userId, req.body.text);
+    res.send({ success: true, message: "Message updated", data: message, statusCode: 200 });
+  })
+);
 
-    const currentChat = await Chat.findByIdAndUpdate(
-      req.body.chatId,
-      {
-        lastMessage: savedMessage._id,
-        $inc: { unreadMessageCount: 1 },
-      },
-      { new: true }
-    );
+router.delete(
+  "/:messageId",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await chatService.deleteMessage(req.params.messageId, req.user.userId);
+    res.send({ success: true, message: "Message deleted", statusCode: 200 });
+  })
+);
 
-    res.status(201).send({
-      message: "message sent successfully",
-      success: true,
-      data: savedMessage,
-    });
-  } catch (error) {
-    res.status(400).send({
-      message: error.message,
-      success: false,
-    });
-  }
-});
-
-router.get("/retrieve-chat/:chatId", authMiddleware, async (req, res) => {
-  try {
-    const retrievedChat = await Message.find({
-      chatId: req.params.chatId,
-    }).sort({ createdAt: 1 });
-    res.status(200).send({
-      message: "chat retrieved successfully",
-      success: true,
-      data: retrievedChat,
-    });
-  } catch (error) {
-    res.status(400).send({
-      message: error.message,
-      success: false,
-    });
-  }
-});
+router.put(
+  "/:messageId/react",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { emoji } = req.body;
+    if (!emoji || typeof emoji !== "string" || emoji.length > 8) {
+      const err = new Error("Valid emoji required");
+      err.statusCode = 400;
+      throw err;
+    }
+    const message = await chatService.addReaction(req.params.messageId, req.user.userId, emoji);
+    res.send({ success: true, data: message, statusCode: 200 });
+  })
+);
 
 export default router;
