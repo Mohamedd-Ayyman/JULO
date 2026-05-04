@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, Image as ImageIcon, X, Eye, ChevronLeft, ChevronRight, Trash2, Loader2 } from "lucide-react";
 import { useSelector } from "react-redux";
-import axios from "axios";
+import { axiosInstance } from "../apiCalls/index.js";
 import Avatar from "./Avatar.jsx";
 import { getStories, markStoryViewed, deleteStory } from "../apiCalls/users.js";
 import toast from "react-hot-toast";
@@ -23,10 +23,7 @@ export default function StoriesRail() {
     const res = await getStories();
     if (res.success) setGroups(res.data || []);
     try {
-      const token = localStorage.getItem("token");
-      const myRes = await axios.get("/api/stories/mine", {
-        headers: { authorization: `Bearer ${token}` },
-      });
+      const myRes = await axiosInstance.get("/api/stories/mine");
       if (myRes.data.success) setMyStories(myRes.data.data || []);
     } catch {
       /* optional endpoint */
@@ -142,23 +139,15 @@ function YourStoryItem({ user, hasStory, onUploaded, onOpen }) {
     setUploading(true);
     const formData = new FormData();
     formData.append("media", selectedFile);
-    const token = localStorage.getItem("token");
     try {
-      const res = await axios.post("/api/upload/story", formData, {
-        headers: {
-          authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+      const res = await axiosInstance.post("/api/upload/story", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
       if (res.data.success) {
-        const storyRes = await axios.post(
-          "/api/stories/create",
-          {
-            mediaUrl: res.data.url,
-            mediaType: res.data.mediaType || "image",
-          },
-          { headers: { authorization: `Bearer ${token}` } },
-        );
+        const storyRes = await axiosInstance.post("/api/stories/create", {
+          mediaUrl: res.data.url,
+          mediaType: res.data.mediaType || "image",
+        });
         if (storyRes.data.success) {
           toast.success("Story posted!");
           reset();

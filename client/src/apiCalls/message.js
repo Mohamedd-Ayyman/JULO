@@ -20,7 +20,7 @@ export const getAllChats = async () => {
 
 export const sendMessage = async (chatId, text, receiverId = null) => {
   try {
-    const response = await axiosInstance.post("/api/chat/new-message", { chatId, text, receiverId });
+    const response = await axiosInstance.post("/api/message/new-message", { chatId, text, receiverId });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
