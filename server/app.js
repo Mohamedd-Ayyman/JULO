@@ -8,7 +8,6 @@ import { globalErrorHandler, notFoundHandler } from "./utils/errorHandler.js";
 import { requestLogger } from "./utils/logger.js";
 import { requestTracer, perUserRateLimit } from "./middlewares/cacheMiddleware.js";
 import { initRedis } from "./config/redis.js";
-import { initSocket } from "./utils/socket.js";
 import logger from "./utils/logger.js";
 import swaggerUi from "swagger-ui-express";
 import { readFile } from "fs/promises";
@@ -20,6 +19,50 @@ import YAML from "yaml";
 await initRedis();
 
 const app = express();
+
+// ── CORS Hardening ─────────────────────────────────────────────────────────────
+const allowedOrigins = [
+  config.clientUrl,
+  "https://julo-navy.vercel.app",
+  "https://julo-git-main-mohamed-aymans-projects-8572de39.vercel.app"
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn(`[CORS] Rejected origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "X-Session-Id", "X-Token-Family", "X-Idempotency-Key"],
+}));
+
+// Manual OPTIONS fallback (must be before any other middleware or routes)
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// ── Security ────────────────────────────────────────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+}));
 
 // ── Swagger UI ───────────────────────────────────────────────────────────
 const __filename = fileURLToPath(import.meta.url);
@@ -35,29 +78,6 @@ try {
 if (openApiSpec) {
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, { explorer: true }));
 }
-
-// ── Security ────────────────────────────────────────────────────────────────────
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-    },
-  },
-}));
-
-app.use(cors({
-  origin: config.clientUrl,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "X-Session-Id", "X-Token-Family", "X-Idempotency-Key"],
-}));
-
-// Handle preflight requests
-app.options(/.*/, cors());
 
 // ── Stripe webhook (raw body required BEFORE general JSON parsing) ───────────
 app.use("/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }));
