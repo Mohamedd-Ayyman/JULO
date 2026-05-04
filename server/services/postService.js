@@ -144,14 +144,11 @@ export class PostService {
       throw err;
     }
 
-    const baseOriginal = original.originalPost
-      ? await Post.findById(original.originalPost)
-      : original;
-
-    if (!baseOriginal) {
-      const err = new Error("Post not found");
-      err.statusCode = 404;
-      throw err;
+    let baseOriginal = original;
+    while (baseOriginal.isRepost && baseOriginal.originalPost && !baseOriginal.isQuote) {
+      const parent = await Post.findById(baseOriginal.originalPost);
+      if (!parent) break;
+      baseOriginal = parent;
     }
 
     const cleanedText = typeof text === "string" ? text.trim() : "";
