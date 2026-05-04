@@ -96,12 +96,7 @@ app.use("/api", rateLimit({
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
-// ── 11. Global OPTIONS catch-all ───────────────────────────────────────────────
-// Belt-and-suspenders: if an OPTIONS request somehow slips past corsMiddleware
-// (e.g. unrecognised path before router is mounted), return 204 immediately.
-app.options("*", (_req, res) => res.status(204).end());
-
-// ── 12. API v1 router ─────────────────────────────────────────────────────────
+// ── 11. API v1 router ─────────────────────────────────────────────────────────
 const v1 = express.Router();
 
 // Per-user Redis rate limit — wrapped in try/catch so Redis failure never blocks requests.
