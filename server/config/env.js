@@ -17,6 +17,10 @@ export const config = {
   secretKey: process.env.SECRET_KEY || "temporary-dev-key",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
   clientUrl: process.env.CLIENT_URL || "https://julo-navy.vercel.app",
+  clientUrls: (process.env.CLIENT_URLS || process.env.CLIENT_URL || "https://julo-navy.vercel.app")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean),
 
   // ── Redis ─────────────────────────────────────────────────────────────────
   redisEnabled: process.env.NODE_ENV !== "test" && !!process.env.REDIS_URL,

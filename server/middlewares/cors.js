@@ -6,7 +6,7 @@ import { config } from "../config/env.js";
  * In production, localhost must NOT be in the wildcard list — it must be explicit.
  */
 const ALLOWED_ORIGINS = [
-  config.clientUrl, // https://julo-navy.vercel.app in prod
+  ...(config.clientUrls || []),
   "http://localhost:5173", // Vite dev
   "http://localhost:3000", // CRA / legacy dev
   "http://localhost:8080",  // Railway local preview
@@ -27,12 +27,15 @@ const CORE_HEADERS = {
 export function corsMiddleware(req, res, next) {
   const origin = req.headers.origin;
 
+  // Ensure predictable matching (remove duplicates, ignore empty)
+  const allowedOrigins = new Set(ALLOWED_ORIGINS.filter(Boolean));
+
   // ── Set static headers on every response ────────────────────────────────
   Object.entries(CORE_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
 
   // ── Set origin only for browser requests with an Origin header ──────────
   if (origin) {
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    if (allowedOrigins.has(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
     } else {
       // Unknown origin — block credentials, still allow the request
