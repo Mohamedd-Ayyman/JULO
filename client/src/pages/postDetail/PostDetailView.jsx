@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from "react";
-import { getPost, getComments, addComment, likePost, sharePost } from "../../apiCalls/post.js";
-import { Heart, MessageCircle, Megaphone, Send, X, Loader2, Zap, Quote } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { getPost, getComments, addComment, likePost, sharePost, unsharePost, getFeed } from "../../apiCalls/post.js";
+import { Heart, MessageCircle, Megaphone, Send, X, Loader2, Quote } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import Avatar from "../../components/Avatar.jsx";
@@ -16,22 +16,11 @@ export default function PostDetailView({ postId, onClose }) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [liked, setLiked] = useState(false);
-  const [echoMenuOpen, setEchoMenuOpen] = useState(false);
   const [echoRipple, setEchoRipple] = useState(false);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
-  const echoRef = useRef(null);
+  const [userQuickEchoes, setUserQuickEchoes] = useState([]);
 
   const { user } = useSelector((s) => s.userReducer);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (echoRef.current && !echoRef.current.contains(event.target)) {
-        setEchoMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +45,22 @@ export default function PostDetailView({ postId, onClose }) {
     })();
     return () => { cancelled = true; };
   }, [postId, user?._id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await getFeed();
+      if (cancelled) return;
+      if (res.success) {
+        const echoes = (res.data || [])
+          .filter((p) => p.isRepost && !p.isQuote && p.author && String(p.author._id) === String(user?._id))
+          .map((p) => p.originalPost?._id || p.originalPost)
+          .filter(Boolean);
+        setUserQuickEchoes(echoes);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?._id]);
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -95,18 +100,36 @@ export default function PostDetailView({ postId, onClose }) {
 
   const handleQuickEcho = async () => {
     if (!post) return;
-    setEchoMenuOpen(false);
+    const display = post?.originalPost || post;
+    const hasQuickEchoed = userQuickEchoes.some((id) => String(id) === String(display?._id));
+
+    if (hasQuickEchoed) {
+      const res = await unsharePost(display._id);
+      if (res.success) {
+        setPost((p) => ({ ...p, shareCount: Math.max(0, (p.shareCount || 0) - 1) }));
+        setUserQuickEchoes((prev) => prev.filter((id) => String(id) !== String(display._id)));
+        toast.success("Echo removed");
+      } else toast.error(res.message || "Undo failed");
+      return;
+    }
+
     setEchoRipple(true);
-    setTimeout(() => setEchoRipple(false), 1000);
-    const res = await sharePost(post._id);
+    setTimeout(() => setEchoRipple(false), 400);
+    const res = await sharePost(display._id);
     if (res.success) {
       setPost((p) => ({ ...p, shareCount: (p.shareCount || 0) + 1 }));
+      setUserQuickEchoes((prev) => [...prev, display._id]);
       toast.success("Echoed");
-    } else toast.error(res.message || "Echo failed");
+    } else {
+      if (res.statusCode === 409) {
+        toast.error("You already echoed this post");
+      } else {
+        toast.error(res.message || "Echo failed");
+      }
+    }
   };
 
   const handleQuoteEcho = () => {
-    setEchoMenuOpen(false);
     setQuoteModalOpen(true);
   };
 
@@ -212,34 +235,21 @@ export default function PostDetailView({ postId, onClose }) {
             {display?.commentCount || 0}
           </div>
 
-          <div className="relative" ref={echoRef}>
-            <button 
-              onClick={() => setEchoMenuOpen(!echoMenuOpen)}
-              className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105"
-            >
-              <Megaphone className="w-5 h-5" />
-              {display?.shareCount || 0}
-            </button>
-            
-            {echoMenuOpen && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 card p-1 shadow-2xl animate-scale-in z-50">
-                <button 
-                  onClick={handleQuickEcho}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors"
-                >
-                  <Zap className="w-4 h-4 text-warning" />
-                  Quick Echo
-                </button>
-                <button 
-                  onClick={handleQuoteEcho}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors"
-                >
-                  <Quote className="w-4 h-4 text-primary" />
-                  Quote Echo
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={handleQuickEcho}
+            className={`flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105 ${userQuickEchoes.some((id) => String(id) === String(display?._id)) ? "text-primary" : "text-muted-foreground"}`}
+          >
+            <Megaphone className={`w-5 h-5 transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
+            {display?.shareCount || 0}
+          </button>
+
+          <button
+            onClick={handleQuoteEcho}
+            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105"
+          >
+            <Quote className="w-5 h-5" />
+            Quote
+          </button>
         </div>
       </div>
 
