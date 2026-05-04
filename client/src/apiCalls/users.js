@@ -60,6 +60,27 @@ export const uploadAvatar = async (file) => {
   }
 };
 
+/**
+ * UploadCover — returns standardised { success, url, message }.
+ */
+export const uploadCover = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await axiosInstance.post("/api/upload/cover", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const raw = response.data;
+    return {
+      success: raw.success !== false,
+      url: raw.url || raw.data?.url || raw.data,
+      message: raw.message,
+    };
+  } catch (error) {
+    return error.response?.data || { success: false, message: "Upload failed" };
+  }
+};
+
 export const searchUsers = async (q, page = 1) => {
   try {
     const response = await axiosInstance.get(`/api/user/search?q=${encodeURIComponent(q)}&page=${page}`);

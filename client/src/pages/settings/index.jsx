@@ -3,7 +3,7 @@ import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import { useSelector, useDispatch } from "react-redux";
 import { setUser, updateUserAvatar } from "../../redux/usersSlice.js";
-import { updateProfile, uploadAvatar } from "../../apiCalls/users.js";
+import { updateProfile, uploadAvatar, uploadCover } from "../../apiCalls/users.js";
 import { changePassword, logoutUser } from "../../apiCalls/auth.js";
 import toast from "react-hot-toast";
 import {
@@ -229,26 +229,18 @@ function ProfileSection({ user, dispatch }) {
     try {
       let avatarUrl;
       if (avatarFile) {
-        const formData = new FormData();
-        formData.append("image", avatarFile);
-        const res = await fetch("/api/upload/avatar", {
-          method: "POST",
-          headers: { authorization: `Bearer ${localStorage.getItem("token")}` },
-          body: formData,
-        }).then((r) => r.json());
+        const res = await uploadAvatar(avatarFile);
         if (res.success) avatarUrl = res.url;
-        else { toast.error("Avatar upload failed"); setSaving(false); return; }
+        else {
+          toast.error(res.message || "Avatar upload failed");
+          setSaving(false);
+          return;
+        }
       }
 
       let coverUrl;
       if (coverFile) {
-        const formData = new FormData();
-        formData.append("image", coverFile);
-        const res = await fetch("/api/upload/cover", {
-          method: "POST",
-          headers: { authorization: `Bearer ${localStorage.getItem("token")}` },
-          body: formData,
-        }).then((r) => r.json());
+        const res = await uploadCover(coverFile);
         if (res.success) coverUrl = res.url;
       }
 
