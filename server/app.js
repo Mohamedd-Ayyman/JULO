@@ -47,6 +47,9 @@ app.use(cors({
   maxAge: 86400, // 24 hours preflight cache
 }));
 
+// Terminate all OPTIONS requests here to prevent 404s
+app.options(/.*/, cors());
+
 // ── Security ────────────────────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
