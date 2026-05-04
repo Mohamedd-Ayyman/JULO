@@ -621,8 +621,9 @@ a {
 
 /* Echo Ripple Effect */
 @keyframes echo-ripple {
-  0% { transform: translate(-50%, -50%) scale(0.1); opacity: 1; border-width: 4px; }
-  100% { transform: translate(-50%, -50%) scale(6); opacity: 0; border-width: 1px; }
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; border-width: 3px; }
+  60% { transform: translate(-50%, -50%) scale(2.2); opacity: 0.4; border-width: 2px; }
+  100% { transform: translate(-50%, -50%) scale(3.4); opacity: 0; border-width: 1px; }
 }
 
 @keyframes megaphone-ping {
@@ -647,7 +648,7 @@ a {
 }
 
 .echo-ripple-active .echo-ripple-effect {
-  animation: echo-ripple 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: echo-ripple 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 }
 
 .echo-icon-ping {
