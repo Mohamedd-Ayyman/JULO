@@ -21,22 +21,31 @@ const CORE_HEADERS = {
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Token-Family, X-Idempotency-Key",
   "Access-Control-Max-Age": "86400",
-  "Access-Control-Allow-Credentials": "true",
 };
+
+function normalizeOrigin(value) {
+  if (!value) return "";
+  return value
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\/+$/g, "");
+}
 
 export function corsMiddleware(req, res, next) {
   const origin = req.headers.origin;
+  const normalizedOrigin = normalizeOrigin(origin);
 
   // Ensure predictable matching (remove duplicates, ignore empty)
-  const allowedOrigins = new Set(ALLOWED_ORIGINS.filter(Boolean));
+  const allowedOrigins = new Set(ALLOWED_ORIGINS.map(normalizeOrigin).filter(Boolean));
 
   // ── Set static headers on every response ────────────────────────────────
   Object.entries(CORE_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
 
   // ── Set origin only for browser requests with an Origin header ──────────
   if (origin) {
-    if (allowedOrigins.has(origin)) {
+    if (allowedOrigins.has(normalizedOrigin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
     } else {
       // Unknown origin — block credentials, still allow the request
       // so downstream auth/tenant logic can decide.
