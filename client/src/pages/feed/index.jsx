@@ -16,6 +16,16 @@ export default function FeedPage() {
   const [tab, setTab] = useState("for-you");
   const { user } = useSelector((s) => s.userReducer);
 
+  const userQuickEchoes = posts
+    .filter((p) => p.isRepost && !p.isQuote && p.author && String(p.author._id) === String(user?._id))
+    .map((p) => p.originalPost?._id || p.originalPost)
+    .filter(Boolean);
+
+  const postsById = posts.reduce((acc, item) => {
+    if (item?._id) acc[String(item._id)] = item;
+    return acc;
+  }, {});
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -92,6 +102,9 @@ export default function FeedPage() {
                 index={i}
                 currentUserId={user?._id}
                 onShare={(sp) => setPosts((prev) => [sp, ...prev])}
+                onUnshare={(repostId) => setPosts((prev) => prev.filter((p) => p._id !== repostId))}
+                userQuickEchoes={userQuickEchoes}
+                postsById={postsById}
               />
             ))
           )}
