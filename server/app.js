@@ -66,6 +66,11 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
+// Root health check
+app.get("/", (req, res) => {
+  res.send({ success: true, message: "JULO API is running", statusCode: 200 });
+});
+
 // ── Observability ──────────────────────────────────────────────────────────────
 app.use(requestTracer);
 app.use(requestLogger);
