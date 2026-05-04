@@ -17,38 +17,44 @@ import YAML from "yaml";
 
 const app = express();
 
-// ── Debug Logging ─────────────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    logger.debug(`[Preflight] OPTIONS ${req.url} from ${req.headers.origin}`);
-  }
-  next();
-});
-
-// ── CORS Hardening ─────────────────────────────────────────────────────────────
+// ── Bulletproof CORS & OPTIONS Handler ────────────────────────────────────────
 const allowedOrigins = [
   config.clientUrl,
   "https://julo-navy.vercel.app",
   "https://julo-git-main-mohamed-aymans-projects-8572de39.vercel.app"
 ];
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  } else {
+    // Fallback for dev or other allowed origins
+    res.header("Access-Control-Allow-Origin", "*");
+  }
+  
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Token-Family, X-Idempotency-Key, X-Idempotency-Key");
+  res.header("Access-Control-Max-Age", "86400");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// Standard CORS middleware for non-OPTIONS requests (as a backup)
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn(`[CORS] Rejected origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "X-Session-Id", "X-Token-Family", "X-Idempotency-Key"],
-  maxAge: 86400, // 24 hours preflight cache
 }));
-
-// Terminate all OPTIONS requests here to prevent 404s
-app.options(/.*/, cors());
 
 // ── Security ────────────────────────────────────────────────────────────────────
 app.use(helmet({
@@ -72,7 +78,7 @@ try {
   const raw = await readFile(openApiPath, "utf8");
   openApiSpec = YAML.parse(raw);
 } catch (err) {
-  logger.warn("[Swagger] OpenAPI spec not loaded", { error: err.message });
+  logger.warn("[Swagger] OpenAPI spec not loaded");
 }
 if (openApiSpec) {
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, { explorer: true }));
@@ -150,16 +156,16 @@ v1.use("/stories", storyRouter);
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 app.post("/webhooks/stripe", stripeWebhookController);
 
-// API Health check
+// Health check
 v1.get("/health", (req, res) => {
   res.send({ success: true, uptime: process.uptime(), ts: new Date().toISOString(), statusCode: 200 });
 });
 
-// Mount v1
+// Mount v1 at both /api (legacy) and /api/v1 (canonical)
 app.use("/api", v1);
 app.use("/api/v1", v1);
 
-// Global handlers
+// ── Global handlers ─────────────────────────────────────────────────────────────
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
