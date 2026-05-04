@@ -14,10 +14,12 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { corsMiddleware } from "./middlewares/cors.js";
 
-// ── App instance ────────────────────────────────────────────────────────────────
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ── App instance ────────────────────────────────────────────────────────
 const app = express();
 
-// ── 1. CORS — FIRST middleware. Handles ALL origins and ALL preflights. ────────
+// ── 1. CORS ─ FIRST middleware. Handles ALL origins and ALL preflights. ────────
 // No downstream middleware can run before CORS sets headers.
 // CORS middleware ends OPTIONS responses immediately — nothing else touches them.
 app.use(corsMiddleware);
@@ -26,7 +28,7 @@ app.use(corsMiddleware);
 // Required for correct req.ip behind Railway's edge proxy.
 app.set("trust proxy", 1);
 
-// ── 3. Security ────────────────────────────────────────────────────────────────
+// ── 3. Security ────────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
@@ -42,7 +44,7 @@ app.use(helmet({
 // ── 4. Raw body for Stripe webhooks — must be BEFORE express.json() ───────────
 app.use("/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }));
 
-// ── 5. Body parsers ───────────────────────────────────────────────────────────
+// ── 5. Body parsers ───────────────────────────────────────────────────
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
@@ -52,15 +54,13 @@ app.get("/", (_req, res) => {
   res.status(200).json({ success: true, message: "JULO API is running", statusCode: 200 });
 });
 
-// ── 7. Request tracing ────────────────────────────────────────────────────────
+// ── 7. Request tracing ────────────────────────────────────────────────
 app.use(requestTracer);
 
-// ── 8. Request logging ─────────────────────────────────────────────────────────
+// ── 8. Request logging ─────────────────────────────────────────────────
 app.use(requestLogger);
 
-// ── 9. Swagger UI — lazy loaded, non-blocking ──────────────────────────────────
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// ── 9. Swagger UI — lazy loaded, non-blocking ──────────────────────────
 const openApiPath = resolve(__dirname, "../docs/openapi.yaml");
 const swaggerPromise = readFile(openApiPath, "utf8")
   .then((raw) => YAML.parse(raw))
@@ -73,7 +73,7 @@ swaggerPromise.then((openApiSpec) => {
   }
 });
 
-// ── 10. Rate limiting ─────────────────────────────────────────────────────────
+// ── 10. Rate limiting ─────────────────────────────────────────────────
 // OPTIONS requests are NOT routed through Express by the time they reach here
 // (corsMiddleware ends them), so skip logic is belt-and-suspenders.
 const skipOptions = (req) => req.method === "OPTIONS";
@@ -96,7 +96,7 @@ app.use("/api", rateLimit({
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
-// ── 11. API v1 router ─────────────────────────────────────────────────────────
+// ── 11. API v1 router ─────────────────────────────────────────────────
 const v1 = express.Router();
 
 // Per-user Redis rate limit — wrapped in try/catch so Redis failure never blocks requests.
@@ -150,7 +150,22 @@ v1.get("/health", (_req, res) => {
 app.use("/api", v1);
 app.use("/api/v1", v1);
 
-// ── 13. Global handlers — MUST be last ───────────────────────────────────────
+// ── 12. Serve static client build ───────────────────────────────────────────
+const clientDistPath = resolve(__dirname, "../client/dist");
+app.use(express.static(clientDistPath));
+
+// ── 13. SPA catch-all — serve index.html for all non-API GET requests ─────
+app.use((req, res, next) => {
+  if (req.method !== "GET") return next();
+  if (req.originalUrl.startsWith("/api") || req.originalUrl.startsWith("/webhooks")) {
+    return next();
+  }
+  res.sendFile(resolve(clientDistPath, "index.html"), (err) => {
+    if (err) next();
+  });
+});
+
+// ── 14. Global handlers — MUST be last ───────────────────────────────────────
 // Handlers are registered once in server.js (uncaughtException / unhandledRejection).
 app.use(notFoundHandler);
 app.use(globalErrorHandler);

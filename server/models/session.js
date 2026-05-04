@@ -40,7 +40,7 @@ const sessionSchema = new mongoose.Schema(
     rotationCount: { type: Number, default: 1 },
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
     revokedAt: { type: Date, default: null },
     revokedReason: { type: String, default: null },  // "logout" | "refresh" | "expired" | "security"
   },
