@@ -19,11 +19,11 @@ import QuoteEchoModal from "../../components/QuoteEchoModal.jsx";
 
 export default function PostCard({ post, currentUserId, onShare, onUnshare, index = 0, userQuickEchoes = [], postsById = {} }) {
   const isRepost = !!(post.isRepost || post.originalPost);
-  const isQuote = isRepost && post.text && post.text !== post.originalPost?.text;
+  const isQuote = !!post.isQuote;
   const sharer = post.author || null;
   const resolvedOriginalPost = post.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
-  const originalPostId = post.originalPost && typeof post.originalPost !== "object" ? String(post.originalPost) : resolvedOriginalPost?._id;
-  const originalPostFromFeed = originalPostId ? postsById[String(originalPostId)] : null;
+  const originalPostIdProp = post.originalPost && typeof post.originalPost !== "object" ? String(post.originalPost) : resolvedOriginalPost?._id;
+  const originalPostFromFeed = originalPostIdProp ? postsById[String(originalPostIdProp)] : null;
   const display = originalPostFromFeed || resolvedOriginalPost || post;
   const isQuickEchoPost = isRepost && !isQuote;
   const actionPost = isQuote ? post : display;
@@ -45,6 +45,14 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
   const [bookmarked, setBookmarked] = useState(!!actionPost.bookmarked);
   const [echoRipple, setEchoRipple] = useState(false);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+
+  // Sync with props when they change
+  React.useEffect(() => {
+    setLiked(actionPost.likes?.includes(currentUserId));
+    setLikesCount(actionPost.likeCount ?? actionPost.likes?.length ?? 0);
+    setShareCount(actionPost.shareCount ?? 0);
+    setBookmarked(!!actionPost.bookmarked);
+  }, [actionPost._id, actionPost.likeCount, actionPost.shareCount, actionPost.bookmarked, currentUserId]);
   
   const { user } = useSelector((s) => s.userReducer);
   const navigate = useNavigate();
@@ -92,8 +100,7 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
     }
   };
 
-  const originalPostId = actionPost?._id;
-  const hasQuickEchoed = userQuickEchoes.some((id) => String(id) === String(originalPostId));
+  const hasQuickEchoed = userQuickEchoes.some((id) => String(id) === String(actionPost?._id));
 
   const handleQuickEcho = async () => {
     if (hasQuickEchoed) {
