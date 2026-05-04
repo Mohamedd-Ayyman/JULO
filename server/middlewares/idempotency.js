@@ -15,6 +15,7 @@
  *   - If the server returns 409 with "Duplicate request", use the cached response
  */
 
+import crypto from "crypto";
 import { redis } from "../config/redis.js";
 import logger from "../utils/logger.js";
 
@@ -29,7 +30,6 @@ function getIdempotencyKey(req) {
   if (headerKey) return headerKey;
 
   // Fallback: hash of request identity
-  const crypto = require("crypto");
   const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body || {});
   const raw = `${req.method}:${req.path}:${body}`;
   return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 32);

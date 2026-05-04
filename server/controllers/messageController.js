@@ -1,6 +1,7 @@
 import express from "express";
 import chatService from "../services/chatService.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
+import { tenantMiddleware } from "../middlewares/tenantMiddleware.js";
 import { asyncHandler } from "../utils/AppError.js";
 import { validate, messageSchema } from "../utils/validate.js";
 import { invalidateCache } from "../middlewares/cacheMiddleware.js";
@@ -19,9 +20,10 @@ router.put(
 router.post(
   "/new-message",
   requireAuth,
+  tenantMiddleware,
   validate(messageSchema),
   asyncHandler(async (req, res) => {
-    const message = await chatService.sendMessage(req.body.chatId, req.user.userId, req.body);
+    const message = await chatService.sendMessage(req.body.chatId, req.user.userId, req.tenantId, req.body);
     await invalidateCache(`chat:${req.body.chatId}:*`);
     res.status(201).send({ success: true, message: "Message sent", data: message, statusCode: 201 });
   })
