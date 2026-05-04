@@ -58,7 +58,7 @@ export class PostService {
         .populate("author", "firstname lastname profilepic isOnline")
         .populate({
           path: "originalPost",
-          select: "author text image likeCount commentCount",
+          select: "author text image likeCount commentCount shareCount createdAt",
           populate: { path: "author", select: "firstname lastname profilepic" },
         })
         .lean(),
@@ -144,29 +144,101 @@ export class PostService {
       throw err;
     }
 
+    const baseOriginal = original.originalPost
+      ? await Post.findById(original.originalPost)
+      : original;
+
+    if (!baseOriginal) {
+      const err = new Error("Post not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const cleanedText = typeof text === "string" ? text.trim() : "";
+    const isQuickEcho = !cleanedText;
+
+    if (isQuickEcho) {
+      const existingQuick = await Post.findOne({
+        originalPost: baseOriginal._id,
+        author: userId,
+        isRepost: true,
+        isQuote: false,
+      }).select("_id");
+      if (existingQuick) {
+        const err = new Error("Already echoed this post");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
     const repost = new Post({
       author: userId,
       tenantId,
-      text: text || original.text,
-      image: original.image,
+      text: isQuickEcho ? baseOriginal.text : cleanedText,
+      image: baseOriginal.image,
       isRepost: true,
-      originalPost: original._id,
+      isQuote: !isQuickEcho,
+      originalPost: baseOriginal._id,
       visibility: "public",
     });
     await repost.save();
-    original.shareCount += 1;
-    await original.save();
+    baseOriginal.shareCount += 1;
+    await baseOriginal.save();
 
     // Notify original author
-    this._notify(original.author, userId, tenantId, "share", { post: repost._id });
+    this._notify(baseOriginal.author, userId, tenantId, "share", { post: repost._id });
 
     return Post.findById(repost._id)
       .populate("author", "firstname lastname profilepic isOnline")
       .populate({
         path: "originalPost",
-        select: "author text image likeCount commentCount",
+        select: "author text image likeCount commentCount shareCount createdAt",
         populate: { path: "author", select: "firstname lastname profilepic" },
       });
+  }
+
+  async unshare(postId, userId) {
+    const original = await Post.findById(postId);
+    if (!original) {
+      const err = new Error("Post not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const baseOriginal = original.originalPost
+      ? await Post.findById(original.originalPost)
+      : original;
+
+    if (!baseOriginal) {
+      const err = new Error("Post not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const repost = await Post.findOne({
+      originalPost: baseOriginal._id,
+      author: userId,
+      isRepost: true,
+      isQuote: false,
+    });
+
+    if (!repost) {
+      const err = new Error("Echo not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await Comment.deleteMany({ post: repost._id });
+    await Post.findByIdAndDelete(repost._id);
+
+    baseOriginal.shareCount = Math.max(0, (baseOriginal.shareCount || 0) - 1);
+    await baseOriginal.save();
+
+    if (repost.tenantId) {
+      await decrementUsage(repost.tenantId, "posts", 1).catch(() => {});
+    }
+
+    return { repostId: repost._id, shareCount: baseOriginal.shareCount };
   }
 
   async delete(postId, userId) {
@@ -201,7 +273,7 @@ export class PostService {
         .populate("author", "firstname lastname profilepic isOnline")
         .populate({
           path: "originalPost",
-          select: "author text image likeCount commentCount",
+          select: "author text image likeCount commentCount shareCount createdAt",
           populate: { path: "author", select: "firstname lastname profilepic" },
         })
         .lean(),
@@ -287,7 +359,7 @@ export class PostService {
         .populate("author", "firstname lastname profilepic isOnline")
         .populate({
           path: "originalPost",
-          select: "author text image likeCount commentCount",
+          select: "author text image likeCount commentCount shareCount createdAt",
           populate: { path: "author", select: "firstname lastname profilepic" },
         })
         .lean(),
@@ -320,7 +392,7 @@ export class PostService {
         .populate("author", "firstname lastname profilepic isOnline")
         .populate({
           path: "originalPost",
-          select: "author text image likeCount commentCount",
+          select: "author text image likeCount commentCount shareCount createdAt",
           populate: { path: "author", select: "firstname lastname profilepic" },
         })
         .lean(),
