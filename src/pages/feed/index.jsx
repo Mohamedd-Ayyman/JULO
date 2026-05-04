@@ -94,8 +94,32 @@ export default function FeedPage() {
                 post={post}
                 index={i}
                 currentUserId={user?._id}
-                onShare={(sp) => setPosts((prev) => [sp, ...prev])}
-                onUnshare={(repostId) => setPosts((prev) => prev.filter((p) => p._id !== repostId))}
+                onShare={(sp) => {
+                  const originalId = sp.originalPost?._id || sp.originalPost;
+                  setPosts((prev) => {
+                    const updated = prev.map((p) => {
+                      if (String(p._id) === String(originalId)) {
+                        return { ...p, shareCount: (p.shareCount || 0) + 1 };
+                      }
+                      return p;
+                    });
+                    return [sp, ...updated];
+                  });
+                }}
+                onUnshare={(repostId) => {
+                  setPosts((prev) => {
+                    const repost = prev.find((p) => String(p._id) === String(repostId));
+                    const originalId = repost?.originalPost?._id || repost?.originalPost;
+                    return prev
+                      .filter((p) => String(p._id) !== String(repostId))
+                      .map((p) => {
+                        if (originalId && String(p._id) === String(originalId)) {
+                          return { ...p, shareCount: Math.max(0, (p.shareCount || 0) - 1) };
+                        }
+                        return p;
+                      });
+                  });
+                }}
                 userQuickEchoes={userQuickEchoes}
                 postsById={postsById}
               />
