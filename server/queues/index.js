@@ -6,7 +6,7 @@ import logger from "../utils/logger.js";
 let BullMQ;
 async function ensureBullMQ() {
   if (!BullMQ) {
-    ({ Queue, Worker } = await import("bullmq"));
+    const { Queue, Worker } = await import("bullmq");
     BullMQ = { Queue, Worker };
   }
   return BullMQ;
