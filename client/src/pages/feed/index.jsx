@@ -16,6 +16,16 @@ export default function FeedPage() {
   const [tab, setTab] = useState("for-you");
   const { user } = useSelector((s) => s.userReducer);
 
+  const userQuickEchoes = posts
+    .filter((p) => p.isRepost && !p.isQuote && p.author && String(p.author._id) === String(user?._id))
+    .map((p) => p.originalPost?._id || p.originalPost)
+    .filter(Boolean);
+
+  const postsById = posts.reduce((acc, item) => {
+    if (item?._id) acc[String(item._id)] = item;
+    return acc;
+  }, {});
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -91,11 +101,39 @@ export default function FeedPage() {
                 post={post}
                 index={i}
                 currentUserId={user?._id}
-                onShare={(sp) => setPosts((prev) => [sp, ...prev])}
+                onShare={(sp) => {
+                  const originalId = sp.originalPost?._id || sp.originalPost;
+                  setPosts((prev) => {
+                    const updated = prev.map((p) => {
+                      if (String(p._id) === String(originalId)) {
+                        return { ...p, shareCount: (p.shareCount || 0) + 1 };
+                      }
+                      return p;
+                    });
+                    return [sp, ...updated];
+                  });
+                }}
+                onUnshare={(repostId) => {
+                  setPosts((prev) => {
+                    const repost = prev.find((p) => String(p._id) === String(repostId));
+                    const originalId = repost?.originalPost?._id || repost?.originalPost;
+                    return prev
+                      .filter((p) => String(p._id) !== String(repostId))
+                      .map((p) => {
+                        if (originalId && String(p._id) === String(originalId)) {
+                          return { ...p, shareCount: Math.max(0, (p.shareCount || 0) - 1) };
+                        }
+                        return p;
+                      });
+                  });
+                }}
+                userQuickEchoes={userQuickEchoes}
+                postsById={postsById}
               />
             ))
           )}
         </div>
+
       </div>
       <PostDetailModal />
     </AppLayout>

@@ -1,4 +1,5 @@
 import request from "supertest";
+import bcrypt from "bcryptjs";
 import User from "../models/user.js";
 import Post from "../models/post.js";
 import Comment from "../models/comment.js";
@@ -173,6 +174,60 @@ describe("Post Routes", () => {
       expect(like2.status).toBe(200);
       expect(like2.body.data.liked).toBe(false);
       expect(like2.body.data.likeCount).toBe(0);
+    });
+  });
+
+  // ── PUT /api/post/:postId/share ───────────────────────────────────────────────
+  describe("PUT /api/post/:postId/share", () => {
+    it("prevents quick echo twice by same user", async () => {
+      const postRes = await request(app)
+        .post("/api/post/create")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ text: "Echo test post" });
+
+      const postId = postRes.body.data._id;
+
+      const first = await request(app)
+        .put(`/api/post/${postId}/share`)
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({});
+
+      expect(first.status).toBe(201);
+      expect(first.body.success).toBe(true);
+
+      const second = await request(app)
+        .put(`/api/post/${postId}/share`)
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({});
+
+      expect(second.status).toBe(409);
+      expect(second.body.success).toBe(false);
+    });
+  });
+
+  // ── DELETE /api/post/:postId/share ───────────────────────────────────────────
+  describe("DELETE /api/post/:postId/share", () => {
+    it("allows undo quick echo", async () => {
+      const postRes = await request(app)
+        .post("/api/post/create")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ text: "Undo echo post" });
+
+      const postId = postRes.body.data._id;
+
+      const echo = await request(app)
+        .put(`/api/post/${postId}/share`)
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({});
+
+      expect(echo.status).toBe(201);
+
+      const undo = await request(app)
+        .delete(`/api/post/${postId}/share`)
+        .set("Authorization", `Bearer ${authToken}`);
+
+      expect(undo.status).toBe(200);
+      expect(undo.body.success).toBe(true);
     });
   });
 

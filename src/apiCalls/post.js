@@ -49,9 +49,18 @@ export const likePost = async (postId) => {
   }
 };
 
-export const sharePost = async (postId) => {
+export const sharePost = async (postId, text) => {
   try {
-    const response = await axiosInstance.put(`/api/post/${postId}/share`);
+    const response = await axiosInstance.put(`/api/post/${postId}/share`, { text });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const unsharePost = async (postId) => {
+  try {
+    const response = await axiosInstance.delete(`/api/post/${postId}/share`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };

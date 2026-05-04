@@ -6,6 +6,22 @@ import { checkUsageLimit, incrementUsage, decrementUsage } from "../middlewares/
 import logger from "../utils/logger.js";
 
 export class PostService {
+  async _notify(recipientId, senderId, tenantId, type, data = {}) {
+    if (String(recipientId) === String(senderId)) return;
+    try {
+      const { notificationQueue } = await import("../queues/index.js");
+      await notificationQueue.add("send", {
+        recipientId: String(recipientId),
+        senderId: String(senderId),
+        tenantId: String(tenantId) || null,
+        type,
+        data,
+      });
+    } catch (err) {
+      logger.error(`[PostService] Failed to queue notification: ${err.message}`);
+    }
+  }
+
   async create(authorId, tenantId, { text, image, tags, visibility }) {
     // Check usage limits before creating
     if (tenantId) {
@@ -40,8 +56,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
-        .populate("originalPost", "author text image likeCount commentCount")
-        .populate("originalPost.author", "firstname lastname profilepic")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount shareCount createdAt",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       scopeByTenant(Post.countDocuments({ visibility: "public" }), tenantId),
       userId ? Follow.find({ follower: userId }).select("following").lean() : [],
@@ -82,8 +101,11 @@ export class PostService {
     query = scopeByTenant(query, tenantId);
     const post = await query
       .populate("author", "firstname lastname profilepic isOnline")
-      .populate("originalPost", "author text image likeCount commentCount")
-      .populate("originalPost.author", "firstname lastname profilepic");
+      .populate({
+        path: "originalPost",
+        select: "author text image likeCount commentCount",
+        populate: { path: "author", select: "firstname lastname profilepic" },
+      });
     if (!post) {
       const err = new Error("Post not found");
       err.statusCode = 404;
@@ -107,12 +129,14 @@ export class PostService {
     } else {
       post.likes.push(userId);
       post.likeCount += 1;
+      // Notify author
+      this._notify(post.author, userId, post.tenantId, "like_post", { post: post._id });
     }
     await post.save();
     return { liked: idx === -1, likeCount: post.likeCount };
   }
 
-  async share(postId, userId, tenantId) {
+  async share(postId, userId, tenantId, text) {
     const original = await Post.findById(postId);
     if (!original) {
       const err = new Error("Post not found");
@@ -120,22 +144,98 @@ export class PostService {
       throw err;
     }
 
+    let baseOriginal = original;
+    while (baseOriginal.isRepost && baseOriginal.originalPost && !baseOriginal.isQuote) {
+      const parent = await Post.findById(baseOriginal.originalPost);
+      if (!parent) break;
+      baseOriginal = parent;
+    }
+
+    const cleanedText = typeof text === "string" ? text.trim() : "";
+    const isQuickEcho = !cleanedText;
+
+    if (isQuickEcho) {
+      const existingQuick = await Post.findOne({
+        originalPost: baseOriginal._id,
+        author: userId,
+        isRepost: true,
+        isQuote: false,
+      }).select("_id");
+      if (existingQuick) {
+        const err = new Error("Already echoed this post");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
     const repost = new Post({
       author: userId,
       tenantId,
-      text: original.text,
-      image: original.image,
+      text: isQuickEcho ? baseOriginal.text : cleanedText,
+      image: baseOriginal.image,
       isRepost: true,
-      originalPost: original._id,
+      isQuote: !isQuickEcho,
+      originalPost: baseOriginal._id,
       visibility: "public",
     });
     await repost.save();
-    original.shareCount += 1;
-    await original.save();
+    baseOriginal.shareCount += 1;
+    await baseOriginal.save();
+
+    // Notify original author
+    this._notify(baseOriginal.author, userId, tenantId, "share", { post: repost._id });
 
     return Post.findById(repost._id)
       .populate("author", "firstname lastname profilepic isOnline")
-      .populate("originalPost.author", "firstname lastname profilepic");
+      .populate({
+        path: "originalPost",
+        select: "author text image likeCount commentCount shareCount createdAt",
+        populate: { path: "author", select: "firstname lastname profilepic" },
+      });
+  }
+
+  async unshare(postId, userId) {
+    const original = await Post.findById(postId);
+    if (!original) {
+      const err = new Error("Post not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const baseOriginal = original.originalPost
+      ? await Post.findById(original.originalPost)
+      : original;
+
+    if (!baseOriginal) {
+      const err = new Error("Post not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const repost = await Post.findOne({
+      originalPost: baseOriginal._id,
+      author: userId,
+      isRepost: true,
+      isQuote: false,
+    });
+
+    if (!repost) {
+      const err = new Error("Echo not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await Comment.deleteMany({ post: repost._id });
+    await Post.findByIdAndDelete(repost._id);
+
+    baseOriginal.shareCount = Math.max(0, (baseOriginal.shareCount || 0) - 1);
+    await baseOriginal.save();
+
+    if (repost.tenantId) {
+      await decrementUsage(repost.tenantId, "posts", 1).catch(() => {});
+    }
+
+    return { repostId: repost._id, shareCount: baseOriginal.shareCount };
   }
 
   async delete(postId, userId) {
@@ -168,8 +268,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
-        .populate("originalPost", "author text image")
-        .populate("originalPost.author", "firstname lastname profilepic")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount shareCount createdAt",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       scopeByTenant(Post.countDocuments({ author: userId }), tenantId),
     ]);
@@ -194,6 +297,9 @@ export class PostService {
     await comment.save();
     post.commentCount += 1;
     await post.save();
+
+    // Notify post author
+    this._notify(post.author, userId, tenantId, "comment_post", { post: post._id, comment: comment._id });
 
     return Comment.findById(comment._id).populate("author", "firstname lastname profilepic isOnline");
   }
@@ -248,6 +354,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount shareCount createdAt",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       Post.countDocuments({ text: { $regex: query, $options: "i" }, visibility: "public" }),
     ]);
@@ -276,6 +387,11 @@ export class PostService {
         .skip(skip)
         .limit(Number(limit))
         .populate("author", "firstname lastname profilepic isOnline")
+        .populate({
+          path: "originalPost",
+          select: "author text image likeCount commentCount shareCount createdAt",
+          populate: { path: "author", select: "firstname lastname profilepic" },
+        })
         .lean(),
       Post.countDocuments({ savedBy: userId }),
     ]);
