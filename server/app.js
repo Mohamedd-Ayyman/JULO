@@ -15,10 +15,15 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import YAML from "yaml";
 
-// ── Pre-boot: Redis ─────────────────────────────────────────────────────────────
-await initRedis();
-
 const app = express();
+
+// ── Debug Logging ─────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    logger.debug(`[Preflight] OPTIONS ${req.url} from ${req.headers.origin}`);
+  }
+  next();
+});
 
 // ── CORS Hardening ─────────────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -29,9 +34,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       logger.warn(`[CORS] Rejected origin: ${origin}`);
@@ -41,15 +44,8 @@ app.use(cors({
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "X-Session-Id", "X-Token-Family", "X-Idempotency-Key"],
+  maxAge: 86400, // 24 hours preflight cache
 }));
-
-// Manual OPTIONS fallback (must be before any other middleware or routes)
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
 
 // ── Security ────────────────────────────────────────────────────────────────────
 app.use(helmet({
@@ -73,7 +69,7 @@ try {
   const raw = await readFile(openApiPath, "utf8");
   openApiSpec = YAML.parse(raw);
 } catch (err) {
-  logger.warn("[Swagger] OpenAPI spec not loaded", { error: err.message, path: openApiPath });
+  logger.warn("[Swagger] OpenAPI spec not loaded", { error: err.message });
 }
 if (openApiSpec) {
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, { explorer: true }));
@@ -95,12 +91,15 @@ app.get("/", (req, res) => {
 app.use(requestTracer);
 app.use(requestLogger);
 
-// ── Rate limiting ─────────────────────────────────────────────────────────────
+// ── Rate limiting (Skipping OPTIONS) ──────────────────────────────────────────
+const skipOptions = (req) => req.method === "OPTIONS";
+
 app.use("/api/auth", rateLimit({
   windowMs: config.rateLimit.authWindow,
   max: config.rateLimit.authMax,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipOptions,
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
@@ -109,14 +108,18 @@ app.use("/api", rateLimit({
   max: config.rateLimit.apiMax,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipOptions,
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
 // ── API v1 router ──────────────────────────────────────────────────────────────
 const v1 = express.Router();
 
-// Per-user Redis rate limit (logged-in routes only)
-v1.use(perUserRateLimit);
+// Per-user Redis rate limit (logged-in routes only, skip OPTIONS)
+v1.use((req, res, next) => {
+  if (req.method === "OPTIONS") return next();
+  perUserRateLimit(req, res, next);
+});
 
 import authRouter from "./controllers/authController.js";
 import userRouter from "./controllers/userController.js";
@@ -140,49 +143,20 @@ v1.use("/upload", uploadRouter);
 v1.use("/billing", billingRouter);
 v1.use("/stories", storyRouter);
 
-// ── Stripe webhook — mounted at app level (before v1) for raw body access ───────
+// Stripe webhook controller
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 app.post("/webhooks/stripe", stripeWebhookController);
 
-// Health check
+// API Health check
 v1.get("/health", (req, res) => {
   res.send({ success: true, uptime: process.uptime(), ts: new Date().toISOString(), statusCode: 200 });
 });
 
-// Prometheus metrics — JULO platform metrics
-v1.get("/metrics", (req, res) => {
-  const mem = process.memoryUsage();
-  res.set("Content-Type", "text/plain");
-  res.send([
-    `# HELP julo_uptime_seconds Server uptime in seconds`,
-    `# TYPE julo_uptime_seconds gauge`,
-    `julo_uptime_seconds ${process.uptime().toFixed(2)}`,
-    `# HELP julo_heap_used_bytes Used heap memory`,
-    `# TYPE julo_heap_used_bytes gauge`,
-    `julo_heap_used_bytes ${mem.heapUsed}`,
-    `# HELP julo_heap_total_bytes Total heap memory`,
-    `# TYPE julo_heap_total_bytes gauge`,
-    `julo_heap_total_bytes ${mem.heapTotal}`,
-    `# HELP julo_rss_bytes Resident set size`,
-    `# TYPE julo_rss_bytes gauge`,
-    `julo_rss_bytes ${mem.rss}`,
-    `# HELP julo_external_bytes External memory`,
-    `# TYPE julo_external_bytes gauge`,
-    `julo_external_bytes ${mem.external}`,
-    `# HELP julo_process_active_handles Active handles in event loop`,
-    `# TYPE julo_process_active_handles gauge`,
-    `julo_process_active_handles ${process._activeHandles?.length || 0}`,
-    `# HELP julo_process_active_requests Active requests in event loop`,
-    `# TYPE julo_process_active_requests gauge`,
-    `julo_process_active_requests ${process._activeRequests?.length || 0}`,
-  ].join("\n"));
-});
-
-// Mount v1 at both /api (legacy) and /api/v1 (canonical)
+// Mount v1
 app.use("/api", v1);
 app.use("/api/v1", v1);
 
-// ── Global handlers ─────────────────────────────────────────────────────────────
+// Global handlers
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
