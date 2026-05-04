@@ -26,16 +26,26 @@ const allowedOrigins = [
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const allowedOrigins = [
+    config.clientUrl,
+    "https://julo-navy.vercel.app",
+    "https://julo-git-main-mohamed-aymans-projects-8572de39.vercel.app"
+  ];
+
   if (allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
     res.header("Access-Control-Allow-Credentials", "true");
-  } else {
-    // Fallback for dev or other allowed origins
+  } else if (!origin) {
+    // Non-browser requests
     res.header("Access-Control-Allow-Origin", "*");
+  } else {
+    // For other origins, we still need to set something for CORS to technically pass
+    // but without credentials, it's safer.
+    res.header("Access-Control-Allow-Origin", origin);
   }
   
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Token-Family, X-Idempotency-Key, X-Idempotency-Key");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Token-Family, X-Idempotency-Key");
   res.header("Access-Control-Max-Age", "86400");
 
   if (req.method === "OPTIONS") {

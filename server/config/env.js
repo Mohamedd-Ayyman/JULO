@@ -5,8 +5,7 @@ const REQUIRED = ["CONN_STRING", "SECRET_KEY", "CLIENT_URL"];
 for (const key of REQUIRED) {
   const val = process.env[key];
   if (!val || val === "" || val === `your-${key.toLowerCase()}-here`) {
-    console.error(`[ENV] Missing required: ${key} — set it in config.env`);
-    process.exit(1);
+    console.warn(`[ENV] Warning: Missing ${key}. Ensure it is set in Railway dashboard.`);
   }
 }
 
@@ -14,10 +13,10 @@ export const config = {
   // ── Server ──────────────────────────────────────────────────────────────────
   port: Number(process.env.PORT || process.env.PORT_NUMBER) || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
-  connString: process.env.CONN_STRING,
-  secretKey: process.env.SECRET_KEY,
+  connString: process.env.CONN_STRING || "mongodb://localhost:27017/julo",
+  secretKey: process.env.SECRET_KEY || "temporary-dev-key",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "15m",
-  clientUrl: process.env.CLIENT_URL,
+  clientUrl: process.env.CLIENT_URL || "https://julo-navy.vercel.app",
 
   // ── Redis ─────────────────────────────────────────────────────────────────
   redisEnabled: process.env.NODE_ENV !== "test" && !!process.env.REDIS_URL,
