@@ -6,6 +6,22 @@ import { checkUsageLimit, incrementUsage, decrementUsage } from "../middlewares/
 import logger from "../utils/logger.js";
 
 export class PostService {
+  async _notify(recipientId, senderId, tenantId, type, data = {}) {
+    if (String(recipientId) === String(senderId)) return;
+    try {
+      const { notificationQueue } = await import("../queues/index.js");
+      await notificationQueue.add("send", {
+        recipientId: String(recipientId),
+        senderId: String(senderId),
+        tenantId: String(tenantId) || null,
+        type,
+        data,
+      });
+    } catch (err) {
+      logger.error(`[PostService] Failed to queue notification: ${err.message}`);
+    }
+  }
+
   async create(authorId, tenantId, { text, image, tags, visibility }) {
     // Check usage limits before creating
     if (tenantId) {
@@ -113,12 +129,14 @@ export class PostService {
     } else {
       post.likes.push(userId);
       post.likeCount += 1;
+      // Notify author
+      this._notify(post.author, userId, post.tenantId, "like_post", { post: post._id });
     }
     await post.save();
     return { liked: idx === -1, likeCount: post.likeCount };
   }
 
-  async share(postId, userId, tenantId) {
+  async share(postId, userId, tenantId, text) {
     const original = await Post.findById(postId);
     if (!original) {
       const err = new Error("Post not found");
@@ -129,7 +147,7 @@ export class PostService {
     const repost = new Post({
       author: userId,
       tenantId,
-      text: original.text,
+      text: text || original.text,
       image: original.image,
       isRepost: true,
       originalPost: original._id,
@@ -138,6 +156,9 @@ export class PostService {
     await repost.save();
     original.shareCount += 1;
     await original.save();
+
+    // Notify original author
+    this._notify(original.author, userId, tenantId, "share", { post: repost._id });
 
     return Post.findById(repost._id)
       .populate("author", "firstname lastname profilepic isOnline")
@@ -207,6 +228,9 @@ export class PostService {
     await comment.save();
     post.commentCount += 1;
     await post.save();
+
+    // Notify post author
+    this._notify(post.author, userId, tenantId, "comment_post", { post: post._id, comment: comment._id });
 
     return Comment.findById(comment._id).populate("author", "firstname lastname profilepic isOnline");
   }

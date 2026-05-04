@@ -20,7 +20,7 @@ function Empty({ icon: Icon, title, desc, accent = "primary" }) {
 }
 
 export const EmptyFeedState = () => (
-  <Empty icon={Sparkles} title="Your feed is quiet" desc="Follow people to see their posts here, or share something to get started." />
+  <Empty icon={Sparkles} title="Your feed is quiet" desc="Follow people to see their posts here, or echo something to get started." />
 );
 export const EmptyChatsState = () => (
   <Empty icon={MessageSquare} title="No conversations yet" desc="Visit someone's profile and start a chat to see it here." />
