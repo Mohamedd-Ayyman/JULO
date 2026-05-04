@@ -58,6 +58,15 @@ export const sharePost = async (postId, text) => {
   }
 };
 
+export const unsharePost = async (postId) => {
+  try {
+    const response = await axiosInstance.delete(`/api/post/${postId}/share`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
 export const deletePost = async (postId) => {
   try {
     const response = await axiosInstance.delete(`/api/post/${postId}`);
