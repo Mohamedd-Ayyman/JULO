@@ -9,7 +9,7 @@ import {
   UserPlus,
   Check,
   AtSign,
-  Share2,
+  Megaphone,
   Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -25,7 +25,7 @@ const ICONS = {
   follow: { icon: UserPlus, color: "var(--color-success)", bg: "rgba(74,222,128,0.15)" },
   comment: { icon: MessageCircle, color: "var(--color-primary)", bg: "rgba(139,124,255,0.15)" },
   mention: { icon: AtSign, color: "var(--color-warning)", bg: "rgba(251,191,36,0.15)" },
-  share: { icon: Share2, color: "var(--color-accent-2, #f472b6)", bg: "rgba(244,114,182,0.15)" },
+  share: { icon: Megaphone, color: "var(--color-accent-2, #f472b6)", bg: "rgba(244,114,182,0.15)" },
 };
 
 export default function NotificationsPage() {
@@ -87,6 +87,7 @@ export default function NotificationsPage() {
             { id: "all", label: "All" },
             { id: "like", label: "Likes" },
             { id: "comment", label: "Comments" },
+            { id: "share", label: "Echoes" },
             { id: "follow", label: "Follows" },
             { id: "mention", label: "Mentions" },
             { id: "message", label: "Messages" },
