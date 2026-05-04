@@ -10,15 +10,6 @@ for (const key of REQUIRED) {
   }
 }
 
-function parseRedisUrl(url) {
-  try {
-    const u = new URL(url || "redis://localhost:6379/0");
-    return { hostname: u.hostname, port: Number(u.port) || 6379, password: u.password || undefined };
-  } catch {
-    return { hostname: "localhost", port: 6379, password: undefined };
-  }
-}
-
 export const config = {
   // ── Server ──────────────────────────────────────────────────────────────────
   port: Number(process.env.PORT_NUMBER) || 3000,
@@ -29,8 +20,8 @@ export const config = {
   clientUrl: process.env.CLIENT_URL,
 
   // ── Redis ─────────────────────────────────────────────────────────────────
-  redisEnabled: (process.env.NODE_ENV !== "test") && !!process.env.REDIS_URL,
-  redisUrl: parseRedisUrl(process.env.REDIS_URL),
+  redisEnabled: process.env.NODE_ENV !== "test" && !!process.env.REDIS_URL,
+  redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
 
   // ── Cloudinary ─────────────────────────────────────────────────────────────
   cloudinary: {

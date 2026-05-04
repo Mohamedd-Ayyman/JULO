@@ -6,7 +6,7 @@ import { redis } from "../config/redis.js";
 // ── Queue definitions ────────────────────────────────────────────────────
 
 export const notificationQueue = new Queue("notifications", {
-  connection: redis,
+  connection: redis.client,
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential", delay: 1000 },
@@ -16,7 +16,7 @@ export const notificationQueue = new Queue("notifications", {
 });
 
 export const emailQueue = new Queue("emails", {
-  connection: redis,
+  connection: redis.client,
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: "fixed", delay: 500 },
@@ -26,7 +26,7 @@ export const emailQueue = new Queue("emails", {
 });
 
 export const storyQueue = new Queue("stories", {
-  connection: redis,
+  connection: redis.client,
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: "exponential", delay: 500 },
@@ -68,7 +68,7 @@ const notificationWorker = new Worker(
       throw err;
     }
   },
-  { connection: redis, concurrency: config.workers.notificationConcurrency }
+  { connection: redis.client, concurrency: config.workers.notificationConcurrency }
 );
 
 // ── Email Worker ────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ const emailWorker = new Worker(
     logger.info(`[Email] Sent successfully: ${subject}`);
     return { sent: true, to, subject };
   },
-  { connection: redis, concurrency: config.workers.emailConcurrency }
+  { connection: redis.client, concurrency: config.workers.emailConcurrency }
 );
 
 // ── Story Media Processing Worker ─────────────────────────────────────
@@ -108,7 +108,7 @@ const storyWorker = new Worker(
 
     return { processed: false, reason: "Unknown action" };
   },
-  { connection: redis, concurrency: config.workers.storyConcurrency }
+  { connection: redis.client, concurrency: config.workers.storyConcurrency }
 );
 
 // ── Cleanup job (runs daily at 3am) ────────────────────────────────
@@ -132,7 +132,7 @@ const cleanupWorker = new Worker(
     logger.info(`[Queue] Cleanup removed ${result.deletedCount} old read notifications`);
     return { deleted: result.deletedCount };
   },
-  { connection: redis }
+  { connection: redis.client }
 );
 
 // ── Event handlers ──────────────────────────────────────────────────
