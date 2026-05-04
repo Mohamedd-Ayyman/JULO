@@ -1,4 +1,5 @@
 import { config } from "../config/env.js";
+import logger from "../utils/logger.js";
 
 /**
  * Allowed CORS origins.
@@ -46,10 +47,24 @@ export function corsMiddleware(req, res, next) {
     if (allowedOrigins.has(normalizedOrigin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Credentials", "true");
+      if (config.corsDebug) {
+        logger.info("[CORS] allowed", {
+          origin,
+          normalizedOrigin,
+          allowedOrigins: Array.from(allowedOrigins),
+        });
+      }
     } else {
       // Unknown origin — block credentials, still allow the request
       // so downstream auth/tenant logic can decide.
       // Do NOT send Access-Control-Allow-Origin — let browser block it.
+      if (config.corsDebug) {
+        logger.warn("[CORS] blocked", {
+          origin,
+          normalizedOrigin,
+          allowedOrigins: Array.from(allowedOrigins),
+        });
+      }
     }
   } else {
     // Non-browser / no-origin request (curl, server-to-server)

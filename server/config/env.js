@@ -50,6 +50,9 @@ export const config = {
     perUserMax: 100,
   },
 
+  // ── CORS debug ─────────────────────────────────────────────────────────────
+  corsDebug: String(process.env.CORS_DEBUG || "").toLowerCase() === "true",
+
   // ── Cache TTL (seconds) ───────────────────────────────────────────────────
   cache: {
     userProfile: 60,
