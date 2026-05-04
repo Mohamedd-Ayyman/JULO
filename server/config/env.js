@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config({ path: "./config.env" });
 
-const REQUIRED = ["PORT_NUMBER", "CONN_STRING", "SECRET_KEY", "CLIENT_URL"];
+const REQUIRED = ["CONN_STRING", "SECRET_KEY", "CLIENT_URL"];
 for (const key of REQUIRED) {
   const val = process.env[key];
   if (!val || val === "" || val === `your-${key.toLowerCase()}-here`) {
@@ -12,7 +12,7 @@ for (const key of REQUIRED) {
 
 export const config = {
   // ── Server ──────────────────────────────────────────────────────────────────
-  port: Number(process.env.PORT_NUMBER) || 3000,
+  port: Number(process.env.PORT || process.env.PORT_NUMBER) || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
   connString: process.env.CONN_STRING,
   secretKey: process.env.SECRET_KEY,
