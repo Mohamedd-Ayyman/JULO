@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
@@ -7,66 +6,27 @@ import { config } from "./config/env.js";
 import { globalErrorHandler, notFoundHandler } from "./utils/errorHandler.js";
 import { requestLogger } from "./utils/logger.js";
 import { requestTracer, perUserRateLimit } from "./middlewares/cacheMiddleware.js";
-import { initRedis } from "./config/redis.js";
 import logger from "./utils/logger.js";
 import swaggerUi from "swagger-ui-express";
+import YAML from "yaml";
 import { readFile } from "fs/promises";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import YAML from "yaml";
+import { corsMiddleware } from "./middlewares/cors.js";
 
+// ── App instance ────────────────────────────────────────────────────────────────
 const app = express();
 
-// ── Bulletproof CORS & OPTIONS Handler ────────────────────────────────────────
-const allowedOrigins = [
-  config.clientUrl,
-  "https://julo-navy.vercel.app",
-  "https://julo-git-main-mohamed-aymans-projects-8572de39.vercel.app"
-];
+// ── 1. CORS — FIRST middleware. Handles ALL origins and ALL preflights. ────────
+// No downstream middleware can run before CORS sets headers.
+// CORS middleware ends OPTIONS responses immediately — nothing else touches them.
+app.use(corsMiddleware);
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    config.clientUrl,
-    "https://julo-navy.vercel.app",
-    "https://julo-git-main-mohamed-aymans-projects-8572de39.vercel.app"
-  ];
+// ── 2. Trust proxy (Railway / Vercel / load balancers) ───────────────────────
+// Required for correct req.ip behind Railway's edge proxy.
+app.set("trust proxy", 1);
 
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Access-Control-Allow-Credentials", "true");
-  } else if (!origin) {
-    // Non-browser requests
-    res.header("Access-Control-Allow-Origin", "*");
-  } else {
-    // For other origins, we still need to set something for CORS to technically pass
-    // but without credentials, it's safer.
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-  
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Token-Family, X-Idempotency-Key");
-  res.header("Access-Control-Max-Age", "86400");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-  next();
-});
-
-// Standard CORS middleware for non-OPTIONS requests (as a backup)
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-}));
-
-// ── Security ────────────────────────────────────────────────────────────────────
+// ── 3. Security ────────────────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
@@ -79,38 +39,43 @@ app.use(helmet({
   },
 }));
 
-// ── Swagger UI ───────────────────────────────────────────────────────────
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const openApiPath = resolve(__dirname, "../docs/openapi.yaml");
-let openApiSpec = null;
-try {
-  const raw = await readFile(openApiPath, "utf8");
-  openApiSpec = YAML.parse(raw);
-} catch (err) {
-  logger.warn("[Swagger] OpenAPI spec not loaded");
-}
-if (openApiSpec) {
-  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, { explorer: true }));
-}
-
-// ── Stripe webhook (raw body required BEFORE general JSON parsing) ───────────
+// ── 4. Raw body for Stripe webhooks — must be BEFORE express.json() ───────────
 app.use("/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }));
 
+// ── 5. Body parsers ───────────────────────────────────────────────────────────
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
-// Root health check
-app.get("/", (req, res) => {
-  res.send({ success: true, message: "JULO API is running", statusCode: 200 });
+// ── 6. Root health — no auth, no tracing, available immediately ───────────────
+app.get("/", (_req, res) => {
+  res.status(200).json({ success: true, message: "JULO API is running", statusCode: 200 });
 });
 
-// ── Observability ──────────────────────────────────────────────────────────────
+// ── 7. Request tracing ────────────────────────────────────────────────────────
 app.use(requestTracer);
+
+// ── 8. Request logging ─────────────────────────────────────────────────────────
 app.use(requestLogger);
 
-// ── Rate limiting (Skipping OPTIONS) ──────────────────────────────────────────
+// ── 9. Swagger UI — lazy loaded, non-blocking ──────────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const openApiPath = resolve(__dirname, "../docs/openapi.yaml");
+const swaggerPromise = readFile(openApiPath, "utf8")
+  .then((raw) => YAML.parse(raw))
+  .catch(() => null); // non-fatal — spec missing is not a server error
+
+swaggerPromise.then((openApiSpec) => {
+  if (openApiSpec) {
+    app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, { explorer: true }));
+    logger.info("[Swagger] OpenAPI spec loaded");
+  }
+});
+
+// ── 10. Rate limiting ─────────────────────────────────────────────────────────
+// OPTIONS requests are NOT routed through Express by the time they reach here
+// (corsMiddleware ends them), so skip logic is belt-and-suspenders.
 const skipOptions = (req) => req.method === "OPTIONS";
 
 app.use("/api/auth", rateLimit({
@@ -131,15 +96,25 @@ app.use("/api", rateLimit({
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
-// ── API v1 router ──────────────────────────────────────────────────────────────
+// ── 11. Global OPTIONS catch-all ───────────────────────────────────────────────
+// Belt-and-suspenders: if an OPTIONS request somehow slips past corsMiddleware
+// (e.g. unrecognised path before router is mounted), return 204 immediately.
+app.options("*", (_req, res) => res.status(204).end());
+
+// ── 12. API v1 router ─────────────────────────────────────────────────────────
 const v1 = express.Router();
 
-// Per-user Redis rate limit (logged-in routes only, skip OPTIONS)
+// Per-user Redis rate limit — wrapped in try/catch so Redis failure never blocks requests.
+// Falls back to allowing all traffic if Redis is unavailable.
 v1.use((req, res, next) => {
   if (req.method === "OPTIONS") return next();
-  perUserRateLimit(req, res, next);
+  perUserRateLimit(req, res, next).catch((err) => {
+    logger.error("[perUserRateLimit] Redis error — allowing request through", { error: err.message });
+    next();
+  });
 });
 
+// Route imports
 import authRouter from "./controllers/authController.js";
 import userRouter from "./controllers/userController.js";
 import chatRouter from "./controllers/chatController.js";
@@ -150,6 +125,7 @@ import notificationRouter from "./controllers/notificationController.js";
 import uploadRouter from "./controllers/uploadController.js";
 import billingRouter from "./controllers/billingController.js";
 import storyRouter from "./controllers/storyController.js";
+import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
 v1.use("/user", userRouter);
@@ -162,20 +138,25 @@ v1.use("/upload", uploadRouter);
 v1.use("/billing", billingRouter);
 v1.use("/stories", storyRouter);
 
-// Stripe webhook controller
-import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
+// Stripe webhook — raw body already parsed at step 4
 app.post("/webhooks/stripe", stripeWebhookController);
 
 // Health check
-v1.get("/health", (req, res) => {
-  res.send({ success: true, uptime: process.uptime(), ts: new Date().toISOString(), statusCode: 200 });
+v1.get("/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    uptime: process.uptime(),
+    ts: new Date().toISOString(),
+    statusCode: 200,
+  });
 });
 
-// Mount v1 at both /api (legacy) and /api/v1 (canonical)
+// Mount v1 at /api (legacy) and /api/v1 (canonical)
 app.use("/api", v1);
 app.use("/api/v1", v1);
 
-// ── Global handlers ─────────────────────────────────────────────────────────────
+// ── 13. Global handlers — MUST be last ───────────────────────────────────────
+// Handlers are registered once in server.js (uncaughtException / unhandledRejection).
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 

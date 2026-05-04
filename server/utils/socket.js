@@ -9,11 +9,11 @@ import { v4 as uuidv4 } from "uuid";
 let io;
 
 /**
- * Build Socket.IO server with Redis adapter for horizontal scaling.
- * Each instance subscribes to a shared Redis pub/sub channel, enabling
- * real-time events to route correctly across multiple server instances.
+ * Build Socket.IO server with optional Redis adapter for horizontal scaling.
+ * Adapter is only activated when Redis is fully ready — otherwise runs
+ * single-instance without Redis pub/sub (Socket.IO works fine without it).
  */
-export async function initSocket(server) {
+export async function initSocket(httpServer) {
   const ioOptions = {
     cors: {
       origin: config.clientUrl,
@@ -23,23 +23,47 @@ export async function initSocket(server) {
     transports: ["websocket", "polling"],
     pingTimeout: 60_000,
     pingInterval: 25_000,
+    // Allow long polling fallback for unreliable connections
+    allowUpgrades: true,
+    perMessageDeflate: false,
   };
 
-  // Use Redis adapter only when Redis is available
-  if (redis.ready) {
-    const pubClient = redis.client.duplicate();
-    const subClient = redis.client.duplicate();
-    await Promise.all([pubClient.connect(), subClient.connect()]);
+  io = new Server(httpServer, ioOptions);
 
-    io = new Server(server, ioOptions);
-    io.adapter(createAdapter(pubClient, subClient));
-    logger.info("[Socket] Redis adapter enabled — multi-instance support active");
+  // ── Redis adapter — only when Redis is fully ready ──────────────────────
+  if (redis.ready) {
+    try {
+      // ioredis.duplicate() creates a fresh client sharing the connection pool
+      const pubClient = redis.client.duplicate();
+      const subClient = redis.client.duplicate();
+
+      // Connect duplicates (they start disconnected)
+      await Promise.all([
+        pubClient.connect().catch((err) => {
+          logger.warn("[Socket] Pub client connect failed", { error: err.message });
+          return null;
+        }),
+        subClient.connect().catch((err) => {
+          logger.warn("[Socket] Sub client connect failed", { error: err.message });
+          return null;
+        }),
+      ]);
+
+      // Use adapter only if both clients connected successfully
+      if (pubClient.status === "ready" && subClient.status === "ready") {
+        io.adapter(createAdapter(pubClient, subClient));
+        logger.info("[Socket] Redis adapter active — multi-instance support enabled");
+      } else {
+        logger.warn("[Socket] Redis adapter NOT active — single-instance mode");
+      }
+    } catch (err) {
+      logger.warn("[Socket] Redis adapter setup failed — single-instance mode", { error: err.message });
+    }
   } else {
-    io = new Server(server, ioOptions);
-    logger.warn("[Socket] No Redis — running in single-instance mode");
+    logger.warn("[Socket] Redis not ready — running in single-instance mode (no Redis adapter)");
   }
 
-  // ── Auth middleware ───────────────────────────────────────────────────────
+  // ── Auth middleware ───────────────────────────────────────────────────
   io.use(async (socket, next) => {
     try {
       const token =
@@ -55,23 +79,27 @@ export async function initSocket(server) {
     }
   });
 
-  // ── Connection handler ────────────────────────────────────────────────────
+  // ── Connection handler ─────────────────────────────────────────────────
   io.on("connection", async (socket) => {
     const requestId = uuidv4();
     socket.requestId = requestId;
     socket.join(`user:${socket.userId}`);
 
-    // Track socket in Redis (for presence + routing)
+    // Track socket in Redis (for presence) — non-fatal if Redis is unavailable
     if (redis.ready) {
-      await redis.client.hset(`sockets:${socket.userId}`, socket.id, JSON.stringify({
-        connectedAt: new Date().toISOString(),
-        requestId,
-      }));
+      try {
+        await redis.client.hset(`sockets:${socket.userId}`, socket.id, JSON.stringify({
+          connectedAt: new Date().toISOString(),
+          requestId,
+        }));
+      } catch (err) {
+        logger.debug(`[Socket] Redis presence update failed for ${socket.userId}`, { error: err.message });
+      }
     }
 
     logger.info(`[Socket] Connected: ${socket.userId} (${socket.id})`, { requestId });
 
-    // ── Chat rooms ─────────────────────────────────────────────────────────
+    // ── Chat rooms ─────────────────────────────────────────────────────
     socket.on("join_chat", async (chatId) => {
       socket.join(`chat:${chatId}`);
       logger.debug(`[Socket] ${socket.userId} joined chat:${chatId}`);
@@ -82,11 +110,10 @@ export async function initSocket(server) {
       logger.debug(`[Socket] ${socket.userId} left chat:${chatId}`);
     });
 
-    // ── Real-time message ─────────────────────────────────────────────────
+    // ── Real-time message ──────────────────────────────────────────────
     socket.on("send_message", async ({ chatId, text, receiverId }) => {
       logger.debug(`[Socket] send_message from ${socket.userId} to chat:${chatId}`, { requestId });
 
-      // Broadcast to chat room (all instances via Redis adapter)
       socket.to(`chat:${chatId}`).emit("receive_message", {
         chatId,
         senderId: socket.userId,
@@ -95,7 +122,6 @@ export async function initSocket(server) {
         requestId,
       });
 
-      // Direct emit to receiver if specified
       if (receiverId) {
         io.to(`user:${receiverId}`).emit("receive_message", {
           chatId,
@@ -107,7 +133,7 @@ export async function initSocket(server) {
       }
     });
 
-    // ── Typing indicators ─────────────────────────────────────────────────
+    // ── Typing indicators ───────────────────────────────────────────────
     socket.on("typing_start", ({ chatId, receiverId }) => {
       if (chatId) socket.to(`chat:${chatId}`).emit("user_typing", { chatId, userId: socket.userId });
       if (receiverId) io.to(`user:${receiverId}`).emit("user_typing", { chatId, userId: socket.userId });
@@ -118,7 +144,7 @@ export async function initSocket(server) {
       if (receiverId) io.to(`user:${receiverId}`).emit("user_stopped_typing", { chatId, userId: socket.userId });
     });
 
-    // ── Presence sync ─────────────────────────────────────────────────────
+    // ── Presence sync ───────────────────────────────────────────────────
     socket.on("sync_presence", () => {
       socket.emit("presence_sync", {
         userId: socket.userId,
@@ -127,21 +153,24 @@ export async function initSocket(server) {
       });
     });
 
-    // ── Disconnect ─────────────────────────────────────────────────────────
+    // ── Disconnect ─────────────────────────────────────────────────────
     socket.on("disconnect", async (reason) => {
       logger.info(`[Socket] Disconnected: ${socket.userId} (${reason})`, { requestId });
 
-      // Remove from Redis presence map
       if (redis.ready) {
-        await redis.client.hdel(`sockets:${socket.userId}`, socket.id);
-        // If no more sockets for this user, mark offline
-        const remaining = await redis.client.hlen(`sockets:${socket.userId}`);
-        if (remaining === 0) {
-          // Import lazily to avoid circular deps
-          try {
-            const { default: User } = await import("../models/user.js");
-            await User.findByIdAndUpdate(socket.userId, { isOnline: false, lastSeen: new Date() });
-          } catch {}
+        try {
+          await redis.client.hdel(`sockets:${socket.userId}`, socket.id);
+          const remaining = await redis.client.hlen(`sockets:${socket.userId}`);
+          if (remaining === 0) {
+            try {
+              const { default: User } = await import("../models/user.js");
+              await User.findByIdAndUpdate(socket.userId, { isOnline: false, lastSeen: new Date() });
+            } catch (err) {
+              logger.debug("[Socket] Failed to update user offline status", { error: err.message });
+            }
+          }
+        } catch (err) {
+          logger.debug(`[Socket] Redis cleanup failed for ${socket.userId}`, { error: err.message });
         }
       }
     });
