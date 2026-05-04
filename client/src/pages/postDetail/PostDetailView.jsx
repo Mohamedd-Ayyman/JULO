@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { getPost, getComments, addComment, likePost, sharePost } from "../../apiCalls/post.js";
-import { Heart, MessageCircle, Share2, Send, X, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Megaphone, Send, X, Loader2, Zap, Quote } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import Avatar from "../../components/Avatar.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
+import QuoteEchoModal from "../../components/QuoteEchoModal.jsx";
 
 export default function PostDetailView({ postId, onClose }) {
   const [post, setPost] = useState(null);
@@ -15,7 +16,22 @@ export default function PostDetailView({ postId, onClose }) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [echoMenuOpen, setEchoMenuOpen] = useState(false);
+  const [echoRipple, setEchoRipple] = useState(false);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const echoRef = useRef(null);
+
   const { user } = useSelector((s) => s.userReducer);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (echoRef.current && !echoRef.current.contains(event.target)) {
+        setEchoMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +64,7 @@ export default function PostDetailView({ postId, onClose }) {
     const res = await addComment(postId, text);
     if (res.success) {
       setComments((c) => [res.data, ...c]);
-      toast.success("Comment added");
+      toast.success("Echoed back!");
     } else {
       setComment(text);
       toast.error("Failed");
@@ -77,13 +93,21 @@ export default function PostDetailView({ postId, onClose }) {
     if (!res.success) setLiked((v) => !v);
   };
 
-  const handleShare = async () => {
+  const handleQuickEcho = async () => {
     if (!post) return;
+    setEchoMenuOpen(false);
+    setEchoRipple(true);
+    setTimeout(() => setEchoRipple(false), 1000);
     const res = await sharePost(post._id);
     if (res.success) {
       setPost((p) => ({ ...p, shareCount: (p.shareCount || 0) + 1 }));
-      toast.success("Shared");
-    } else toast.error(res.message || "Share failed");
+      toast.success("Echoed");
+    } else toast.error(res.message || "Echo failed");
+  };
+
+  const handleQuoteEcho = () => {
+    setEchoMenuOpen(false);
+    setQuoteModalOpen(true);
   };
 
   if (loading) {
@@ -105,59 +129,118 @@ export default function PostDetailView({ postId, onClose }) {
   }
 
   const isRepost = !!(post?.isRepost || post?.originalPost);
+  const isQuote = isRepost && post.text && post.text !== post.originalPost?.text;
   const sharer = post?.author || null;
   const display = post?.originalPost || post;
 
   const originalPost = post?.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
   const originalAuthor = originalPost?.author && typeof originalPost.author === "object" ? originalPost.author : null;
-  const author = isRepost && originalAuthor ? originalAuthor : display?.author || {};
+  const author = (isRepost && !isQuote && originalAuthor) ? originalAuthor : (post.author || {});
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
   const sharerName = sharer ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim() : "";
   const sharerIsMe = sharer && user?._id && String(sharer._id) === String(user._id);
 
   return (
     <Wrapper onClose={onClose}>
-      {/* Repost banner */}
-      {isRepost && sharer && (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 px-1">
-          <Share2 className="w-3.5 h-3.5" />
-          <span>{sharerIsMe ? "You" : sharerName || "Someone"} shared</span>
-        </div>
+      {quoteModalOpen && (
+        <QuoteEchoModal 
+          post={display} 
+          user={user} 
+          onClose={() => setQuoteModalOpen(false)} 
+          onEchoed={() => setPost(p => ({ ...p, shareCount: (p.shareCount || 0) + 1 }))}
+        />
       )}
 
-      {/* Author */}
-      <div className="flex items-center gap-3 mb-4 animate-fade-in">
-        <Avatar src={author.profilepic} name={authorName} size={44} ring />
-        <div>
-          <p className="text-sm font-bold text-foreground">{authorName || "Unknown"}</p>
-          <p className="text-xs text-muted-foreground">{formatTime(display?.createdAt || post?.createdAt)}</p>
-        </div>
-      </div>
+      <div className={`relative overflow-hidden rounded-2xl ${echoRipple ? "echo-ripple-active" : ""}`}>
+        {echoRipple && <div className="echo-ripple-effect" />}
+        
+        {/* Repost banner */}
+        {isRepost && !isQuote && sharer && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 px-1">
+            <Megaphone className="w-3.5 h-3.5" />
+            <span>{sharerIsMe ? "You" : sharerName || "Someone"} echoed</span>
+          </div>
+        )}
 
-      {/* Content */}
-      {display?.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{display.text}</p>}
-      {display?.image && (
-        <img src={display.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center gap-6 py-3 border-y border-glass-border mb-4">
-        <button
-          onClick={handleLike}
-          className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
-          style={{ color: liked ? "var(--color-like)" : "var(--color-muted-foreground)" }}
-        >
-          <Heart className={`w-5 h-5 ${liked ? "fill-current heart-pop" : ""}`} />
-          {display?.likeCount || 0}
-        </button>
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <MessageCircle className="w-5 h-5" />
-          {display?.commentCount || 0}
+        {/* Author */}
+        <div className="flex items-center gap-3 mb-4 animate-fade-in">
+          <Avatar src={author.profilepic} name={authorName} size={44} ring />
+          <div>
+            <p className="text-sm font-bold text-foreground">{authorName || "Unknown"}</p>
+            <p className="text-xs text-muted-foreground">{formatTime(isQuote ? post?.createdAt : (display?.createdAt || post?.createdAt))}</p>
+          </div>
         </div>
-        <button onClick={handleShare} className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105">
-          <Share2 className="w-5 h-5" />
-          {display?.shareCount || 0}
-        </button>
+
+        {/* Content */}
+        {isQuote ? (
+          <div className="space-y-4 mb-4">
+            <p className="text-foreground text-[16px] leading-relaxed whitespace-pre-wrap">{post.text}</p>
+            <div className="ml-13 border border-glass-border rounded-xl p-4 bg-glass-bg/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Avatar src={originalAuthor?.profilepic} name={`${originalAuthor?.firstname || ""}`} size={24} />
+                <span className="text-sm font-bold text-foreground">{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
+                <span className="text-xs text-muted-foreground">· {formatTime(originalPost.createdAt)}</span>
+              </div>
+              <p className="text-sm text-foreground-soft leading-relaxed">{originalPost.text}</p>
+              {originalPost.image && (
+                <img src={originalPost.image} alt="" className="mt-3 rounded-lg max-h-60 w-full object-cover border border-glass-border" />
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {display?.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{display.text}</p>}
+            {display?.image && (
+              <img src={display.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
+            )}
+          </>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-6 py-3 border-y border-glass-border mb-4">
+          <button
+            onClick={handleLike}
+            className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
+            style={{ color: liked ? "var(--color-like)" : "var(--color-muted-foreground)" }}
+          >
+            <Heart className={`w-5 h-5 ${liked ? "fill-current heart-pop" : ""}`} />
+            {display?.likeCount || 0}
+          </button>
+          
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <MessageCircle className="w-5 h-5" />
+            {display?.commentCount || 0}
+          </div>
+
+          <div className="relative" ref={echoRef}>
+            <button 
+              onClick={() => setEchoMenuOpen(!echoMenuOpen)}
+              className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105"
+            >
+              <Megaphone className="w-5 h-5" />
+              {display?.shareCount || 0}
+            </button>
+            
+            {echoMenuOpen && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 card p-1 shadow-2xl animate-scale-in z-50">
+                <button 
+                  onClick={handleQuickEcho}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors"
+                >
+                  <Zap className="w-4 h-4 text-warning" />
+                  Quick Echo
+                </button>
+                <button 
+                  onClick={handleQuoteEcho}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors"
+                >
+                  <Quote className="w-4 h-4 text-primary" />
+                  Quote Echo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Compose */}

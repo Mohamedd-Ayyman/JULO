@@ -4,25 +4,27 @@ import { likePost, addComment, getComments, sharePost, bookmarkPost, deletePost 
 import {
   Heart,
   MessageCircle,
-  Share2,
+  Megaphone,
   Send,
   Bookmark,
   MoreHorizontal,
   Trash2,
   Flag,
   Link2,
-  Repeat2,
+  Quote,
+  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { ROUTES } from "../../lib/constants.js";
 import Avatar from "../../components/Avatar.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
+import QuoteEchoModal from "../../components/QuoteEchoModal.jsx";
 
 export default function PostCard({ post, currentUserId, onShare, onDelete, index = 0 }) {
-  // If this is a repost wrapper, render the original post but with a banner above.
   const isRepost = !!(post.isRepost || post.originalPost);
-  const sharer = post.author || post.sharedBy || null;
+  const isQuote = isRepost && post.text && post.text !== post.originalPost?.text;
+  const sharer = post.author || null;
   const display = post.originalPost || post;
 
   const [liked, setLiked] = useState(display.likes?.includes(currentUserId));
@@ -36,17 +38,23 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
   const [bookmarked, setBookmarked] = useState(!!display.bookmarked);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const [echoMenuOpen, setEchoMenuOpen] = useState(false);
+  const [echoRipple, setEchoRipple] = useState(false);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  
   const menuRef = useRef(null);
+  const echoRef = useRef(null);
   const { user } = useSelector((s) => s.userReducer);
   const navigate = useNavigate();
 
   useEffect(() => {
     const onClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (echoRef.current && !echoRef.current.contains(e.target)) setEchoMenuOpen(false);
     };
-    if (menuOpen) document.addEventListener("mousedown", onClick);
+    document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
-  }, [menuOpen]);
+  }, []);
 
   const handleLike = async () => {
     setLiked((v) => !v);
@@ -91,13 +99,22 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
     }
   };
 
-  const handleShare = async () => {
+  const handleQuickEcho = async () => {
+    setEchoMenuOpen(false);
+    setEchoRipple(true);
+    setTimeout(() => setEchoRipple(false), 1000);
+    
     const res = await sharePost(display._id);
     if (res.success) {
       setShareCount((p) => p + 1);
-      toast.success("Shared to your feed");
+      toast.success("Echoed to your feed");
       onShare?.(res.data);
-    } else toast.error(res.message || "Share failed");
+    } else toast.error(res.message || "Echo failed");
+  };
+
+  const handleQuoteEcho = () => {
+    setEchoMenuOpen(false);
+    setQuoteModalOpen(true);
   };
 
   const handleCopyLink = async () => {
@@ -129,100 +146,133 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
   if (deleted) return null;
 
   const originalPost = post.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
-  const originalAuthor =
-    originalPost && originalPost.author && typeof originalPost.author === "object"
-      ? originalPost.author
-      : null;
-  const author = isRepost && originalAuthor ? originalAuthor : display.author || {};
+  const originalAuthor = originalPost?.author && typeof originalPost.author === "object" ? originalPost.author : null;
+  const author = (isRepost && !isQuote && originalAuthor) ? originalAuthor : (post.author || {});
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
-  const sharerName = sharer
-    ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim()
-    : "";
+  const sharerName = sharer ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim() : "";
   const sharerIsMe = sharer && currentUserId && String(sharer._id) === String(currentUserId);
   const isAuthor = currentUserId && String(author._id) === String(currentUserId);
 
   return (
-    <article
-      className="card p-4 sm:p-5 animate-fade-in-up hover-lift"
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      {/* Repost banner */}
-      {isRepost && sharer && (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-          <Repeat2 className="w-3.5 h-3.5" />
-          <span>{sharerIsMe ? "You" : sharerName || "Someone"} shared</span>
-        </div>
+    <>
+      {/* Quote Modal - Rendered outside article to avoid clipping */}
+      {quoteModalOpen && (
+        <QuoteEchoModal 
+          post={display} 
+          user={user} 
+          onClose={() => setQuoteModalOpen(false)} 
+          onEchoed={(echo) => {
+            setShareCount(prev => prev + 1);
+            onShare?.(echo);
+          }}
+        />
       )}
 
-      {/* Header */}
-      <header className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Link to={ROUTES.PROFILE_USER(author._id)}>
-            <Avatar src={author.profilepic} name={authorName} size={42} ring />
-          </Link>
-          <div className="min-w-0">
-            <Link
-              to={ROUTES.PROFILE_USER(author._id)}
-              className="text-sm font-bold text-foreground truncate story-link"
-            >
-              {authorName || "Unknown"}
-            </Link>
-            <p className="text-xs text-muted-foreground">
-              {formatTime(display.createdAt)}
-            </p>
+      <article
+        className={`card p-4 sm:p-5 animate-fade-in-up hover-lift relative overflow-hidden ${echoRipple ? "echo-ripple-active" : ""}`}
+        style={{ animationDelay: `${index * 50}ms` }}
+      >
+        {/* Repost banner */}
+        {isRepost && !isQuote && sharer && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+            <Megaphone className="w-3.5 h-3.5" />
+            <span>{sharerIsMe ? "You" : sharerName || "Someone"} echoed</span>
           </div>
-        </div>
+        )}
 
-        {/* 3-dot menu */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="btn btn-ghost btn-icon"
-            aria-label="More options"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 z-30 min-w-[180px] card p-1 animate-fade-in shadow-xl">
-              <MenuItem onClick={handleCopyLink} icon={Link2} label="Copy link" />
-              <MenuItem onClick={() => { setMenuOpen(false); handleBookmark(); }} icon={Bookmark} label={bookmarked ? "Remove bookmark" : "Save post"} />
-              {isAuthor ? (
-                <MenuItem onClick={handleDelete} icon={Trash2} label="Delete post" danger />
-              ) : (
-                <MenuItem onClick={() => { setMenuOpen(false); toast.success("Reported. Thank you."); }} icon={Flag} label="Report post" danger />
+        {/* Header */}
+        <header className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link to={ROUTES.PROFILE_USER(author._id)}>
+              <Avatar src={author.profilepic} name={authorName} size={42} ring />
+            </Link>
+            <div className="min-w-0">
+              <Link
+                to={ROUTES.PROFILE_USER(author._id)}
+                className="text-sm font-bold text-foreground truncate story-link"
+              >
+                {authorName || "Unknown"}
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                {formatTime(isQuote ? post.createdAt : display.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          {/* 3-dot menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="btn btn-ghost btn-icon"
+              aria-label="More options"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 z-30 min-w-[180px] card p-1 animate-fade-in shadow-xl">
+                <MenuItem onClick={handleCopyLink} icon={Link2} label="Copy link" />
+                <MenuItem onClick={() => { setMenuOpen(false); handleBookmark(); }} icon={Bookmark} label={bookmarked ? "Remove bookmark" : "Save post"} />
+                {isAuthor ? (
+                  <MenuItem onClick={handleDelete} icon={Trash2} label="Delete post" danger />
+                ) : (
+                  <MenuItem onClick={() => { setMenuOpen(false); toast.success("Reported. Thank you."); }} icon={Flag} label="Report post" danger />
+                )}
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Body */}
+        {isQuote ? (
+          <div className="space-y-3">
+            <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+              {post.text}
+            </p>
+            <div 
+              onClick={openDetail}
+              className="ml-13 border border-glass-border rounded-xl p-3 hover:bg-glass-hover transition-colors cursor-pointer bg-glass-bg/30"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Avatar src={originalAuthor?.profilepic} name={`${originalAuthor?.firstname || ""}`} size={20} />
+                <span className="text-xs font-bold text-foreground">{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
+                <span className="text-[10px] text-muted-foreground">· {formatTime(originalPost.createdAt)}</span>
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{originalPost.text}</p>
+              {originalPost.image && (
+                <img src={originalPost.image} alt="" className="mt-2 rounded-lg max-h-40 w-full object-cover border border-glass-border" />
               )}
             </div>
-          )}
-        </div>
-      </header>
-
-      {/* Body */}
-      {display.text && (
-        <button onClick={openDetail} className="text-left w-full">
-          <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-            {display.text}
-          </p>
-        </button>
-      )}
-      {display.image && (
-        <button onClick={openDetail} className="block w-full mt-3 group">
-          <div className="overflow-hidden rounded-xl border border-glass-border">
-            <img
-              src={display.image}
-              alt=""
-              loading="lazy"
-              className="w-full max-h-[480px] object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-            />
           </div>
-        </button>
-      )}
+        ) : (
+          <>
+            {display.text && (
+              <button onClick={openDetail} className="text-left w-full">
+                <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                  {display.text}
+                </p>
+              </button>
+            )}
+            {display.image && (
+              <button onClick={openDetail} className="block w-full mt-3 group">
+                <div className="overflow-hidden rounded-xl border border-glass-border">
+                  <img
+                    src={display.image}
+                    alt=""
+                    loading="lazy"
+                    className="w-full max-h-[480px] object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                  />
+                </div>
+              </button>
+            )}
+          </>
+        )}
 
-      {/* Stats */}
-      {(likesCount > 0 || display.commentCount > 0 || shareCount > 0) && (
+        {/* Stats */}
+        {(likesCount > 0 || display.commentCount > 0 || shareCount > 0) && (
         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
           {likesCount > 0 && <span>{likesCount} {likesCount === 1 ? "like" : "likes"}</span>}
           {display.commentCount > 0 && <span>{display.commentCount} comments</span>}
-          {shareCount > 0 && <span>{shareCount} shares</span>}
+          {shareCount > 0 && <span>{shareCount} echoes</span>}
         </div>
       )}
 
@@ -241,15 +291,39 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
         <ActionButton onClick={toggleComments} label="Comment">
           <MessageCircle className="w-[18px] h-[18px]" />
         </ActionButton>
-        <ActionButton onClick={handleShare} label="Share">
-          <Share2 className="w-[18px] h-[18px]" />
-        </ActionButton>
+        
+        {/* Echo Action with Dropdown */}
+        <div className="relative flex-1 flex justify-center" ref={echoRef}>
+          <ActionButton onClick={() => setEchoMenuOpen(!echoMenuOpen)} label="Echo">
+            <Megaphone className={`w-[18px] h-[18px] transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
+          </ActionButton>
+          
+          {echoMenuOpen && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 card p-1 shadow-2xl animate-scale-in z-50">
+              <button 
+                onClick={handleQuickEcho}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors text-left"
+              >
+                <Zap className="w-4 h-4 text-warning" />
+                Quick Echo
+              </button>
+              <button 
+                onClick={handleQuoteEcho}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors text-left"
+              >
+                <Quote className="w-4 h-4 text-primary" />
+                Quote Echo
+              </button>
+            </div>
+          )}
+        </div>
+
         <ActionButton onClick={handleBookmark} active={bookmarked} activeColor="var(--color-primary)" label="Save">
           <Bookmark className={`w-[18px] h-[18px] ${bookmarked ? "fill-current" : ""}`} />
         </ActionButton>
       </div>
 
-      {/* Comment composer — perfectly aligned row */}
+      {/* Comment composer */}
       <div className="mt-3 flex items-center gap-2">
         <span className="flex-shrink-0 inline-flex items-center">
           <Avatar src={user?.profilepic} name={`${user?.firstname || ""}`} size={36} />
@@ -278,7 +352,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
       {showComments && (
         <div className="mt-4 space-y-3 animate-fade-in">
           {comments.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">Be the first to comment</p>
+            <p className="text-xs text-muted-foreground text-center py-2">Be the first to echo back</p>
           ) : (
             comments.map((c) => (
               <div key={c._id} className="flex gap-2.5">
@@ -297,7 +371,11 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
           )}
         </div>
       )}
+      
+      {/* Visual Ripple Element */}
+      <div className="echo-ripple-effect" />
     </article>
+    </>
   );
 }
 
