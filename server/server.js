@@ -16,7 +16,7 @@ const httpServer = createServer(app);
 await initRedis();
 await initSocket(httpServer);
 
-httpServer.listen(config.port, () => {
+httpServer.listen(config.port, "0.0.0.0", () => {
   logger.info(`[JULO] HTTP + Socket.IO listening on port ${config.port} [${config.nodeEnv.toUpperCase()}]`);
   if (config.isProduction) {
     logger.info("[JULO] Running in PRODUCTION mode — ensure config.env is properly set");
