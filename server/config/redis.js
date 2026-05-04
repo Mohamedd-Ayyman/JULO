@@ -56,6 +56,22 @@ export async function initRedis() {
     if (redisClient.status === "wait" || redisClient.status === "close") {
       await redisClient.connect();
     }
+    
+    // Ensure the client is actually 'ready' to handle commands
+    if (redisClient.status !== "ready") {
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Redis connection timeout")), 5000);
+        redisClient.once("ready", () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        redisClient.once("error", (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
+    }
+    
     return redisClient;
   } catch (err) {
     logger.warn("[Redis] Not available — caching and queues might be limited", { error: err.message });

@@ -57,7 +57,7 @@ app.use(cors({
 }));
 
 // Handle preflight requests
-app.options("*", cors());
+app.options(/.*/, cors());
 
 // ── Stripe webhook (raw body required BEFORE general JSON parsing) ───────────
 app.use("/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }));
