@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { likePost, addComment, getComments, sharePost, bookmarkPost, deletePost } from "../../apiCalls/post.js";
+import { likePost, addComment, getComments, sharePost, unsharePost, bookmarkPost, deletePost } from "../../apiCalls/post.js";
 import {
   Heart,
   MessageCircle,
@@ -12,7 +12,6 @@ import {
   Flag,
   Link2,
   Quote,
-  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -21,36 +20,44 @@ import Avatar from "../../components/Avatar.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
 import QuoteEchoModal from "../../components/QuoteEchoModal.jsx";
 
-export default function PostCard({ post, currentUserId, onShare, onDelete, index = 0 }) {
+export default function PostCard({ post, currentUserId, onShare, onUnshare, onDelete, index = 0, userQuickEchoes = [], postsById = {} }) {
   const isRepost = !!(post.isRepost || post.originalPost);
   const isQuote = isRepost && post.text && post.text !== post.originalPost?.text;
   const sharer = post.author || null;
-  const display = post.originalPost || post;
+  const resolvedOriginalPost = post.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
+  const originalPostId = post.originalPost && typeof post.originalPost !== "object" ? String(post.originalPost) : resolvedOriginalPost?._id;
+  const originalPostFromFeed = originalPostId ? postsById[String(originalPostId)] : null;
+  const display = originalPostFromFeed || resolvedOriginalPost || post;
+  const isQuickEchoPost = isRepost && !isQuote;
+  const actionPost = isQuote ? post : display;
 
-  const [liked, setLiked] = useState(display.likes?.includes(currentUserId));
+  const [liked, setLiked] = useState(actionPost.likes?.includes(currentUserId));
   const [animate, setAnimate] = useState(false);
-  const [likesCount, setLikesCount] = useState(display.likeCount ?? display.likes?.length ?? 0);
+  const [likesCount, setLikesCount] = useState(
+    actionPost.likeCount ?? actionPost.likes?.length ?? originalPostFromFeed?.likeCount ?? post.originalPost?.likeCount ?? 0
+  );
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [showComments, setShowComments] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
-  const [shareCount, setShareCount] = useState(display.shareCount || 0);
-  const [bookmarked, setBookmarked] = useState(!!display.bookmarked);
+  const [shareCount, setShareCount] = useState(
+    actionPost.shareCount ?? originalPostFromFeed?.shareCount ?? post.originalPost?.shareCount ?? 0
+  );
+  const commentCount = actionPost.commentCount ?? originalPostFromFeed?.commentCount ?? post.originalPost?.commentCount ?? 0;
+  const displayCreatedAt = isQuote ? post?.createdAt : (display?.createdAt || post?.createdAt);
+  const [bookmarked, setBookmarked] = useState(!!actionPost.bookmarked);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleted, setDeleted] = useState(false);
-  const [echoMenuOpen, setEchoMenuOpen] = useState(false);
   const [echoRipple, setEchoRipple] = useState(false);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   
   const menuRef = useRef(null);
-  const echoRef = useRef(null);
   const { user } = useSelector((s) => s.userReducer);
   const navigate = useNavigate();
 
   useEffect(() => {
     const onClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-      if (echoRef.current && !echoRef.current.contains(e.target)) setEchoMenuOpen(false);
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
@@ -61,7 +68,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
     setLikesCount((c) => (liked ? Math.max(0, c - 1) : c + 1));
     setAnimate(true);
     setTimeout(() => setAnimate(false), 500);
-    const res = await likePost(display._id);
+    const res = await likePost(actionPost._id);
     if (!res.success) {
       setLiked((v) => !v);
       setLikesCount((c) => (liked ? c + 1 : Math.max(0, c - 1)));
@@ -70,7 +77,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
 
   const handleBookmark = async () => {
     setBookmarked((v) => !v);
-    const res = await bookmarkPost(display._id);
+    const res = await bookmarkPost(actionPost._id);
     if (!res.success) setBookmarked((v) => !v);
     else toast.success(bookmarked ? "Removed bookmark" : "Bookmarked");
   };
@@ -78,7 +85,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
   const toggleComments = async () => {
     setShowComments((v) => !v);
     if (!commentsLoaded) {
-      const res = await getComments(display._id);
+      const res = await getComments(actionPost._id);
       if (res.success) setComments(res.data || []);
       setCommentsLoaded(true);
     }
@@ -88,7 +95,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
     if (!comment.trim()) return;
     const text = comment;
     setComment("");
-    const res = await addComment(display._id, text);
+    const res = await addComment(actionPost._id, text);
     if (res.success) {
       setComments((c) => [res.data, ...c]);
       setShowComments(true);
@@ -99,21 +106,39 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
     }
   };
 
+  const hasQuickEchoed = userQuickEchoes.some((id) => String(id) === String(originalPostId));
+
   const handleQuickEcho = async () => {
-    setEchoMenuOpen(false);
+    if (hasQuickEchoed) {
+      const res = await unsharePost(actionPost._id);
+      if (res.success) {
+        setShareCount((p) => Math.max(0, p - 1));
+        toast.success("Echo removed");
+        onUnshare?.(res.data?.repostId);
+      } else {
+        toast.error(res.message || "Undo failed");
+      }
+      return;
+    }
+
     setEchoRipple(true);
-    setTimeout(() => setEchoRipple(false), 1000);
-    
-    const res = await sharePost(display._id);
+    setTimeout(() => setEchoRipple(false), 400);
+
+    const res = await sharePost(actionPost._id);
     if (res.success) {
       setShareCount((p) => p + 1);
       toast.success("Echoed to your feed");
       onShare?.(res.data);
-    } else toast.error(res.message || "Echo failed");
+    } else {
+      if (res.statusCode === 409) {
+        toast.error("You already echoed this post");
+      } else {
+        toast.error(res.message || "Echo failed");
+      }
+    }
   };
 
   const handleQuoteEcho = () => {
-    setEchoMenuOpen(false);
     setQuoteModalOpen(true);
   };
 
@@ -140,12 +165,13 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
   };
 
   const openDetail = () => {
-    navigate(ROUTES.POST_DETAIL(display._id), { state: { modal: true } });
+    const detailId = isQuote ? post._id : actionPost._id;
+    navigate(ROUTES.POST_DETAIL(detailId), { state: { modal: true } });
   };
 
   if (deleted) return null;
 
-  const originalPost = post.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
+  const originalPost = resolvedOriginalPost || originalPostFromFeed;
   const originalAuthor = originalPost?.author && typeof originalPost.author === "object" ? originalPost.author : null;
   const author = (isRepost && !isQuote && originalAuthor) ? originalAuthor : (post.author || {});
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
@@ -172,8 +198,8 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
         className={`card p-4 sm:p-5 animate-fade-in-up hover-lift relative overflow-hidden ${echoRipple ? "echo-ripple-active" : ""}`}
         style={{ animationDelay: `${index * 50}ms` }}
       >
-        {/* Repost banner */}
-        {isRepost && !isQuote && sharer && (
+        {/* Echo banner */}
+        {isQuickEchoPost && sharer && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
             <Megaphone className="w-3.5 h-3.5" />
             <span>{sharerIsMe ? "You" : sharerName || "Someone"} echoed</span>
@@ -194,7 +220,7 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
                 {authorName || "Unknown"}
               </Link>
               <p className="text-xs text-muted-foreground">
-                {formatTime(isQuote ? post.createdAt : display.createdAt)}
+                {formatTime(displayCreatedAt)}
               </p>
             </div>
           </div>
@@ -268,13 +294,11 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
         )}
 
         {/* Stats */}
-        {(likesCount > 0 || display.commentCount > 0 || shareCount > 0) && (
         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-          {likesCount > 0 && <span>{likesCount} {likesCount === 1 ? "like" : "likes"}</span>}
-          {display.commentCount > 0 && <span>{display.commentCount} comments</span>}
-          {shareCount > 0 && <span>{shareCount} echoes</span>}
+          <span>{likesCount} {likesCount === 1 ? "like" : "likes"}</span>
+          <span>{commentCount} comments</span>
+          <span>{shareCount} echoes</span>
         </div>
-      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-glass-border">
@@ -292,31 +316,18 @@ export default function PostCard({ post, currentUserId, onShare, onDelete, index
           <MessageCircle className="w-[18px] h-[18px]" />
         </ActionButton>
         
-        {/* Echo Action with Dropdown */}
-        <div className="relative flex-1 flex justify-center" ref={echoRef}>
-          <ActionButton onClick={() => setEchoMenuOpen(!echoMenuOpen)} label="Echo">
-            <Megaphone className={`w-[18px] h-[18px] transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
-          </ActionButton>
-          
-          {echoMenuOpen && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 card p-1 shadow-2xl animate-scale-in z-50">
-              <button 
-                onClick={handleQuickEcho}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors text-left"
-              >
-                <Zap className="w-4 h-4 text-warning" />
-                Quick Echo
-              </button>
-              <button 
-                onClick={handleQuoteEcho}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-glass-hover text-foreground transition-colors text-left"
-              >
-                <Quote className="w-4 h-4 text-primary" />
-                Quote Echo
-              </button>
-            </div>
-          )}
-        </div>
+        <ActionButton
+          onClick={handleQuickEcho}
+          active={hasQuickEchoed}
+          activeColor="var(--color-primary)"
+          label="Echo"
+        >
+          <Megaphone className={`w-[18px] h-[18px] transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
+        </ActionButton>
+
+        <ActionButton onClick={handleQuoteEcho} label="Quote">
+          <Quote className="w-[18px] h-[18px]" />
+        </ActionButton>
 
         <ActionButton onClick={handleBookmark} active={bookmarked} activeColor="var(--color-primary)" label="Save">
           <Bookmark className={`w-[18px] h-[18px] ${bookmarked ? "fill-current" : ""}`} />
