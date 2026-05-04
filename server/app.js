@@ -52,16 +52,19 @@ app.use(helmet({
 app.use(cors({
   origin: config.clientUrl,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "X-Session-Id", "X-Token-Family"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id", "X-Session-Id", "X-Token-Family", "X-Idempotency-Key"],
 }));
+
+// Handle preflight requests
+app.options("*", cors());
+
+// ── Stripe webhook (raw body required BEFORE general JSON parsing) ───────────
+app.use("/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
-
-// ── Stripe webhook (raw body required before JSON parsing) ───────────────────
-app.use("/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }));
 
 // ── Observability ──────────────────────────────────────────────────────────────
 app.use(requestTracer);
