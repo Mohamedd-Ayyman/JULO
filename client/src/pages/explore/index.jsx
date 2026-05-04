@@ -39,6 +39,11 @@ export default function ExplorePage() {
   const [followingMap, setFollowingMap] = useState({});
   const { user } = useSelector((s) => s.userReducer);
 
+  const userQuickEchoes = [...trending, ...posts]
+    .filter((p) => p.isRepost && !p.isQuote && p.author && String(p.author._id) === String(user?._id))
+    .map((p) => p.originalPost?._id || p.originalPost)
+    .filter(Boolean);
+
   const { search } = useDebouncedSearch(async (q) => {
     const [postRes, usersRes] = await Promise.all([
       searchPosts(q),
@@ -273,6 +278,7 @@ export default function ExplorePage() {
                         post={p}
                         index={i}
                         currentUserId={user?._id}
+                        userQuickEchoes={userQuickEchoes}
                       />
                     ))}
                   </div>
