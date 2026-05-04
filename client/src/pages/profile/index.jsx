@@ -214,7 +214,19 @@ export default function ProfilePage() {
             posts.filter((p) => !p.isRepost || (p.text && p.text !== p.originalPost?.text)).length === 0 ? <EmptyProfilePostsState /> : posts
               .filter((p) => !p.isRepost || (p.text && p.text !== p.originalPost?.text))
               .map((p, i) => (
-                <PostCard key={p._id} post={p} index={i} currentUserId={user?._id} />
+                <PostCard
+                  key={p._id}
+                  post={p}
+                  index={i}
+                  currentUserId={user?._id}
+                  onShare={(sp) => setPosts((prev) => [sp, ...prev])}
+                  onUnshare={(repostId) => setPosts((prev) => prev.filter((item) => item._id !== repostId))}
+                  userQuickEchoes={posts
+                    .filter((item) => item.isRepost && !item.isQuote && item.author && String(item.author._id) === String(user?._id))
+                    .map((item) => item.originalPost?._id || item.originalPost)
+                    .filter(Boolean)
+                  }
+                />
               ))
           )}
           {tab === "echoes" && (
@@ -223,7 +235,19 @@ export default function ProfilePage() {
             ) : posts
               .filter((p) => p.isRepost && (!p.text || p.text === p.originalPost?.text))
               .map((p, i) => (
-                <PostCard key={p._id} post={p} index={i} currentUserId={user?._id} />
+                <PostCard
+                  key={p._id}
+                  post={p}
+                  index={i}
+                  currentUserId={user?._id}
+                  onShare={(sp) => setPosts((prev) => [sp, ...prev])}
+                  onUnshare={(repostId) => setPosts((prev) => prev.filter((item) => item._id !== repostId))}
+                  userQuickEchoes={posts
+                    .filter((item) => item.isRepost && !item.isQuote && item.author && String(item.author._id) === String(user?._id))
+                    .map((item) => item.originalPost?._id || item.originalPost)
+                    .filter(Boolean)
+                  }
+                />
               ))
           )}
           {(tab === "followers" || tab === "following") && (
