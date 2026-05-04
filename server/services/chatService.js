@@ -1,8 +1,14 @@
+import mongoose from "mongoose";
 import Chat from "../models/chat.js";
 import Message from "../models/message.js";
 import { scopeByTenant } from "../middlewares/tenantMiddleware.js";
 import { checkUsageLimit, incrementUsage, decrementUsage } from "../middlewares/tenantMiddleware.js";
 import logger from "../utils/logger.js";
+
+const canUseTransactions = () => {
+  const type = mongoose.connection?.client?.topology?.description?.type;
+  return type === "ReplicaSetWithPrimary" || type === "Sharded";
+};
 
 export class ChatService {
   async createOrFind(currentUserId, tenantId, members) {
@@ -75,8 +81,15 @@ export class ChatService {
       throw err;
     }
 
-    // Atomic transaction: message + chat lastMessage update
-    const mongoose = (await import("mongoose")).default;
+    // Atomic transaction: message + chat lastMessage update (only if supported)
+    if (!canUseTransactions()) {
+      const message = new Message({ chatId, sender: senderId, tenantId, text, receiverId, read: false });
+      await message.save();
+      await Chat.findByIdAndUpdate(chatId, { lastMessage: message._id, $inc: { unreadMessageCount: 1 } });
+      logger.info(`[Message] Sent: ${message._id} in chat ${chatId}`);
+      return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
+    }
+
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
