@@ -25,7 +25,7 @@ import {
   Grid3X3,
   Bookmark,
   Users,
-  Share2,
+  Megaphone,
 } from "lucide-react";
 import { ROUTES } from "../../lib/constants.js";
 import PostCard from "../feed/PostCard.jsx";
@@ -128,7 +128,7 @@ export default function ProfilePage() {
         <div className="px-4 sm:px-6 -mt-12 relative z-10">
           <div className="flex items-end justify-between gap-3 mb-4">
             <span className="rounded-full p-1 bg-background">
-              <Avatar src={profile.profilepic} name={fullName} size={96} />
+              <Avatar src={profile.profilepic} name={fullName} size={96} ring />
             </span>
             <div className="flex gap-2 pb-1">
               {isOwnProfile ? (
@@ -178,8 +178,8 @@ export default function ProfilePage() {
 
           {/* Stats */}
           <div className="grid grid-cols-4 gap-3 mt-5">
-            <Stat label="Posts" value={posts.length - posts.filter((p) => p.isRepost || p.originalPost).length} onClick={() => setTab("posts")} active={tab === "posts"} />
-            <Stat label="Reposts" value={posts.filter((p) => p.isRepost || p.originalPost).length} onClick={() => setTab("reposts")} active={tab === "reposts"} />
+            <Stat label="Posts" value={posts.filter((p) => !p.isRepost || (p.text && p.text !== p.originalPost?.text)).length} onClick={() => setTab("posts")} active={tab === "posts"} />
+            <Stat label="Echoes" value={posts.filter((p) => p.isRepost && (!p.text || p.text === p.originalPost?.text)).length} onClick={() => setTab("echoes")} active={tab === "echoes"} />
             <Stat label="Followers" value={followers.length} onClick={() => setTab("followers")} active={tab === "followers"} />
             <Stat label="Following" value={following.length} onClick={() => setTab("following")} active={tab === "following"} />
           </div>
@@ -190,7 +190,7 @@ export default function ProfilePage() {
           <div className="flex gap-1 p-1 bg-glass rounded-full">
             {[
               { id: "posts", label: "Posts", icon: Grid3X3 },
-              { id: "reposts", label: "Reposts", icon: Grid3X3 },
+              { id: "echoes", label: "Echoes", icon: Megaphone },
               { id: "followers", label: "Followers", icon: Users },
               { id: "following", label: "Following", icon: UserPlus },
               ...(isOwnProfile ? [{ id: "saved", label: "Saved", icon: Bookmark }] : []),
@@ -211,17 +211,17 @@ export default function ProfilePage() {
 
         <div className="px-4 sm:px-6 mt-4 space-y-3 animate-fade-in">
           {tab === "posts" && (
-            posts.filter((p) => !p.isRepost && !p.originalPost).length === 0 ? <EmptyProfilePostsState /> : posts
-              .filter((p) => !p.isRepost && !p.originalPost)
+            posts.filter((p) => !p.isRepost || (p.text && p.text !== p.originalPost?.text)).length === 0 ? <EmptyProfilePostsState /> : posts
+              .filter((p) => !p.isRepost || (p.text && p.text !== p.originalPost?.text))
               .map((p, i) => (
                 <PostCard key={p._id} post={p} index={i} currentUserId={user?._id} />
               ))
           )}
-          {tab === "reposts" && (
-            posts.filter((p) => p.isRepost || p.originalPost).length === 0 ? (
-              <p className="text-center text-muted-foreground py-12 text-sm">No reposts yet.</p>
+          {tab === "echoes" && (
+            posts.filter((p) => p.isRepost && (!p.text || p.text === p.originalPost?.text)).length === 0 ? (
+              <p className="text-center text-muted-foreground py-12 text-sm">No echoes yet.</p>
             ) : posts
-              .filter((p) => p.isRepost || p.originalPost)
+              .filter((p) => p.isRepost && (!p.text || p.text === p.originalPost?.text))
               .map((p, i) => (
                 <PostCard key={p._id} post={p} index={i} currentUserId={user?._id} />
               ))
