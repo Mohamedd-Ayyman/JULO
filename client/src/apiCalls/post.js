@@ -49,9 +49,9 @@ export const likePost = async (postId) => {
   }
 };
 
-export const sharePost = async (postId) => {
+export const sharePost = async (postId, text) => {
   try {
-    const response = await axiosInstance.put(`/api/post/${postId}/share`);
+    const response = await axiosInstance.put(`/api/post/${postId}/share`, { text });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
