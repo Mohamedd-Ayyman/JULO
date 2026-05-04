@@ -152,7 +152,7 @@ export default function PostDetailView({ postId, onClose }) {
   }
 
   const isRepost = !!(post?.isRepost || post?.originalPost);
-  const isQuote = isRepost && post.text && post.text !== post.originalPost?.text;
+  const isQuote = !!post?.isQuote;
   const sharer = post?.author || null;
   const display = post?.originalPost || post;
 
