@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { getPost, getComments, addComment, likePost, sharePost } from "../../apiCalls/post.js";
-import { Heart, MessageCircle, Share2, Send, X, Loader2 } from "lucide-react";
+import { getPost, getComments, addComment, likePost, sharePost, unsharePost, getFeed } from "../../apiCalls/post.js";
+import { Heart, MessageCircle, Megaphone, Send, X, Loader2, Quote } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import Avatar from "../../components/Avatar.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
+import QuoteEchoModal from "../../components/QuoteEchoModal.jsx";
 
 export default function PostDetailView({ postId, onClose }) {
   const [post, setPost] = useState(null);
@@ -15,6 +16,10 @@ export default function PostDetailView({ postId, onClose }) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [echoRipple, setEchoRipple] = useState(false);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [userQuickEchoes, setUserQuickEchoes] = useState([]);
+
   const { user } = useSelector((s) => s.userReducer);
 
   useEffect(() => {
@@ -41,6 +46,22 @@ export default function PostDetailView({ postId, onClose }) {
     return () => { cancelled = true; };
   }, [postId, user?._id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await getFeed();
+      if (cancelled) return;
+      if (res.success) {
+        const echoes = (res.data || [])
+          .filter((p) => p.isRepost && !p.isQuote && p.author && String(p.author._id) === String(user?._id))
+          .map((p) => p.originalPost?._id || p.originalPost)
+          .filter(Boolean);
+        setUserQuickEchoes(echoes);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?._id]);
+
   const submitComment = async () => {
     if (!comment.trim()) return;
     const text = comment;
@@ -48,7 +69,7 @@ export default function PostDetailView({ postId, onClose }) {
     const res = await addComment(postId, text);
     if (res.success) {
       setComments((c) => [res.data, ...c]);
-      toast.success("Comment added");
+      toast.success("Echoed back!");
     } else {
       setComment(text);
       toast.error("Failed");
@@ -77,13 +98,39 @@ export default function PostDetailView({ postId, onClose }) {
     if (!res.success) setLiked((v) => !v);
   };
 
-  const handleShare = async () => {
+  const handleQuickEcho = async () => {
     if (!post) return;
-    const res = await sharePost(post._id);
+    const display = post?.originalPost || post;
+    const hasQuickEchoed = userQuickEchoes.some((id) => String(id) === String(display?._id));
+
+    if (hasQuickEchoed) {
+      const res = await unsharePost(display._id);
+      if (res.success) {
+        setPost((p) => ({ ...p, shareCount: Math.max(0, (p.shareCount || 0) - 1) }));
+        setUserQuickEchoes((prev) => prev.filter((id) => String(id) !== String(display._id)));
+        toast.success("Echo removed");
+      } else toast.error(res.message || "Undo failed");
+      return;
+    }
+
+    setEchoRipple(true);
+    setTimeout(() => setEchoRipple(false), 400);
+    const res = await sharePost(display._id);
     if (res.success) {
       setPost((p) => ({ ...p, shareCount: (p.shareCount || 0) + 1 }));
-      toast.success("Shared");
-    } else toast.error(res.message || "Share failed");
+      setUserQuickEchoes((prev) => [...prev, display._id]);
+      toast.success("Echoed");
+    } else {
+      if (res.statusCode === 409) {
+        toast.error("You already echoed this post");
+      } else {
+        toast.error(res.message || "Echo failed");
+      }
+    }
+  };
+
+  const handleQuoteEcho = () => {
+    setQuoteModalOpen(true);
   };
 
   if (loading) {
@@ -104,62 +151,127 @@ export default function PostDetailView({ postId, onClose }) {
     );
   }
 
-  const author = post.author || {};
+  const isRepost = !!(post?.isRepost || post?.originalPost);
+  const isQuote = !!post?.isQuote;
+  const sharer = post?.author || null;
+  const display = post?.originalPost || post;
+
+  const originalPost = post?.originalPost && typeof post.originalPost === "object" ? post.originalPost : null;
+  const originalAuthor = originalPost?.author && typeof originalPost.author === "object" ? originalPost.author : null;
+  const author = (isRepost && !isQuote && originalAuthor) ? originalAuthor : (post.author || {});
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
+  const sharerName = sharer ? `${sharer.firstname || ""} ${sharer.lastname || ""}`.trim() : "";
+  const sharerIsMe = sharer && user?._id && String(sharer._id) === String(user._id);
 
   return (
     <Wrapper onClose={onClose}>
-      {/* Author */}
-      <div className="flex items-center gap-3 mb-4 animate-fade-in">
-        <Avatar src={author.profilepic} name={authorName} size={44} ring />
-        <div>
-          <p className="text-sm font-bold text-foreground">{authorName}</p>
-          <p className="text-xs text-muted-foreground">{formatTime(post.createdAt)}</p>
-        </div>
-      </div>
-
-      {/* Content */}
-      {post.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{post.text}</p>}
-      {post.image && (
-        <img src={post.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
+      {quoteModalOpen && (
+        <QuoteEchoModal 
+          post={display} 
+          user={user} 
+          onClose={() => setQuoteModalOpen(false)} 
+          onEchoed={() => setPost(p => ({ ...p, shareCount: (p.shareCount || 0) + 1 }))}
+        />
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-6 py-3 border-y border-glass-border mb-4">
-        <button
-          onClick={handleLike}
-          className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
-          style={{ color: liked ? "var(--color-like)" : "var(--color-muted-foreground)" }}
-        >
-          <Heart className={`w-5 h-5 ${liked ? "fill-current heart-pop" : ""}`} />
-          {post.likeCount || 0}
-        </button>
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <MessageCircle className="w-5 h-5" />
-          {post.commentCount || comments.length}
+      <div className={`relative overflow-hidden rounded-2xl ${echoRipple ? "echo-ripple-active" : ""}`}>
+        {echoRipple && <div className="echo-ripple-effect" />}
+        
+        {/* Repost banner */}
+        {isRepost && !isQuote && sharer && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 px-1">
+            <Megaphone className="w-3.5 h-3.5" />
+            <span>{sharerIsMe ? "You" : sharerName || "Someone"} echoed</span>
+          </div>
+        )}
+
+        {/* Author */}
+        <div className="flex items-center gap-3 mb-4 animate-fade-in">
+          <Avatar src={author.profilepic} name={authorName} size={44} ring />
+          <div>
+            <p className="text-sm font-bold text-foreground">{authorName || "Unknown"}</p>
+            <p className="text-xs text-muted-foreground">{formatTime(isQuote ? post?.createdAt : (display?.createdAt || post?.createdAt))}</p>
+          </div>
         </div>
-        <button onClick={handleShare} className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105">
-          <Share2 className="w-5 h-5" />
-          {post.shareCount || 0}
-        </button>
+
+        {/* Content */}
+        {isQuote ? (
+          <div className="space-y-4 mb-4">
+            <p className="text-foreground text-[16px] leading-relaxed whitespace-pre-wrap">{post.text}</p>
+            <div className="ml-13 border border-glass-border rounded-xl p-4 bg-glass-bg/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Avatar src={originalAuthor?.profilepic} name={`${originalAuthor?.firstname || ""}`} size={24} />
+                <span className="text-sm font-bold text-foreground">{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
+                <span className="text-xs text-muted-foreground">· {formatTime(originalPost.createdAt)}</span>
+              </div>
+              <p className="text-sm text-foreground-soft leading-relaxed">{originalPost.text}</p>
+              {originalPost.image && (
+                <img src={originalPost.image} alt="" className="mt-3 rounded-lg max-h-60 w-full object-cover border border-glass-border" />
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {display?.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{display.text}</p>}
+            {display?.image && (
+              <img src={display.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
+            )}
+          </>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-6 py-3 border-y border-glass-border mb-4">
+          <button
+            onClick={handleLike}
+            className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
+            style={{ color: liked ? "var(--color-like)" : "var(--color-muted-foreground)" }}
+          >
+            <Heart className={`w-5 h-5 ${liked ? "fill-current heart-pop" : ""}`} />
+            {display?.likeCount || 0}
+          </button>
+          
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <MessageCircle className="w-5 h-5" />
+            {display?.commentCount || 0}
+          </div>
+
+          <button
+            onClick={handleQuickEcho}
+            className={`flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105 ${userQuickEchoes.some((id) => String(id) === String(display?._id)) ? "text-primary" : "text-muted-foreground"}`}
+          >
+            <Megaphone className={`w-5 h-5 transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
+            {display?.shareCount || 0}
+          </button>
+
+          <button
+            onClick={handleQuoteEcho}
+            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105"
+          >
+            <Quote className="w-5 h-5" />
+            Quote
+          </button>
+        </div>
       </div>
 
       {/* Compose */}
-      <div className="flex items-center gap-2 mb-4">
-        <Avatar src={user?.profilepic} name={user?.firstname || ""} size={36} />
-        <div className="flex-1 relative">
+      <div className="mt-3 flex items-center gap-2 mb-4">
+        <span className="flex-shrink-0 inline-flex items-center">
+          <Avatar src={user?.profilepic} name={user?.firstname || ""} size={36} />
+        </span>
+        <div className="flex-1 relative flex items-center">
           <input
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submitComment()}
             placeholder="Add a comment…"
-            className="input rounded-full pr-10 text-sm"
+            className="input rounded-full text-sm h-10 py-0 pl-4 pr-12 w-full"
           />
           <button
             onClick={submitComment}
             disabled={!comment.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 btn btn-primary btn-icon disabled:opacity-40"
+            className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center rounded-full bg-gradient-primary text-white disabled:opacity-40 hover:scale-105 transition-transform"
             style={{ width: 32, height: 32 }}
+            aria-label="Send"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

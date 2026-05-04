@@ -29,6 +29,11 @@ npm run seed     # populate test users
 - `npm run seed` — Seed 10 test users
 - `npm test` — Placeholder
 
+## API Documentation
+
+- Swagger UI: `/api/docs`
+- OpenAPI spec: `docs/openapi.yaml`
+
 ## Security
 
 - `helmet.js` — HTTP security headers

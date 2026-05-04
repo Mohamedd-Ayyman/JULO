@@ -39,6 +39,11 @@ export default function ExplorePage() {
   const [followingMap, setFollowingMap] = useState({});
   const { user } = useSelector((s) => s.userReducer);
 
+  const userQuickEchoes = [...trending, ...posts]
+    .filter((p) => p.isRepost && !p.isQuote && p.author && String(p.author._id) === String(user?._id))
+    .map((p) => p.originalPost?._id || p.originalPost)
+    .filter(Boolean);
+
   const { search } = useDebouncedSearch(async (q) => {
     const [postRes, usersRes] = await Promise.all([
       searchPosts(q),
@@ -135,28 +140,31 @@ export default function ExplorePage() {
             e.preventDefault();
             performSearch(query);
           }}
-          className="relative mb-4 animate-fade-in"
+          className="relative mb-4 animate-fade-in flex items-center gap-2"
         >
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search posts and people…"
-            className="input pl-12 pr-20 py-3 rounded-full text-base"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={clear}
-              className="absolute right-20 top-1/2 -translate-y-1/2 btn btn-ghost btn-icon"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search posts and people…"
+              className="input pl-11 pr-10 h-12 rounded-full text-base w-full"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={clear}
+                className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-8 h-8 rounded-full text-muted-foreground hover:bg-glass-hover hover:text-foreground"
+                aria-label="Clear"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <button
             type="submit"
             disabled={loading || !query.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 btn btn-primary px-4 py-1.5"
+            className="btn btn-primary h-12 px-5 rounded-full flex-shrink-0 disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
           </button>
@@ -270,6 +278,7 @@ export default function ExplorePage() {
                         post={p}
                         index={i}
                         currentUserId={user?._id}
+                        userQuickEchoes={userQuickEchoes}
                       />
                     ))}
                   </div>
