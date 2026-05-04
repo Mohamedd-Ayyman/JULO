@@ -186,7 +186,7 @@ export default function StoryUploader({ open, onClose, onPosted }) {
             disabled={!file || busy}
             className="btn btn-primary flex-1"
           >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Share story"}
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Echo story"}
           </button>
         </div>
 
