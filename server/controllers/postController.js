@@ -56,8 +56,18 @@ router.put(
   requireAuth,
   tenantMiddleware,
   asyncHandler(async (req, res) => {
-    const post = await postService.share(req.params.postId, req.user.userId, req.tenantId);
+    const post = await postService.share(req.params.postId, req.user.userId, req.tenantId, req.body?.text);
     res.status(201).send({ success: true, data: post, statusCode: 201 });
+  })
+);
+
+router.delete(
+  "/:postId/share",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const result = await postService.unshare(req.params.postId, req.user.userId);
+    res.send({ success: true, data: result, statusCode: 200 });
   })
 );
 
