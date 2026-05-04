@@ -616,6 +616,44 @@ a {
 /* Heart pop */
 .heart-pop { animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
+/* Custom spacing for quote indent (Avatar 40px + gap 12px) */
+.ml-13 { margin-left: 52px; }
+
+/* Echo Ripple Effect */
+@keyframes echo-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.1); opacity: 1; border-width: 4px; }
+  100% { transform: translate(-50%, -50%) scale(6); opacity: 0; border-width: 1px; }
+}
+
+@keyframes megaphone-ping {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.4); filter: brightness(1.5) drop-shadow(0 0 10px var(--color-primary)); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.echo-ripple-effect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  background: transparent;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.echo-ripple-active .echo-ripple-effect {
+  animation: echo-ripple 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.echo-icon-ping {
+  animation: megaphone-ping 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 /* Char counter */
 .char-counter { font-size: 11px; font-variant-numeric: tabular-nums; }
 .char-counter.over  { color: var(--color-error); }

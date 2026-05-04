@@ -477,6 +477,33 @@ a { color: inherit; text-decoration: none; }
 /* Heart pop */
 .heart-pop { animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
+/* Custom spacing for quote indent (Avatar 40px + gap 12px) */
+.ml-13 { margin-left: 52px; }
+
+/* Echo Ripple Effect */
+@keyframes echo-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(5); opacity: 0; }
+}
+
+.echo-ripple-effect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, var(--color-primary) 0%, transparent 75%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.echo-ripple-active .echo-ripple-effect {
+  animation: echo-ripple 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* Char counter */
 .char-counter { font-size: 11px; font-variant-numeric: tabular-nums; }
 .char-counter.over { color: var(--color-error); }
