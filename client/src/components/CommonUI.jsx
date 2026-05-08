@@ -37,7 +37,8 @@ export function ImagePreview({ file, onRemove }) {
       <img
         src={src}
         alt="Preview"
-        className="w-24 h-24 rounded-xl object-cover border border-glass-border"
+        className="w-24 h-24 object-cover"
+        style={{ border: "2px solid var(--ink)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-1)" }}
       />
       {onRemove && (
         <button
@@ -94,11 +95,11 @@ export function formatTime(date) {
 export function OnlineStatus({ user }) {
   if (!user) return null;
   if (user.isOnline) {
-    return <span className="text-xs text-green-400 font-medium">Online</span>;
+    return <span className="font-mono text-[10px] font-bold" style={{ color: "var(--mood-cozy)" }}>Online</span>;
   }
   if (user.lastSeen) {
     return (
-      <span className="text-xs text-muted-foreground">
+      <span className="font-mono text-[10px]" style={{ color: "var(--muted-2)" }}>
         Last seen {formatTime(user.lastSeen)}
       </span>
     );
