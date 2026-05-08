@@ -124,4 +124,56 @@
     from { transform: translateX(0); }
     to { transform: translateX(-50%); }
   }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid var(--ink);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 }
+
+/* ─── Ink theme (dark) — activated via data-theme="ink" on html ──────────── */
+[data-theme="ink"] {
+  --paper: #14110f;
+  --paper-2: #1c1916;
+  --paper-3: #232019;
+  --ink: #f3ecd9;
+  --ink-soft: #d8d0bb;
+  --muted: #8a847a;
+  --muted-2: #a8a298;
+  --line: #f3ecd9;
+  --line-soft: rgba(243, 236, 217, 0.22);
+  --line-faint: rgba(243, 236, 217, 0.1);
+  --acid: #c6f24e;
+}
+
+/* ─── Mood colors ──────────────────────────────────────────────────────── */
+:root {
+  --mood-hyped: #ff6b35;
+  --mood-cozy: #6ba368;
+  --mood-salty: #4a90c2;
+  --mood-curious: #b78bd9;
+  --mood-hottake: #d94f4f;
+  --mood-soft: #f0a5b6;
+  --riso-red: #e8553a;
+  --riso-blue: #2e4fe6;
+  --riso-yellow: #f5c518;
+  --riso-pink: #f0a5b6;
+}
+
+/* ─── Safe-area + touch ───────────────────────────────────────────────── */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
+.backdrop-blur-safe {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+}
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+input, textarea, select { font-size: 16px; }
+
+.container-app { width: 100%; max-width: 640px; margin: auto; }
