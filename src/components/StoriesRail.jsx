@@ -1,16 +1,10 @@
 import React from "react";
-import { Plus } from "lucide-react";
-import { useSelector } from "react-redux";
-import Avatar from "./Avatar.jsx";
 
 /**
  * StoriesRail — horizontally scrollable story circles with gradient ring.
- * Visual-only for now (no backend) — gives the feed an instant "social app" feel.
  */
 export default function StoriesRail() {
-  const { user } = useSelector((s) => s.userReducer);
-
-  // Static placeholder story authors — replace with real stories endpoint when available
+  // Static placeholder story authors
   const stories = [
     { id: "s1", name: "Aria", color: "#8b7cff" },
     { id: "s2", name: "Leo", color: "#22d3ee" },
@@ -22,33 +16,47 @@ export default function StoriesRail() {
   ];
 
   return (
-    <div className="card p-3 mt-4 animate-fade-in">
+    <div className="brutal-card p-3 mt-4 animate-fade-in">
       <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
         {/* Your story */}
-        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
           <div className="relative">
-            <Avatar src={user?.profilepic} name={user?.firstname || ""} size={56} />
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 grid place-items-center rounded-full bg-gradient-primary border-2 border-background">
-              <Plus className="w-3 h-3 text-white" strokeWidth={3} />
+            <div className="brutal-avatar brutal-avatar-online" style={{ width: 56, height: 56 }}>
+              ME
+            </div>
+            <div
+              className="absolute -bottom-1 -right-1 w-5 h-5 grid place-items-center rounded-full text-ink font-mono font-bold border-2 border-ink"
+              style={{ background: "var(--acid)", fontSize: 12, boxShadow: "2px 2px 0 0 var(--ink)" }}
+            >
+              +
             </div>
           </div>
-          <span className="text-[10px] text-muted-foreground font-medium">Your story</span>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Your story</span>
         </div>
 
         {stories.map((s) => (
           <button
             key={s.id}
-            className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
+            className="flex flex-col items-center gap-1 flex-shrink-0 group"
           >
             <span
-              className="p-[2px] rounded-full bg-gradient-accent transition-transform group-hover:scale-110"
-              style={{ backgroundImage: `conic-gradient(from 180deg, ${s.color}, #8b7cff, #22d3ee, ${s.color})` }}
+              className="p-[2.5px] rounded-full transition-transform group-hover:scale-110"
+              style={{
+                background: `conic-gradient(from 180deg, ${s.color}, #8b7cff, #22d3ee, ${s.color})`,
+              }}
             >
               <span className="block p-[2px] rounded-full bg-background">
-                <Avatar name={s.name} size={52} />
+                <div
+                  className="brutal-avatar"
+                  style={{ width: 50, height: 50, fontSize: 13 }}
+                >
+                  {s.name.slice(0, 2)}
+                </div>
               </span>
             </span>
-            <span className="text-[10px] text-foreground-soft font-medium">{s.name}</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              {s.name}
+            </span>
           </button>
         ))}
       </div>

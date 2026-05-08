@@ -54,21 +54,22 @@ export default function RightRail() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search people, posts…"
-          className="input pl-11 rounded-full"
+          className="brutal-input pl-11"
+          style={{ borderRadius: 999 }}
         />
       </form>
 
-      <div className="card p-4 mb-4 animate-fade-in-up">
+      <div className="brutal-card p-4 mb-4 animate-fade-in-up">
         <div className="flex items-center gap-2 mb-3">
-          <UserPlus className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Suggested for you</h3>
+          <UserPlus className="w-4 h-4" style={{ color: "var(--ink)" }} />
+          <h3 className="font-mono text-xs uppercase tracking-widest font-bold">Suggested for you</h3>
         </div>
         {loading ? (
           <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <div className="spinner" />
           </div>
         ) : suggestions.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-3">No suggestions right now</p>
+          <p className="font-mono text-[11px] text-muted-foreground text-center py-3">No suggestions right now</p>
         ) : (
           <div className="space-y-3 stagger">
             {suggestions.filter((s) => s._id !== user?._id).map((s) => (
@@ -76,20 +77,16 @@ export default function RightRail() {
                 <Link to={ROUTES.PROFILE_USER(s._id)} className="flex items-center gap-3 flex-1 min-w-0">
                   <Avatar src={s.profilepic} name={`${s.firstname || ""} ${s.lastname || ""}`} size={36} />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate story-link">
+                    <p className="font-display text-sm font-bold tracking-tight truncate story-link">
                       {s.firstname} {s.lastname}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">{s.bio || ""}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground truncate">{s.bio || ""}</p>
                   </div>
                 </Link>
                 <button
                   onClick={() => handleFollow(s._id)}
                   disabled={followed[s._id]}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${
-                    followed[s._id]
-                      ? "bg-glass-hover text-muted-foreground"
-                      : "bg-gradient-primary text-white hover:scale-105 glow-primary-soft"
-                  }`}
+                  className={`brutal-btn brutal-btn-sm ${followed[s._id] ? "brutal-btn-ghost" : "brutal-btn-primary"}`}
                 >
                   {followed[s._id] ? "Following" : "Follow"}
                 </button>
@@ -99,7 +96,7 @@ export default function RightRail() {
         )}
       </div>
 
-      <div className="text-[11px] text-muted-foreground-2 px-2 leading-relaxed">
+      <div className="font-mono text-[11px] text-muted-foreground px-2 leading-relaxed">
         © {new Date().getFullYear()} JULO · <span className="story-link">Privacy</span> · <span className="story-link">Terms</span> · <span className="story-link">About</span>
       </div>
     </aside>

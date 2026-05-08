@@ -19,30 +19,33 @@ export default function Sidebar() {
   const dispatch = useDispatch();
 
   return (
-    <aside className="hidden md:flex fixed top-0 left-0 h-screen w-64 flex-col bg-glass border-r border-glass-border p-4">
-      <div className="text-xl font-bold text-primary mb-8 px-3">JULO</div>
+    <aside className="hidden md:flex fixed top-0 left-0 h-screen w-64 flex-col brutal-card p-4">
+      <div className="font-display text-2xl font-black tracking-tight mb-8 px-3">
+        ju<span style={{ color: "var(--acid)" }}>l</span>o
+      </div>
       <nav className="flex-1 space-y-1">
         {navItems.map(({ to, icon: Icon, label }) => (
           <Link
             key={to}
             to={to}
-            className={`flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors border-2 font-semibold text-sm ${
               location.pathname === to
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-glass-hover"
+                ? "bg-foreground text-background border-foreground"
+                : "border-transparent hover:bg-paper-2"
             }`}
+            style={location.pathname === to ? { boxShadow: "3px 3px 0 0 var(--acid)" } : {}}
           >
             <Icon className="w-5 h-5" />
-            <span className="font-medium text-sm">{label}</span>
+            <span>{label}</span>
           </Link>
         ))}
       </nav>
       <button
         onClick={() => dispatch(logout())}
-        className="flex items-center space-x-3 px-3 py-3 rounded-xl text-muted-foreground hover:bg-glass-hover transition-colors w-full"
+        className="flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-transparent text-muted-foreground hover:bg-paper-2 transition-colors font-semibold text-sm w-full"
       >
         <LogOut className="w-5 h-5" />
-        <span className="font-medium text-sm">Logout</span>
+        <span>Logout</span>
       </button>
     </aside>
   );
