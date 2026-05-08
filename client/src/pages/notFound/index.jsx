@@ -4,20 +4,23 @@ import Logo from "../../components/Logo.jsx";
 
 export default function NotFoundPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute -top-40 left-1/4 w-[500px] h-[500px] rounded-full bg-primary/20 blur-[120px] animate-float" />
-      <div className="absolute -bottom-40 right-1/4 w-[500px] h-[500px] rounded-full bg-accent/15 blur-[120px] animate-float" style={{ animationDelay: "2s" }} />
-
+    <div className="min-h-screen flex items-center justify-center p-6 pb-16 relative overflow-hidden" style={{ background: "var(--paper)" }}>
       <div className="text-center max-w-md relative z-10 animate-fade-in-up">
-        <div className="flex justify-center mb-8"><Logo size={36} /></div>
-        <p className="text-[120px] font-black text-gradient-primary leading-none mb-2 animate-gradient" style={{ backgroundSize: "200% 200%" }}>
+        <div className="flex justify-center mb-8"><Logo size={48} /></div>
+        <div className="sticker sticker-paper inline-flex mb-6 text-xs">404</div>
+        <p
+          className="font-display font-black leading-none mb-2"
+          style={{ fontSize: "clamp(64px, 15vw, 120px)", letterSpacing: "-0.04em", color: "var(--ink)" }}
+        >
           404
         </p>
-        <h1 className="text-2xl font-bold text-foreground mb-3">Lost in the cosmos</h1>
-        <p className="text-muted-foreground mb-8">
+        <h1 className="font-display text-2xl font-bold tracking-tight mb-3" style={{ color: "var(--ink)" }}>
+          Lost in the cosmos
+        </h1>
+        <p className="font-mono text-sm mb-8" style={{ color: "var(--muted-2)" }}>
           The page you're looking for drifted into a parallel universe.
         </p>
-        <Link to="/" className="btn btn-primary px-7 py-3 text-base">
+        <Link to="/" className="brutal-btn brutal-btn-primary px-7 py-3">
           Take me home
         </Link>
       </div>
