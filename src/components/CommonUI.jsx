@@ -37,14 +37,15 @@ export function ImagePreview({ file, onRemove }) {
       <img
         src={src}
         alt="Preview"
-        className="w-24 h-24 rounded-xl object-cover border border-glass-border"
+        className="w-24 h-24 rounded-md object-cover border-2 border-foreground"
       />
       {onRemove && (
         <button
           type="button"
           onClick={onRemove}
-          className="absolute -top-2 -right-2 w-5 h-5 bg-error rounded-full flex items-center justify-center text-white text-xs"
+          className="absolute -top-2 -right-2 w-5 h-5 grid place-items-center rounded-full bg-[var(--riso-red)] text-paper font-mono font-bold text-xs border-2 border-ink"
           aria-label="Remove image"
+          style={{ boxShadow: "2px 2px 0 0 var(--ink)" }}
         >
           ✕
         </button>
@@ -62,8 +63,8 @@ export function TypingIndicator() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
-          style={{ animationDelay: `${i * 150}ms` }}
+          className="w-2 h-2 rounded-full bg-muted-foreground"
+          style={{ animation: `typingDot 1.2s infinite`, animationDelay: `${i * 150}ms` }}
         />
       ))}
     </div>
@@ -94,11 +95,11 @@ export function formatTime(date) {
 export function OnlineStatus({ user }) {
   if (!user) return null;
   if (user.isOnline) {
-    return <span className="text-xs text-green-400 font-medium">Online</span>;
+    return <span className="font-mono text-xs text-[var(--mood-cozy)] font-bold">Online</span>;
   }
   if (user.lastSeen) {
     return (
-      <span className="text-xs text-muted-foreground">
+      <span className="font-mono text-xs text-muted-foreground">
         Last seen {formatTime(user.lastSeen)}
       </span>
     );

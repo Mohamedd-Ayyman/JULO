@@ -4,8 +4,15 @@ export default function Logo({ size = 28, withText = true, className = "" }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <div
-        className="relative grid place-items-center rounded-xl bg-gradient-primary glow-primary-soft animate-gradient"
-        style={{ width: size, height: size }}
+        className="relative grid place-items-center"
+        style={{
+          width: size,
+          height: size,
+          background: "var(--acid)",
+          border: "2px solid var(--ink)",
+          borderRadius: "4px",
+          boxShadow: "3px 3px 0 0 var(--ink)",
+        }}
       >
         <svg
           viewBox="0 0 24 24"
@@ -16,7 +23,7 @@ export default function Logo({ size = 28, withText = true, className = "" }) {
         >
           <path
             d="M4 18V6L20 18V6"
-            stroke="white"
+            stroke="var(--ink)"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -25,10 +32,10 @@ export default function Logo({ size = 28, withText = true, className = "" }) {
       </div>
       {withText && (
         <span
-          className="font-extrabold tracking-tight text-gradient-primary"
+          className="font-display font-black tracking-tight"
           style={{ fontSize: size * 0.7 }}
         >
-          JULO
+          ju<span style={{ color: "var(--acid)" }}>l</span>o
         </span>
       )}
     </div>

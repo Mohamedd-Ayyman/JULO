@@ -1,13 +1,12 @@
 import React from "react";
 
 /**
- * Avatar — gradient avatar with initial fallback, optional online dot, optional ring.
+ * Avatar — brutal ink-bordered avatar with initial fallback.
  */
 export default function Avatar({
   src,
   name = "",
-  size = 36,
-  ring = false,
+  size = 40,
   online = false,
   className = "",
 }) {
@@ -19,17 +18,17 @@ export default function Avatar({
     .join("")
     .toUpperCase();
 
-  const dim = { width: size, height: size, fontSize: Math.max(11, size * 0.36) };
-
-  const inner = (
-    <span className="avatar" style={dim}>
-      {src ? <img src={src} alt={name || "avatar"} /> : <span>{initials || "·"}</span>}
-      {online && <span className="online-dot" />}
-    </span>
+  return (
+    <div
+      className={`brutal-avatar flex-shrink-0 ${className}`}
+      style={{ width: size, height: size, minWidth: size, minHeight: size, fontSize: Math.max(11, size * 0.3) }}
+    >
+      {src ? (
+        <img src={src} alt={name || "avatar"} />
+      ) : (
+        <span>{initials || "·"}</span>
+      )}
+      {online && <span className="brutal-avatar-online" />}
+    </div>
   );
-
-  if (ring) {
-    return <span className={`avatar-ring ${className}`}>{inner}</span>;
-  }
-  return <span className={`relative inline-block ${className}`}>{inner}</span>;
 }
