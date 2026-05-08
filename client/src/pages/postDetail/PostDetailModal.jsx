@@ -16,11 +16,12 @@ export default function PostDetailModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      style={{ background: "var(--ink)", opacity: 0.7 }}
       onClick={close}
     >
       <div
-        className="bg-glass-strong rounded-2xl border border-glass-border-strong w-full max-w-2xl max-h-[90vh] overflow-auto animate-scale-in"
+        className="brutal-card w-full max-w-2xl max-h-[90vh] overflow-auto animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <PostDetailView postId={postId} onClose={close} />

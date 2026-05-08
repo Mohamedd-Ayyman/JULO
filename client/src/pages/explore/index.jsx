@@ -125,11 +125,11 @@ export default function ExplorePage() {
     <AppLayout title="Explore">
       <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6">
         <div className="hidden lg:block mb-5 animate-fade-in-down">
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-            <Compass className="w-6 h-6 text-primary" />
+          <h1 className="font-display text-2xl font-black tracking-tight flex items-center gap-2" style={{ color: "var(--ink)" }}>
+            <Compass className="w-6 h-6" strokeWidth={2.5} />
             Explore
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="font-mono text-[11px] uppercase tracking-widest mt-0.5" style={{ color: "var(--muted-2)" }}>
             Discover people, posts and ideas
           </p>
         </div>
@@ -143,18 +143,20 @@ export default function ExplorePage() {
           className="relative mb-4 animate-fade-in flex items-center gap-2"
         >
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search posts and people…"
-              className="input pl-11 pr-10 h-12 rounded-full text-base w-full"
+              className="brutal-input pl-11 pr-10"
+              style={{ paddingTop: 12, paddingBottom: 12 }}
             />
             {query && (
               <button
                 type="button"
                 onClick={clear}
-                className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-8 h-8 rounded-full text-muted-foreground hover:bg-glass-hover hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-8 h-8"
+                style={{ color: "var(--muted-2)" }}
                 aria-label="Clear"
               >
                 <X className="w-4 h-4" />
@@ -164,7 +166,8 @@ export default function ExplorePage() {
           <button
             type="submit"
             disabled={loading || !query.trim()}
-            className="btn btn-primary h-12 px-5 rounded-full flex-shrink-0 disabled:opacity-50"
+            className="brutal-btn brutal-btn-primary"
+            style={{ padding: "10px 20px" }}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
           </button>
@@ -172,7 +175,7 @@ export default function ExplorePage() {
 
         {/* Tabs */}
         {showResults && (
-          <div className="flex gap-1 p-1 bg-glass rounded-full mb-4 animate-fade-in">
+          <div className="flex gap-1 p-1 mb-4 animate-fade-in" style={{ border: "2px solid var(--ink)", background: "var(--paper)" }}>
             {[
               { id: "all", label: "Top", icon: Flame },
               {
@@ -189,11 +192,12 @@ export default function ExplorePage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all ${
-                  tab === t.id
-                    ? "bg-gradient-primary text-white"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 font-mono text-[11px] uppercase tracking-widest font-bold transition-all"
+                style={{
+                  background: tab === t.id ? "var(--ink)" : "transparent",
+                  color: tab === t.id ? "var(--paper)" : "var(--ink)",
+                  borderRadius: "var(--r-sm)",
+                }}
               >
                 <t.icon className="w-3.5 h-3.5" />
                 {t.label}
@@ -217,7 +221,7 @@ export default function ExplorePage() {
               {(tab === "all" || tab === "people") && users.length > 0 && (
                 <section>
                   {tab === "all" && (
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <h3 className="font-mono text-[11px] uppercase tracking-widest font-bold mb-3 flex items-center gap-2" style={{ color: "var(--muted-2)" }}>
                       <Users className="w-3.5 h-3.5" /> People
                     </h3>
                   )}
@@ -226,7 +230,7 @@ export default function ExplorePage() {
                       <Link
                         key={u._id}
                         to={ROUTES.PROFILE_USER(u._id)}
-                        className="card card-interactive p-3 flex items-center justify-between gap-3"
+                        className="brutal-card p-3 flex items-center justify-between gap-3"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <Avatar
@@ -237,10 +241,10 @@ export default function ExplorePage() {
                             online={u.isOnline}
                           />
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-foreground truncate">
+                            <p className="text-sm font-bold truncate" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
                               {u.firstname} {u.lastname}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="font-mono text-[10px] truncate" style={{ color: "var(--muted-2)" }}>
                               {u.bio || ""}
                             </p>
                           </div>
@@ -250,11 +254,8 @@ export default function ExplorePage() {
                             e.preventDefault();
                             handleFollowToggle(u._id);
                           }}
-                          className={`text-xs font-bold px-3.5 py-1.5 rounded-full transition-all flex-shrink-0 ${
-                            followingMap[u._id]
-                              ? "bg-glass-hover text-foreground border border-glass-border-strong"
-                              : "bg-gradient-primary text-white glow-primary-soft hover:scale-105"
-                          }`}
+                          className={`brutal-btn brutal-btn-sm flex-shrink-0 ${followingMap[u._id] ? "" : "brutal-btn-primary"}`}
+                          style={followingMap[u._id] ? { background: "var(--paper-2)", border: "2px solid var(--ink)" } : {}}
                         >
                           {followingMap[u._id] ? "Following" : "Follow"}
                         </button>
@@ -267,7 +268,7 @@ export default function ExplorePage() {
               {(tab === "all" || tab === "posts") && posts.length > 0 && (
                 <section>
                   {tab === "all" && (
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <h3 className="font-mono text-[11px] uppercase tracking-widest font-bold mb-3 flex items-center gap-2" style={{ color: "var(--muted-2)" }}>
                       <FileText className="w-3.5 h-3.5" /> Posts
                     </h3>
                   )}
