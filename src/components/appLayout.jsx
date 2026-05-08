@@ -4,7 +4,7 @@ import { Sidebar, MobileNav, TopBar } from "./nav.jsx";
 import RightRail from "./RightRail.jsx";
 
 /**
- * AppLayout — Three-column shell:
+ * AppLayout — Three-column shell (desktop):
  *  ┌───────────┬────────────────┬────────────┐
  *  │  Sidebar  │   Main feed    │  RightRail │
  *  └───────────┴────────────────┴────────────┘
@@ -12,15 +12,13 @@ import RightRail from "./RightRail.jsx";
  */
 export default function AppLayout({ children, title, hideRightRail = false, fullWidth = false }) {
   return (
-    <div className="min-h-screen text-foreground">
+    <div className="min-h-screen text-foreground pb-16 lg:pb-0">
       <Sidebar />
       <TopBar title={title} />
       <div
-        className={`lg:ml-[260px] ${
-          fullWidth ? "" : "xl:mr-[320px]"
-        } min-h-screen flex flex-col`}
+        className={`lg:ml-[280px] ${fullWidth ? "" : "xl:mr-[336px]"} min-h-screen flex flex-col`}
       >
-        <main className="flex-1 pb-20 lg:pb-0">
+        <main className="flex-1 pb-16 lg:pb-0">
           {children || <Outlet />}
         </main>
       </div>
