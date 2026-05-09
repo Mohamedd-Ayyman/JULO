@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import { useSelector, useDispatch } from "react-redux";
-import { setUser, updateUserAvatar } from "../../redux/usersSlice.js";
+import { setUser, updateUserAvatar, logout } from "../../redux/usersSlice.js";
 import { updateProfile, uploadAvatar, uploadCover } from "../../apiCalls/users.js";
 import { changePassword, logoutUser } from "../../apiCalls/auth.js";
 import toast from "react-hot-toast";
