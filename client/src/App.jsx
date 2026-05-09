@@ -37,14 +37,17 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const theme = localStorage.getItem("julo_theme") || "light";
+    const storedTheme = localStorage.getItem("julo_theme");
+    // Default to "dusk" (cozy warm-dark). Migrate legacy "light"/"midnight"/"ink" labels.
+    const theme = storedTheme === "paper" || storedTheme === "light" ? "paper" : "dusk";
     document.documentElement.setAttribute("data-theme", theme);
+    if (storedTheme !== theme) localStorage.setItem("julo_theme", theme);
 
-    const stored = localStorage.getItem("julo_reduced_motion");
+    const storedMotion = localStorage.getItem("julo_reduced_motion");
     const systemPref =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const reduced = stored === null ? systemPref : stored === "true";
+    const reduced = storedMotion === null ? systemPref : storedMotion === "true";
     document.documentElement.classList.toggle("reduced-motion", !!reduced);
   }, []);
 

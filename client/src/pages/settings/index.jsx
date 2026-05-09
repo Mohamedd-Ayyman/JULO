@@ -841,14 +841,14 @@ function AppearanceSection() {
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const storedMotion = localStorage.getItem("julo_reduced_motion");
 
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem("julo_theme") || "light",
-  );
+  const [theme, setTheme] = useState(() => {
+    const s = localStorage.getItem("julo_theme");
+    return s === "paper" || s === "light" ? "paper" : "dusk";
+  });
   const [reducedMotion, setReducedMotion] = useState(
     () => (storedMotion === null ? !!systemReduced : storedMotion === "true"),
   );
 
-  // Ensure DOM reflects current state on mount (in case settings page is opened first)
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
@@ -861,7 +861,7 @@ function AppearanceSection() {
     setTheme(t);
     localStorage.setItem("julo_theme", t);
     document.documentElement.setAttribute("data-theme", t);
-    toast.success(`Theme set to ${t.charAt(0).toUpperCase() + t.slice(1)}`);
+    toast.success(`Theme set to ${t === "dusk" ? "Cozy Dusk" : "Daylight"}`);
   };
 
   const applyMotion = (val) => {
@@ -872,19 +872,16 @@ function AppearanceSection() {
 
   const themes = [
     {
-      id: "light",
-      label: "Light",
-      colors: ["var(--paper)", "var(--paper-2)", "var(--ink)"],
+      id: "dusk",
+      label: "Cozy Dusk",
+      desc: "Warm, low-contrast dark — easier on the eyes",
+      colors: ["#1b1a22", "#2c2a3a", "#b8c98a"],
     },
     {
-      id: "midnight",
-      label: "Midnight",
-      colors: ["#0d0b1f", "#1e1b4b", "var(--acid)"],
-    },
-    {
-      id: "ink",
-      label: "Ink",
-      colors: ["#14110f", "#2a2520", "var(--acid)"],
+      id: "paper",
+      label: "Daylight",
+      desc: "Warm cream paper for bright environments",
+      colors: ["#f3ecd9", "#ece4ce", "#14110f"],
     },
   ];
 
@@ -893,27 +890,28 @@ function AppearanceSection() {
       <p className="font-mono text-[10px] uppercase tracking-widest font-bold mb-2" style={{ color: "var(--muted-2)" }}>
         Theme
       </p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {themes.map((t) => (
           <button
             key={t.id}
             onClick={() => applyTheme(t.id)}
-            className="brutal-card p-3 text-center transition-all"
-            style={theme === t.id ? { boxShadow: "var(--sh-2)", borderColor: "var(--acid)" } : {}}
+            className="brutal-card p-4 text-left transition-all"
+            style={theme === t.id ? { boxShadow: "var(--sh-2)", borderColor: "var(--accent)" } : {}}
             aria-pressed={theme === t.id}
           >
-            <div className="flex gap-1 justify-center mb-2">
+            <div className="flex gap-1.5 mb-3">
               {t.colors.map((c, i) => (
                 <div
                   key={i}
-                  className="w-6 h-6 rounded-full"
-                  style={{ background: c, border: "2px solid var(--line-soft)" }}
+                  className="w-7 h-7 rounded-full"
+                  style={{ background: c, border: "1.5px solid var(--line-soft)" }}
                 />
               ))}
             </div>
-            <p className="text-xs font-bold" style={{ color: "var(--ink)" }}>{t.label}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{t.label}</p>
+            <p className="font-mono text-[10px] mt-0.5" style={{ color: "var(--muted-2)" }}>{t.desc}</p>
             {theme === t.id && (
-              <CheckCircle2 className="w-4 h-4 mx-auto mt-1" style={{ color: "var(--acid)" }} />
+              <CheckCircle2 className="w-4 h-4 mt-2" style={{ color: "var(--accent)" }} />
             )}
           </button>
         ))}

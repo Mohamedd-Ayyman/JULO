@@ -1,87 +1,101 @@
 @import "tailwindcss";
 
 /* ════════════════════════════════════════════════════════════════════════
-   JULO · Neo-Brutalist Editorial Design System
-   Cream paper · ink black · acid green · risograph reds & blues
+   JULO · Cozy Dusk
+   Warm low-contrast dusk by default · soft shadows · gentle motion
    ════════════════════════════════════════════════════════════════════════ */
 
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,700;1,9..144,900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&f[]=satoshi@500,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
+/* ─── Default = COZY DUSK (warm low-contrast dark) ──────────────────── */
 :root {
-  --paper: #f3ecd9;
-  --paper-2: #ece4ce;
-  --paper-3: #e6dcc1;
-  --ink: #14110f;
-  --ink-soft: #2a2522;
-  --muted: #8a847a;
-  --muted-2: #6a655e;
-  --line: #14110f;
-  --line-soft: rgba(20, 17, 15, 0.18);
-  --line-faint: rgba(20, 17, 15, 0.08);
+  --paper:    #1b1a22;
+  --paper-2:  #232230;
+  --paper-3:  #2c2a3a;
+  --ink:      #ece6d8;
+  --ink-soft: #c9c2b3;
+  --muted:    #8a8497;
+  --muted-2:  #aaa4b3;
 
-  --acid: #c6f24e;
-  --acid-deep: #b1de36;
+  --line:       rgba(236, 230, 216, 0.32);
+  --line-soft:  rgba(236, 230, 216, 0.16);
+  --line-faint: rgba(236, 230, 216, 0.06);
 
-  --riso-red: #e8553a;
-  --riso-blue: #2e4fe6;
-  --riso-yellow: #f5c518;
-  --riso-pink: #f0a5b6;
+  /* Calm, low-saturation accents */
+  --acid:      #b8c98a;   /* muted sage replaces electric green */
+  --acid-deep: #9eb56c;
+  --accent:    #b8c98a;
+  --accent-2:  #e8b894;   /* warm peach */
+
+  --riso-red:    #d97a6c;  /* dusty terracotta */
+  --riso-blue:   #7d8ed1;  /* periwinkle */
+  --riso-yellow: #e6c878;  /* honey */
+  --riso-pink:   #d9a8b4;  /* dusty rose */
 
   --color-background: var(--paper);
   --color-foreground: var(--ink);
-  --color-primary: var(--ink);
+  --color-primary: var(--accent);
   --color-primary-foreground: var(--paper);
-  --color-accent: var(--acid);
+  --color-accent: var(--accent);
   --color-error: var(--riso-red);
-  --color-success: #1f8a3a;
+  --color-success: #9bc28b;
   --color-warning: var(--riso-yellow);
   --color-like: var(--riso-red);
 
-  --mood-hyped: #ff6b35;
-  --mood-cozy: #6ba368;
-  --mood-salty: #4a90c2;
-  --mood-curious: #b78bd9;
-  --mood-hottake: #d94f4f;
-  --mood-soft: #f0a5b6;
+  --mood-hyped:  #e8a079;
+  --mood-cozy:   #9bc28b;
+  --mood-salty:  #7d8ed1;
+  --mood-curious:#b9a3d6;
+  --mood-hottake:#d97a6c;
+  --mood-soft:   #d9a8b4;
 
-  --r-sm: 4px;
-  --r-md: 6px;
-  --r-lg: 8px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
   --r-pill: 9999px;
 
-  --sh-1: 3px 3px 0 0 var(--ink);
-  --sh-2: 5px 5px 0 0 var(--ink);
-  --sh-3: 8px 8px 0 0 var(--ink);
+  /* Softer, slightly diffused brutalist shadows */
+  --sh-1: 2px 2px 0 0 rgba(0, 0, 0, 0.45);
+  --sh-2: 4px 4px 10px -2px rgba(0, 0, 0, 0.45), 2px 2px 0 0 rgba(0, 0, 0, 0.35);
+  --sh-3: 8px 8px 20px -4px rgba(0, 0, 0, 0.55), 3px 3px 0 0 rgba(0, 0, 0, 0.4);
 
-  --font-display: "Fraunces", "Times New Roman", Georgia, serif;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Courier New", monospace;
+  --font-display: "General Sans", "Satoshi", "Inter", system-ui, sans-serif;
+  --font-sans:    "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "Courier New", monospace;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
-  line-height: 1.5;
+  line-height: 1.6;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+}
+
+/* ─── Daylight (warm cream paper) — opt-in ──────────────────────────── */
+[data-theme="paper"],
+[data-theme="light"] {
+  --paper:    #f3ecd9;
+  --paper-2:  #ece4ce;
+  --paper-3:  #e6dcc1;
+  --ink:      #14110f;
+  --ink-soft: #2a2522;
+  --muted:    #8a847a;
+  --muted-2:  #6a655e;
+  --line:       rgba(20, 17, 15, 0.3);
+  --line-soft:  rgba(20, 17, 15, 0.14);
+  --line-faint: rgba(20, 17, 15, 0.06);
   color-scheme: light;
 }
 
-/* ─── Inverted "ink" theme ──────────────────────────────────────────────── */
-[data-theme="ink"] {
-  --paper: #14110f;
-  --paper-2: #1c1916;
-  --paper-3: #232019;
-  --ink: #f3ecd9;
-  --ink-soft: #d8d0bb;
-  --muted: #8a847a;
-  --muted-2: #a8a298;
-  --line: #f3ecd9;
-  --line-soft: rgba(243, 236, 217, 0.22);
-  --line-faint: rgba(243, 236, 217, 0.1);
-  --color-background: var(--paper);
-  --color-foreground: var(--ink);
-  --color-primary: var(--acid);
-  color-scheme: dark;
+/* alias the older "ink" theme key to dusk */
+[data-theme="ink"],
+[data-theme="dusk"],
+[data-theme="midnight"] {
+  /* defaults already match; nothing to override */
 }
 
 /* ─── Reduced motion ───────────────────────────────────────────────────── */
@@ -100,83 +114,77 @@
     border-style: solid;
     border-width: 0;
   }
-  html,
-  body {
+  html, body {
     background-color: var(--paper);
     color: var(--ink);
     min-height: 100vh;
     background-image:
       radial-gradient(circle at 1px 1px, var(--line-faint) 1px, transparent 0);
-    background-size: 24px 24px;
+    background-size: 28px 28px;
   }
   ::selection {
-    background: var(--acid);
+    background: color-mix(in oklab, var(--accent) 60%, transparent);
     color: var(--ink);
   }
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: var(--ink);
+    background: var(--paper-3);
     border: 2px solid var(--paper);
-    border-radius: 0;
+    border-radius: var(--r-pill);
   }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
   input, textarea, select { font-size: 16px; }
   button, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 }
 
 /* ─── Typography utilities ─────────────────────────────────────────── */
-.font-display {
-  font-family: var(--font-display);
-  font-optical-sizing: auto;
-}
-.font-mono { font-family: var(--font-mono); }
-.font-sans { font-family: var(--font-sans); }
+.font-display { font-family: var(--font-display); font-feature-settings: "ss01"; }
+.font-mono    { font-family: var(--font-mono); }
+.font-sans    { font-family: var(--font-sans); }
 
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-weight: 500;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted-2);
 }
 
 .headline {
   font-family: var(--font-display);
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
 }
 
 .dropcap::first-letter {
   font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 3.4em;
+  font-weight: 600;
+  font-size: 2.6em;
   float: left;
-  line-height: 0.85;
-  margin: 0.05em 0.08em 0 -0.02em;
-  color: var(--ink);
+  line-height: 0.9;
+  margin: 0.05em 0.1em 0 -0.02em;
+  color: var(--ink-soft);
 }
 
-/* ─── Brutal primitives ──────────────────────────────────────────────── */
+/* ─── Brutal primitives (softened) ───────────────────────────────── */
 .brutal-card {
   background: var(--paper-2);
-  border: 2px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--sh-2);
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition: transform 280ms var(--ease-out), box-shadow 280ms var(--ease-out);
 }
 .brutal-card-hover:hover {
-  transform: translate(-2px, -2px);
+  transform: translate(-1px, -2px);
   box-shadow: var(--sh-3);
 }
 
 .brutal-input {
   background: var(--paper);
-  border: 2px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: var(--r-md);
   color: var(--ink);
   font-family: var(--font-sans);
@@ -184,16 +192,17 @@
   padding: 12px 14px;
   width: 100%;
   outline: none;
-  transition: box-shadow 120ms ease, transform 120ms ease;
+  transition: box-shadow 240ms var(--ease-out), border-color 240ms var(--ease-out), transform 240ms var(--ease-out);
 }
 .brutal-input::placeholder {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .brutal-input:focus {
-  box-shadow: var(--sh-2);
-  transform: translate(-2px, -2px);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 70%, var(--line));
+  transform: translateY(-1px);
 }
 
 .brutal-btn {
@@ -202,34 +211,36 @@
   justify-content: center;
   gap: 8px;
   font-family: var(--font-sans);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 14px;
-  border: 2px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: var(--r-md);
   padding: 10px 18px;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
-  background: var(--paper);
+  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out), background 220ms var(--ease-out);
+  background: var(--paper-2);
   color: var(--ink);
   box-shadow: var(--sh-1);
   user-select: none;
 }
 .brutal-btn:hover:not(:disabled) {
-  transform: translate(-2px, -2px);
+  transform: translate(-1px, -1px);
   box-shadow: var(--sh-2);
 }
 .brutal-btn:active:not(:disabled) {
   transform: translate(0, 0);
-  box-shadow: 1px 1px 0 0 var(--ink);
+  box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.4);
 }
-.brutal-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.brutal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.brutal-btn-primary {
+  background: var(--accent);
+  color: #1b1a22;
+  border-color: color-mix(in oklab, var(--accent) 60%, #000);
 }
-.brutal-btn-primary { background: var(--acid); color: var(--ink); }
-.brutal-btn-ink { background: var(--ink); color: var(--paper); }
-.brutal-btn-danger { background: var(--riso-red); color: var(--paper); }
-.brutal-btn-ghost { background: transparent; box-shadow: none; border-color: transparent; }
+.brutal-btn-ink    { background: var(--ink); color: var(--paper); }
+.brutal-btn-danger { background: var(--riso-red); color: #fff; border-color: color-mix(in oklab, var(--riso-red) 60%, #000); }
+.brutal-btn-ghost  { background: transparent; box-shadow: none; border-color: transparent; }
 .brutal-btn-ghost:hover:not(:disabled) {
   background: var(--paper-2);
   border-color: var(--line);
@@ -237,16 +248,17 @@
   transform: translate(-1px, -1px);
 }
 .brutal-btn-icon { padding: 8px; width: 38px; height: 38px; }
-.brutal-btn-sm { padding: 6px 12px; font-size: 12px; }
+.brutal-btn-sm   { padding: 6px 12px; font-size: 12px; }
 
 /* ─── Avatar ─────────────────────────────────────────────────────────── */
 .brutal-avatar {
   display: inline-grid;
   place-items: center;
-  background: var(--paper-2);
-  border: 2px solid var(--ink);
+  background: var(--paper-3);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-pill);
   font-family: var(--font-display);
-  font-weight: 900;
+  font-weight: 600;
   color: var(--ink);
   overflow: hidden;
   flex-shrink: 0;
@@ -255,61 +267,74 @@
 .brutal-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .brutal-avatar-online {
   position: absolute;
-  bottom: -3px;
-  right: -3px;
+  bottom: -2px;
+  right: -2px;
   width: 12px;
   height: 12px;
-  background: var(--acid);
-  border: 2px solid var(--ink);
+  background: var(--accent);
+  border: 2px solid var(--paper);
   border-radius: 50%;
 }
 
 /* ─── Decorative ─────────────────────────────────────────────────────── */
-.halftone-bg { background-image: radial-gradient(var(--ink) 1.2px, transparent 1.4px); background-size: 8px 8px; }
+.halftone-bg {
+  background-image: radial-gradient(var(--line-faint) 1.2px, transparent 1.4px);
+  background-size: 10px 10px;
+}
 .grid-bg {
   background-image:
-    linear-gradient(var(--line-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
-  background-size: 28px 28px;
+    linear-gradient(var(--line-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-faint) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
-.ink-rule { border-top: 2px solid var(--ink); }
-.ink-rule-thin { border-top: 1px solid var(--line-soft); }
+.ink-rule       { border-top: 1.5px solid var(--line); }
+.ink-rule-thin  { border-top: 1px solid var(--line-soft); }
 
-/* ─── Animations ──────────────────────────────────────────────────────── */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes stamp { 0% { transform: scale(1.6) rotate(-8deg); opacity: 0; } 60% { transform: scale(0.9) rotate(2deg); opacity: 1; } 100% { transform: scale(1) rotate(-2deg); opacity: 1; } }
-@keyframes bounceIn { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
-@keyframes typingDot { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
-@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+/* ─── Animations (gentler) ──────────────────────────────────────────── */
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn  { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+@keyframes stamp    { 0% { transform: scale(1.3) rotate(-4deg); opacity: 0; } 60% { transform: scale(0.98) rotate(1deg); opacity: 1; } 100% { transform: scale(1) rotate(-1deg); opacity: 1; } }
+@keyframes bounceIn { 0% { transform: scale(0.7); opacity: 0; } 60% { transform: scale(1.04); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes typingDot{ 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+@keyframes shimmer  { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes float    { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes heartPop { 0% { transform: scale(1); } 40% { transform: scale(1.2); } 100% { transform: scale(1); } }
 
-.anim-fade-in { animation: fadeIn 220ms ease-out both; }
-.anim-fade-in-down { animation: fadeInUp 280ms ease-out both; }
-.anim-fade-in-up { animation: fadeInUp 280ms ease-out both; }
-.anim-scale-in { animation: scaleIn 200ms ease-out both; }
-.anim-stamp { animation: stamp 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.anim-bounce-in { animation: bounceIn 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.anim-float { animation: float 3s ease-in-out infinite; }
-.hover-lift { transition: transform 160ms ease, box-shadow 160ms ease; }
-.hover-lift:hover { transform: translate(-2px, -2px); }
+.anim-fade-in      { animation: fadeIn 320ms var(--ease-out) both; }
+.anim-fade-in-down { animation: fadeInUp 360ms var(--ease-out) both; }
+.anim-fade-in-up   { animation: fadeInUp 360ms var(--ease-out) both; }
+.anim-scale-in     { animation: scaleIn 280ms var(--ease-out) both; }
+.anim-stamp        { animation: stamp 480ms var(--ease-out) both; }
+.anim-bounce-in    { animation: bounceIn 360ms var(--ease-out) both; }
+.anim-float        { animation: float 4.5s ease-in-out infinite; }
+.heart-pop         { animation: heartPop 420ms var(--ease-out); }
 
-.stagger > * { animation: fadeInUp 320ms ease-out both; }
+.hover-lift { transition: transform 240ms var(--ease-out), box-shadow 240ms var(--ease-out); }
+.hover-lift:hover { transform: translate(-1px, -1px); }
+
+/* React Router/Tailwind aliases used across pages */
+.animate-fade-in       { animation: fadeIn 320ms var(--ease-out) both; }
+.animate-fade-in-down  { animation: fadeInUp 360ms var(--ease-out) both; }
+.animate-fade-in-up    { animation: fadeInUp 360ms var(--ease-out) both; }
+.animate-scale-in      { animation: scaleIn 280ms var(--ease-out) both; }
+.animate-bounce-in     { animation: bounceIn 360ms var(--ease-out) both; }
+
+.stagger > * { animation: fadeInUp 420ms var(--ease-out) both; }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 50ms; }
-.stagger > *:nth-child(3) { animation-delay: 100ms; }
-.stagger > *:nth-child(4) { animation-delay: 150ms; }
-.stagger > *:nth-child(5) { animation-delay: 200ms; }
-.stagger > *:nth-child(6) { animation-delay: 250ms; }
-.stagger > *:nth-child(7) { animation-delay: 300ms; }
-.stagger > *:nth-child(8) { animation-delay: 350ms; }
+.stagger > *:nth-child(2) { animation-delay: 70ms; }
+.stagger > *:nth-child(3) { animation-delay: 140ms; }
+.stagger > *:nth-child(4) { animation-delay: 210ms; }
+.stagger > *:nth-child(5) { animation-delay: 280ms; }
+.stagger > *:nth-child(6) { animation-delay: 350ms; }
+.stagger > *:nth-child(7) { animation-delay: 420ms; }
+.stagger > *:nth-child(8) { animation-delay: 490ms; }
 
 .typing-dot {
   width: 6px;
   height: 6px;
-  background: var(--ink);
+  background: var(--ink-soft);
   border-radius: 50%;
   display: inline-block;
   margin: 0 1px;
@@ -321,8 +346,8 @@
 .skeleton {
   background: linear-gradient(90deg, var(--paper-2), var(--paper-3), var(--paper-2));
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
-  border: 2px solid var(--line);
+  animation: shimmer 1.8s infinite linear;
+  border: 1px solid var(--line-soft);
   border-radius: var(--r-sm);
 }
 
@@ -330,7 +355,7 @@
 .scrollbar-hide { scrollbar-width: none; }
 
 .highlight-swipe {
-  background-image: linear-gradient(transparent 60%, var(--acid) 60%, var(--acid) 92%, transparent 92%);
+  background-image: linear-gradient(transparent 60%, color-mix(in oklab, var(--accent) 50%, transparent) 60%, color-mix(in oklab, var(--accent) 50%, transparent) 92%, transparent 92%);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   padding: 0 4px;
@@ -340,12 +365,13 @@
   position: absolute;
   width: 60px;
   height: 18px;
-  background: rgba(245, 197, 24, 0.6);
-  border: 1px solid rgba(20, 17, 15, 0.2);
-  transform: rotate(-4deg);
+  background: color-mix(in oklab, var(--riso-yellow) 55%, transparent);
+  border: 1px solid var(--line-soft);
+  transform: rotate(-3deg);
+  border-radius: 1px;
 }
 
-.marquee { animation: marquee 38s linear infinite; }
+.marquee { animation: marquee 48s linear infinite; }
 @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 .wave-bar {
@@ -355,34 +381,36 @@
   display: inline-block;
 }
 
-/* ─── Safe area padding for mobile ─────────────────────────────────── */
+/* Soft glow used for focused / accent surfaces in dusk */
+.dusk-glow {
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 18px 40px -18px color-mix(in oklab, var(--accent) 35%, transparent),
+    0 6px 20px -10px rgba(0, 0, 0, 0.5);
+}
+
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
 
-/* ─── Spinner ────────────────────────────────────────────────────────── */
 .spinner {
   width: 18px;
   height: 18px;
-  border: 2.5px solid var(--ink);
+  border: 2.5px solid var(--ink-soft);
   border-top-color: transparent;
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.8s linear infinite;
   display: inline-block;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ─── Story link underline ──────────────────────────────────────────── */
-.story-link {
-  position: relative;
-  display: inline-block;
-}
+.story-link { position: relative; display: inline-block; }
 .story-link::after {
   content: "";
   position: absolute;
   left: 0; bottom: -2px;
   width: 100%; height: 2px;
-  background: var(--acid);
+  background: var(--accent);
   transform: scaleX(0);
   transform-origin: right;
-  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 360ms var(--ease-out);
 }
 .story-link:hover::after { transform: scaleX(1); transform-origin: left; }
