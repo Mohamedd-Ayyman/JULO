@@ -4,7 +4,7 @@ import AppLayout from "../../components/appLayout.jsx";
 import { getFeed } from "../../apiCalls/post.js";
 import PostCard from "./PostCard.jsx";
 import CreatePost from "./CreatePost.jsx";
-import { Loader2, Sparkles, Plus } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import PostDetailModal from "../postDetail/PostDetailModal.jsx";
 import { PostSkeleton } from "../../components/Skeletons.jsx";
 import { EmptyFeedState } from "../../components/EmptyStates.jsx";
@@ -44,16 +44,16 @@ export default function FeedPage() {
         {/* Heading */}
         <div className="hidden lg:flex items-center justify-between mb-5 animate-fade-in-down">
           <div>
-            <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-primary" />
+            <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2" style={{ color: "var(--ink)" }}>
+              <Sparkles className="w-6 h-6" style={{ color: "var(--ink)" }} />
               Your Feed
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Latest from people you follow</p>
+            <p className="text-sm mt-0.5" style={{ color: "var(--muted-2)" }}>Latest from people you follow</p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-glass rounded-full mb-4 animate-fade-in">
+        <div className="flex gap-1 p-1 rounded-full mb-4 animate-fade-in" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)" }}>
           {[
             { id: "for-you", label: "For you" },
             { id: "following", label: "Following" },
@@ -61,11 +61,11 @@ export default function FeedPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 py-2 px-3 rounded-full text-sm font-semibold transition-all ${
-                tab === t.id
-                  ? "bg-gradient-primary text-white glow-primary-soft"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className="flex-1 py-2 px-3 rounded-full text-sm font-semibold transition-all"
+              style={tab === t.id
+                ? { background: "var(--acid)", color: "var(--ink)" }
+                : { color: "var(--muted-2)" }
+              }
             >
               {t.label}
             </button>

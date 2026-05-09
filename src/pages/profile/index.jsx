@@ -119,31 +119,30 @@ export default function ProfilePage() {
       <div className="max-w-2xl mx-auto pb-6">
         {/* Cover */}
         <div className="relative h-48 sm:h-60 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-primary opacity-70 animate-gradient" style={{ backgroundSize: "200% 200%" }} />
-          <div className="absolute inset-0 bg-gradient-mesh" />
-          <div className="absolute -bottom-20 -right-20 w-72 h-72 rounded-full bg-accent/30 blur-3xl" />
+          <div className="absolute inset-0" style={{ background: "var(--acid)" }} />
+          <div className="absolute -bottom-20 -right-20 w-72 h-72 rounded-full" style={{ background: "rgba(20,17,15,0.12)" }} />
         </div>
 
         {/* Identity */}
         <div className="px-4 sm:px-6 -mt-12 relative z-10">
           <div className="flex items-end justify-between gap-3 mb-4">
-            <span className="rounded-full p-1 bg-background">
+            <span className="rounded-full p-1" style={{ background: "var(--paper)" }}>
               <Avatar src={profile.profilepic} name={fullName} size={96} ring />
             </span>
             <div className="flex gap-2 pb-1">
               {isOwnProfile ? (
-                <Link to={ROUTES.SETTINGS} className="btn btn-glass">
+                <Link to={ROUTES.SETTINGS} className="brutal-btn brutal-btn-ghost">
                   <Settings className="w-4 h-4" /> Edit profile
                 </Link>
               ) : (
                 <>
-                  <button onClick={startChat} className="btn btn-glass">
+                  <button onClick={startChat} className="brutal-btn brutal-btn-ghost">
                     <MessageCircle className="w-4 h-4" /> Message
                   </button>
                   <button
                     onClick={toggleFollow}
                     disabled={followLoading}
-                    className={isFollowing ? "btn btn-glass" : "btn btn-primary"}
+                    className={isFollowing ? "brutal-btn brutal-btn-ghost" : "brutal-btn brutal-btn-primary"}
                   >
                     {isFollowing ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
                     {isFollowing ? "Following" : "Follow"}
@@ -153,19 +152,25 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">{fullName}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--ink)" }}>{fullName}</h1>
           {profile.bio ? null : <div className="h-1" />}
 
           {profile.bio && (
-            <p className="text-sm text-foreground-soft mt-3 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+            <p className="text-sm mt-3 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink-soft)" }}>{profile.bio}</p>
           )}
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-3" style={{ color: "var(--muted-2)" }}>
             {profile.location && (
               <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" /> {profile.location}</span>
             )}
             {profile.website && (
-              <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary story-link">
+              <a
+                href={profile.website}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 story-link"
+                style={{ color: "var(--ink)" }}
+              >
                 <LinkIcon className="w-3 h-3" /> {profile.website.replace(/^https?:\/\//, "")}
               </a>
             )}
@@ -187,7 +192,7 @@ export default function ProfilePage() {
 
         {/* Tabs */}
         <div className="px-4 sm:px-6 mt-6">
-          <div className="flex gap-1 p-1 bg-glass rounded-full">
+          <div className="flex gap-1 p-1 rounded-full" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)" }}>
             {[
               { id: "posts", label: "Posts", icon: Grid3X3 },
               { id: "echoes", label: "Echoes", icon: Megaphone },
@@ -198,9 +203,11 @@ export default function ProfilePage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all ${
-                  tab === t.id ? "bg-gradient-primary text-white" : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all"
+                style={tab === t.id
+                  ? { background: "var(--acid)", color: "var(--ink)" }
+                  : { color: "var(--muted-2)" }
+                }
               >
                 <t.icon className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t.label}</span>
@@ -231,7 +238,7 @@ export default function ProfilePage() {
           )}
           {tab === "echoes" && (
             posts.filter((p) => p.isRepost && (!p.text || p.text === p.originalPost?.text)).length === 0 ? (
-              <p className="text-center text-muted-foreground py-12 text-sm">No echoes yet.</p>
+              <p className="text-center py-12 text-sm" style={{ color: "var(--muted-2)" }}>No echoes yet.</p>
             ) : posts
               .filter((p) => p.isRepost && (!p.text || p.text === p.originalPost?.text))
               .map((p, i) => (
@@ -254,7 +261,7 @@ export default function ProfilePage() {
             <UserList list={tab === "followers" ? followers : following} />
           )}
           {tab === "saved" && (
-            <p className="text-center text-muted-foreground py-12 text-sm">
+            <p className="text-center py-12 text-sm" style={{ color: "var(--muted-2)" }}>
               Your bookmarked posts will appear here.
             </p>
           )}
@@ -268,19 +275,18 @@ function Stat({ label, value, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`card p-3 text-left transition-all hover-lift ${
-        active ? "border-glass-border-strong glow-primary-soft" : ""
-      }`}
+      className="brutal-card p-3 text-left transition-all hover-lift"
+      style={active ? { borderColor: "var(--ink)" } : undefined}
     >
-      <p className="text-xl font-extrabold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-xl font-extrabold" style={{ color: "var(--ink)" }}>{value}</p>
+      <p className="text-xs" style={{ color: "var(--muted-2)" }}>{label}</p>
     </button>
   );
 }
 
 function UserList({ list }) {
   if (!list || list.length === 0) {
-    return <p className="text-center text-muted-foreground py-12 text-sm">Nothing here yet.</p>;
+    return <p className="text-center py-12 text-sm" style={{ color: "var(--muted-2)" }}>Nothing here yet.</p>;
   }
   return (
     <div className="space-y-2 stagger">
@@ -288,12 +294,12 @@ function UserList({ list }) {
         <Link
           key={u._id}
           to={ROUTES.PROFILE_USER(u._id)}
-          className="card card-interactive p-3 flex items-center gap-3"
+          className="brutal-card p-3 flex items-center gap-3"
         >
           <Avatar src={u.profilepic} name={`${u.firstname || ""} ${u.lastname || ""}`} size={42} />
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground truncate">{u.firstname} {u.lastname}</p>
-            <p className="text-xs text-muted-foreground truncate">{u.bio || ""}</p>
+            <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>{u.firstname} {u.lastname}</p>
+            <p className="text-xs truncate" style={{ color: "var(--muted-2)" }}>{u.bio || ""}</p>
           </div>
         </Link>
       ))}
