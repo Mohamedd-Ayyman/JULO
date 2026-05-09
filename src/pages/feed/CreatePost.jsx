@@ -70,7 +70,8 @@ export default function CreatePost({ user, onPostCreated }) {
             onChange={(e) => setContent(e.target.value)}
             onFocus={() => setFocused(true)}
             placeholder="What's on your mind, ✨?"
-            className="w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-base leading-relaxed"
+            className="w-full resize-none outline-none text-base leading-relaxed"
+            style={{ background: "transparent", color: "var(--ink)" }}
             rows={focused || content || imageFile ? 3 : 1}
             maxLength={MAX_LEN + 50}
           />
@@ -80,34 +81,36 @@ export default function CreatePost({ user, onPostCreated }) {
               <img
                 src={previewUrl}
                 alt=""
-                className="rounded-xl w-full max-h-80 object-cover border border-glass-border"
+                className="rounded-xl w-full max-h-80 object-cover border"
+                style={{ borderColor: "var(--line-soft)" }}
               />
               <button
                 onClick={removeImage}
                 type="button"
-                className="absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-black/60 backdrop-blur text-white hover:bg-black/80 transition"
+                className="absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full"
+                style={{ background: "rgba(0,0,0,0.6)" }}
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4" style={{ color: "var(--paper)" }} />
               </button>
             </div>
           )}
 
           {(focused || content || imageFile) && (
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-glass-border animate-fade-in">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t animate-fade-in" style={{ borderColor: "var(--line-soft)" }}>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="btn btn-ghost btn-icon"
+                  className="brutal-btn brutal-btn-ghost brutal-btn-icon"
                   title="Add image"
                 >
-                  <ImageIcon className="w-4 h-4 text-accent" />
+                  <ImageIcon className="w-4 h-4" style={{ color: "var(--muted-2)" }} />
                 </button>
-                <button type="button" className="btn btn-ghost btn-icon" title="Emoji">
-                  <Smile className="w-4 h-4 text-warning" style={{ color: "var(--color-warning)" }} />
+                <button type="button" className="brutal-btn brutal-btn-ghost brutal-btn-icon" title="Emoji">
+                  <Smile className="w-4 h-4" style={{ color: "var(--riso-yellow)" }} />
                 </button>
-                <button type="button" className="btn btn-ghost btn-icon" title="Location">
-                  <MapPin className="w-4 h-4" style={{ color: "var(--color-accent-2, #f472b6)" }} />
+                <button type="button" className="brutal-btn brutal-btn-ghost brutal-btn-icon" title="Location">
+                  <MapPin className="w-4 h-4" style={{ color: "var(--muted-2)" }} />
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
               </div>
@@ -116,14 +119,15 @@ export default function CreatePost({ user, onPostCreated }) {
                 <button
                   onClick={handleSubmit}
                   disabled={!canPost}
-                  className="btn btn-primary"
+                  className="brutal-btn brutal-btn-primary"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {loading ? <div className="spinner" /> : <Sparkles className="w-4 h-4" />}
                   Post
                 </button>
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>
