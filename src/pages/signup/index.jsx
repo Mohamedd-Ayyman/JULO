@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { setUser } from "../../redux/usersSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import toast from "react-hot-toast";
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from "lucide-react";
 import AuthShell from "../AuthShell.jsx";
 
 export default function SignUp() {
@@ -37,53 +37,63 @@ export default function SignUp() {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
           <div className="relative">
-            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="input pl-11" required />
+            <User
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+              style={{ color: "var(--muted-2)" }}
+            />
+            <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="brutal-input pl-11" required />
           </div>
           <div className="relative">
-            <input value={form.lastname} onChange={update("lastname")} placeholder="Last name" className="input" required />
+            <input value={form.lastname} onChange={update("lastname")} placeholder="Last name" className="brutal-input" required />
           </div>
         </div>
         <div className="relative">
-          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className="input pl-11" required />
+          <Mail
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--muted-2)" }}
+          />
+          <input type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className="brutal-input pl-11" required />
         </div>
         <div className="relative">
-          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Lock
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--muted-2)" }}
+          />
           <input
             type={showPw ? "text" : "password"}
             value={form.password}
             onChange={update("password")}
             placeholder="Password (min 6 chars)"
-            className="input pl-11 pr-10"
+            className="brutal-input pl-11 pr-10"
             minLength={6}
             required
           />
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-3 top-1/2 -translate-y-1/2"
+            style={{ color: "var(--muted-2)" }}
           >
             {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
 
-        <p className="text-xs text-muted-foreground leading-relaxed">
+        <p className="text-xs leading-relaxed" style={{ color: "var(--muted-2)" }}>
           By signing up, you agree to our{" "}
-          <span className="text-primary story-link">Terms</span> and{" "}
-          <span className="text-primary story-link">Privacy Policy</span>.
+          <span className="story-link" style={{ color: "var(--ink)" }}>Terms</span> and{" "}
+          <span className="story-link" style={{ color: "var(--ink)" }}>Privacy Policy</span>.
         </p>
 
-        <button type="submit" disabled={loading} className="btn btn-primary w-full py-3 text-base">
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+        <button type="submit" disabled={loading} className="brutal-btn brutal-btn-primary w-full py-3 text-base">
+          {loading ? <div className="spinner" /> : (
             <>Create account <ArrowRight className="w-4 h-4" /></>
           )}
         </button>
       </form>
 
-      <p className="text-center text-sm text-muted-foreground mt-8">
+      <p className="text-center text-sm mt-8" style={{ color: "var(--muted-2)" }}>
         Already have an account?{" "}
-        <Link to="/login" className="text-primary font-semibold story-link">Sign in</Link>
+        <Link to="/login" className="font-semibold story-link" style={{ color: "var(--ink)" }}>Sign in</Link>
       </p>
     </AuthShell>
   );

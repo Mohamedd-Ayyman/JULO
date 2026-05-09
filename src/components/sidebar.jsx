@@ -42,7 +42,8 @@ export default function Sidebar() {
       </nav>
       <button
         onClick={() => dispatch(logout())}
-        className="flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-transparent text-muted-foreground hover:bg-paper-2 transition-colors font-semibold text-sm w-full"
+        className="flex items-center gap-3 px-3 py-2.5 rounded-md border-2 border-transparent transition-colors font-semibold text-sm w-full"
+        style={{ color: "var(--muted-2)" }}
       >
         <LogOut className="w-5 h-5" />
         <span>Logout</span>

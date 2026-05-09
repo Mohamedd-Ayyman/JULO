@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { createPost, uploadPostImage } from "../../apiCalls/post.js";
-import { Image as ImageIcon, Smile, MapPin, X, Loader2, Sparkles } from "lucide-react";
+import { Image as ImageIcon, Smile, MapPin, X, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import Avatar from "../../components/Avatar.jsx";
 
@@ -61,7 +61,7 @@ export default function CreatePost({ user, onPostCreated }) {
   const canPost = (content.trim().length > 0 || imageFile) && len <= MAX_LEN && !loading;
 
   return (
-    <div className="card p-4 animate-fade-in-up">
+    <div className="brutal-card p-4 animate-fade-in-up">
       <div className="flex gap-3">
         <Avatar src={user?.profilepic} name={`${user?.firstname || ""} ${user?.lastname || ""}`} size={42} />
         <div className="flex-1 min-w-0">

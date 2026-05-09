@@ -5,12 +5,12 @@ import indexCss from "../index.css?url";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 pb-16">
+    <div className="flex min-h-screen items-center justify-center px-4 pb-16" style={{ background: "var(--paper)" }}>
       <div className="max-w-md text-center">
-        <div className="font-mono mb-6 text-xs uppercase tracking-widest text-muted-foreground">404</div>
-        <h1 className="font-display text-7xl font-light tracking-tight text-foreground">404</h1>
-        <h2 className="mt-4 font-display text-2xl font-light tracking-tight text-foreground">Page not found</h2>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <div className="font-mono mb-6 text-xs uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>404</div>
+        <h1 className="font-display text-7xl font-light tracking-tight" style={{ color: "var(--ink)" }}>404</h1>
+        <h2 className="mt-4 font-display text-2xl font-light tracking-tight" style={{ color: "var(--ink)" }}>Page not found</h2>
+        <p className="mt-3 text-sm" style={{ color: "var(--muted-2)" }}>
           The page you're looking for doesn't exist or has been moved.
         </p>
         <div className="mt-8">

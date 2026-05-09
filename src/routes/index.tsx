@@ -142,9 +142,9 @@ function PostCard({ post }: { post: typeof POSTS[0] }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-display text-base font-bold tracking-tight">{post.author}</span>
-            <span className="font-mono text-[11px] text-muted-foreground">{post.handle}</span>
-            <span className="font-mono text-[11px] text-muted-foreground">·</span>
-            <span className="font-mono text-[11px] text-muted-foreground">{post.time}</span>
+            <span className="font-mono text-[11px]" style={{ color: "var(--muted-2)" }}>{post.handle}</span>
+            <span className="font-mono text-[11px]" style={{ color: "var(--muted-2)" }}>·</span>
+            <span className="font-mono text-[11px]" style={{ color: "var(--muted-2)" }}>{post.time}</span>
           </div>
           <div
             className="sticker mt-1 inline-flex text-[10px]"
@@ -155,25 +155,26 @@ function PostCard({ post }: { post: typeof POSTS[0] }) {
         </div>
       </div>
 
-      <p className="mt-3 font-sans text-[15px] leading-relaxed text-foreground">{post.content}</p>
+      <p className="mt-3 font-sans text-[15px] leading-relaxed" style={{ color: "var(--ink)" }}>{post.content}</p>
 
       <div className="mt-4 flex items-center gap-6 border-t border-foreground/15 pt-3">
-        <button className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
+        <button className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors" style={{ color: "var(--muted-2)" }}>
           <span className="text-base">↑</span>
           <span>{post.replies}</span>
         </button>
         <button
           onClick={() => { setLiked(!liked); setLikeCount(liked ? likeCount - 1 : likeCount + 1); }}
-          className={`flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors hover:text-foreground ${liked ? "text-like" : "text-muted-foreground"}`}
+          className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors"
+          style={{ color: liked ? "var(--riso-red)" : "var(--muted-2)" }}
         >
           <span className="text-base" style={{ color: liked ? "var(--riso-red)" : "inherit" }}>♥</span>
           <span>{likeCount}</span>
         </button>
-        <button className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
+        <button className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors" style={{ color: "var(--muted-2)" }}>
           <span className="text-base">↺</span>
           <span>{post.reposts}</span>
         </button>
-        <button className="ml-auto font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground">
+        <button className="ml-auto font-mono text-[11px] uppercase tracking-widest transition-colors" style={{ color: "var(--muted-2)" }}>
           <span>···</span>
         </button>
       </div>
@@ -241,7 +242,7 @@ function Header() {
   const [activeTab, setActiveTab] = useState<"feed" | "following">("feed");
 
   return (
-    <header className="sticky top-0 z-30 border-b-2 border-foreground bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b-2 border-foreground" style={{ background: "var(--paper)" }}>
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="font-display text-2xl font-black tracking-tight">
@@ -257,16 +258,24 @@ function Header() {
           </button>
         </div>
       </div>
-      <div className="flex border-t border-foreground/20">
+      <div className="flex border-t" style={{ borderColor: "var(--line-soft)" }}>
         <button
           onClick={() => setActiveTab("feed")}
-          className={`flex-1 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors ${activeTab === "feed" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          className="flex-1 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors"
+          style={activeTab === "feed"
+            ? { background: "var(--ink)", color: "var(--paper)" }
+            : { color: "var(--muted-2)" }
+          }
         >
           Feed
         </button>
         <button
           onClick={() => setActiveTab("following")}
-          className={`flex-1 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors ${activeTab === "following" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          className="flex-1 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors"
+          style={activeTab === "following"
+            ? { background: "var(--ink)", color: "var(--paper)" }
+            : { color: "var(--muted-2)" }
+          }
         >
           Following
         </button>
@@ -277,7 +286,7 @@ function Header() {
 
 function BottomNav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-foreground bg-background/95 backdrop-blur-safe">
+    <nav className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-foreground" style={{ background: "var(--paper)" }}>
       <div className="grid grid-cols-4 py-2">
         {[
           { icon: "⌂", label: "Home" },
@@ -285,9 +294,9 @@ function BottomNav() {
           { icon: "✎", label: "Compose" },
           { icon: "☺", label: "Profile" },
         ].map(({ icon, label }) => (
-          <button key={label} className="flex flex-col items-center gap-0.5 py-1 transition-colors hover:text-primary">
+          <button key={label} className="flex flex-col items-center gap-0.5 py-1 transition-colors" style={{ color: "var(--muted-2)" }}>
             <span className="font-mono text-xl">{icon}</span>
-            <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">{label}</span>
+            <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>{label}</span>
           </button>
         ))}
       </div>

@@ -94,7 +94,7 @@ export function Sidebar() {
               {user?.firstname} {user?.lastname}
             </p>
             {user?.bio ? (
-              <p className="font-mono text-[10px] text-muted-foreground truncate">{user.bio}</p>
+              <p className="font-mono text-[10px] truncate" style={{ color: "var(--muted-2)" }}>{user.bio}</p>
             ) : null}
           </div>
         </Link>
@@ -120,7 +120,10 @@ export function MobileNav() {
     { to: ROUTES.PROFILE, icon: User, label: "Profile" },
   ];
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-background border-t-2 border-foreground pb-safe">
+    <nav
+      className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t-2 pb-safe"
+      style={{ background: "var(--paper)", borderColor: "var(--ink)" }}
+    >
       <div className="flex justify-around items-center h-14 px-2 max-w-lg mx-auto">
         {items.map(({ to, icon: Icon, label }) => {
           const active = pathname === to || (to !== "/" && pathname.startsWith(to));
@@ -128,14 +131,13 @@ export function MobileNav() {
             <Link
               key={to}
               to={to}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-md transition-all relative ${
-                active ? "text-foreground" : "text-muted-foreground"
-              }`}
+              className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-md transition-all relative"
+              style={{ color: active ? "var(--ink)" : "var(--muted-2)" }}
             >
               {active && (
                 <span
-                  className="absolute -top-px left-1/2 -translate-x-1/2 w-6 h-0.5 bg-acid"
-                  style={{ boxShadow: "2px 0 0 0 var(--ink)" }}
+                  className="absolute -top-px left-1/2 -translate-x-1/2 w-6 h-0.5"
+                  style={{ background: "var(--acid)", boxShadow: "2px 0 0 0 var(--ink)" }}
                 />
               )}
               <Icon
@@ -165,11 +167,16 @@ export function TopBar({ title }) {
   }, []);
 
   return (
-    <header className="lg:hidden sticky top-0 z-30 bg-background border-b-2 border-foreground">
+    <header
+      className="lg:hidden sticky top-0 z-30 border-b-2"
+      style={{ background: "var(--paper)", borderColor: "var(--ink)" }}
+    >
       <div className="flex items-center justify-between px-4 h-14">
         <Link to={ROUTES.HOME}><Logo size={26} /></Link>
         {title && (
-          <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{title}</span>
+          <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>
+            {title}
+          </span>
         )}
         <div className="flex items-center gap-1" ref={ref}>
           <button
@@ -194,7 +201,10 @@ export function TopBar({ title }) {
             }}
             className="relative"
           >
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+              style={{ color: "var(--muted-2)" }}
+            />
             <input
               autoFocus
               value={q}
