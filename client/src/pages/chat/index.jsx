@@ -44,6 +44,7 @@ export default function ChatPage() {
   const [sendingAudio, setSendingAudio] = useState(false);
   const scrollRef = useRef(null);
   const recorder = useAudioRecorder();
+  const typingChats = useChatTyping(chats, user?._id, socket);
 
   /* Load chats once */
   useEffect(() => {
