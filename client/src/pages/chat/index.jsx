@@ -12,16 +12,23 @@ import {
   Phone,
   Video,
   Mic,
+  RefreshCw,
+  MessageSquare,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import AudioMessage from "../../components/chat/AudioMessage.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
 import ChatListItem from "../../components/chat/ChatListItem.jsx";
+import OfflineBanner from "../../components/chat/OfflineBanner.jsx";
+import MessageError from "../../components/chat/MessageError.jsx";
+import MessageListSkeleton from "../../components/chat/MessageListSkeleton.jsx";
 import useAudioRecorder from "../../hooks/useAudioRecorder.js";
 import useChatTyping from "../../hooks/useChatTyping.js";
+import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage } from "../../apiCalls/message.js";
-import { setChats, setActiveChat, addMessage } from "../../redux/chatSlice.js";
+import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 import { ChatListSkeleton } from "../../components/Skeletons.jsx";
@@ -37,6 +44,8 @@ export default function ChatPage() {
 
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [chatError, setChatError] = useState(null);
+  const [msgError, setMsgError] = useState(null);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [typingUsers, setTypingUsers] = useState({});
@@ -44,15 +53,29 @@ export default function ChatPage() {
   const scrollRef = useRef(null);
   const recorder = useAudioRecorder();
   const typingChats = useChatTyping(chats, user?._id, socket);
+  const { isOnline, wasOffline } = useOnlineStatus();
+
+  useEffect(() => {
+    if (wasOffline) toast.success("You're back online");
+  }, [wasOffline]);
 
   /* Load chats once */
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await getAllChats();
-      if (cancelled) return;
-      if (res.success) dispatch(setChats(res.data || []));
-      setLoadingChats(false);
+      try {
+        const res = await getAllChats();
+        if (cancelled) return;
+        if (res.success) {
+          dispatch(setChats(res.data || []));
+          setChatError(null);
+        } else {
+          setChatError("Failed to load conversations");
+        }
+      } catch {
+        if (!cancelled) setChatError("Could not connect to server");
+      }
+      if (!cancelled) setLoadingChats(false);
     })();
     return () => { cancelled = true; };
   }, [dispatch]);
@@ -72,13 +95,21 @@ export default function ChatPage() {
     if (!activeChat?._id || activeChat.messages?.length) return;
     let cancelled = false;
     setLoadingMsgs(true);
+    setMsgError(null);
     (async () => {
-      const res = await getMessages(activeChat._id);
-      if (cancelled) return;
-      if (res.success) {
-        dispatch(setActiveChat({ ...activeChat, messages: (res.data || []).reverse() }));
+      try {
+        const res = await getMessages(activeChat._id);
+        if (cancelled) return;
+        if (res.success) {
+          dispatch(setActiveChat({ ...activeChat, messages: (res.data || []).reverse() }));
+          setMsgError(null);
+        } else {
+          setMsgError("Failed to load messages");
+        }
+      } catch {
+        if (!cancelled) setMsgError("Could not load messages");
       }
-      setLoadingMsgs(false);
+      if (!cancelled) setLoadingMsgs(false);
       markMessagesRead(activeChat._id);
     })();
     return () => { cancelled = true; };
@@ -123,8 +154,9 @@ export default function ChatPage() {
     const text = draft.trim();
     setDraft("");
     const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const tempId = `temp-${Date.now()}`;
     const tempMsg = {
-      _id: `temp-${Date.now()}`,
+      _id: tempId,
       chatId: activeChat._id,
       sender: user,
       text,
@@ -135,7 +167,29 @@ export default function ChatPage() {
     const res = await sendMessage(activeChat._id, text, other?._id);
     if (res.success && socket) {
       socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
+      dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
+    } else {
+      dispatch(markMessageFailed(tempId));
     }
+  };
+
+  const handleRetrySend = async (messageId) => {
+    if (!activeChat?._id) return;
+    const msg = activeChat.messages?.find((m) => m._id === messageId);
+    if (!msg) return;
+    dispatch(markMessageSuccess({ tempId: messageId, realMessage: { ...msg, pending: true, failed: false } }));
+    const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const res = await sendMessage(activeChat._id, msg.text, other?._id);
+    if (res.success && socket) {
+      socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
+      dispatch(markMessageSuccess({ tempId: messageId, realMessage: res.data }));
+    } else {
+      dispatch(markMessageFailed(messageId));
+    }
+  };
+
+  const handleDeleteFailed = (messageId) => {
+    dispatch(removeMessage(messageId));
   };
 
   const handleTyping = () => {
@@ -152,8 +206,9 @@ export default function ChatPage() {
     if (!blob || !activeChat?._id) return;
     setSendingAudio(true);
     const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const tempId = `temp-audio-${Date.now()}`;
     const tempMsg = {
-      _id: `temp-audio-${Date.now()}`,
+      _id: tempId,
       chatId: activeChat._id,
       sender: user,
       text: "",
@@ -169,7 +224,12 @@ export default function ChatPage() {
       const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recorder.duration, other?._id);
       if (res.success && socket) {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
+        dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
+      } else {
+        dispatch(markMessageFailed(tempId));
       }
+    } else {
+      dispatch(markMessageFailed(tempId));
     }
     setSendingAudio(false);
   };
@@ -207,6 +267,22 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto p-2">
             {loadingChats ? (
               <div className="p-2"><ChatListSkeleton /></div>
+            ) : chatError ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <p className="text-sm mb-3" style={{ color: "var(--riso-red)" }}>{chatError}</p>
+                <button
+                  onClick={() => { setLoadingChats(true); setChatError(null); window.location.reload(); }}
+                  className="brutal-btn brutal-btn-sm"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" /> Retry
+                </button>
+              </div>
+            ) : filteredChats.length === 0 && search.trim() ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <Search className="w-8 h-8 mb-3" style={{ color: "var(--muted)" }} />
+                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No results for "{search}"</p>
+                <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Try a different search</p>
+              </div>
             ) : filteredChats.length === 0 ? (
               <div className="p-4"><EmptyChatsState /></div>
             ) : (
@@ -266,40 +342,71 @@ export default function ChatPage() {
                 </div>
               </header>
 
+              <OfflineBanner isOnline={isOnline} />
+
               {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
                 {loadingMsgs ? (
-                  <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--acid)" }} /></div>
+                  <MessageListSkeleton />
+                ) : msgError ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <p className="text-sm mb-3" style={{ color: "var(--riso-red)" }}>{msgError}</p>
+                    <button
+                      onClick={() => { setMsgError(null); setLoadingMsgs(true); window.location.reload(); }}
+                      className="brutal-btn brutal-btn-sm"
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" /> Retry
+                    </button>
+                  </div>
                 ) : (activeChat.messages || []).length === 0 ? (
-                  <p className="text-center font-mono text-[11px] py-12" style={{ color: "var(--muted-2)" }}>No messages yet. Send the first one!</p>
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div
+                      className="w-14 h-14 mb-3 grid place-items-center rounded-full"
+                      style={{ background: "var(--paper-3)", border: "1px solid var(--line-soft)" }}
+                    >
+                      <MessageSquare className="w-6 h-6" style={{ color: "var(--muted)" }} />
+                    </div>
+                    <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No messages yet</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Send the first one to start the conversation!</p>
+                  </div>
                 ) : (
                   (activeChat.messages || []).map((m, i) => {
                     const mine = m.sender?._id === user?._id || m.sender === user?._id;
                     const prev = activeChat.messages[i - 1];
                     const sameAsPrev = prev && (prev.sender?._id === m.sender?._id || prev.sender === m.sender);
                     return (
-                      <div key={m._id} className={`flex ${mine ? "justify-end" : "justify-start"} ${sameAsPrev ? "mt-0.5" : "mt-3"}`}>
-                        {!mine && !sameAsPrev && (
-                          <Avatar src={otherMember?.profilepic} name={otherMember?.firstname || ""} size={28} className="mr-2 self-end" />
-                        )}
-                        {!mine && sameAsPrev && <span className="w-7 mr-2 flex-shrink-0" />}
-                        <div
-                          className="max-w-[75%] sm:max-w-[60%] px-4 py-2 text-sm leading-relaxed animate-fade-in"
-                          style={{
-                            background: mine ? "var(--ink)" : "var(--paper-2)",
-                            color: mine ? "var(--paper)" : "var(--ink)",
-                            borderRadius: "var(--r-lg)",
-                            opacity: m.pending ? 0.7 : 1,
-                          }}
-                        >
-                          {m.audioUrl ? (
-                            <AudioMessage
-                              audioUrl={m.audioUrl}
-                              duration={m.audioDuration}
-                              isMine={mine}
-                            />
-                          ) : m.text}
+                      <div key={m._id} className={`flex flex-col ${mine ? "items-end" : "items-start"} ${sameAsPrev ? "mt-0.5" : "mt-3"}`}>
+                        <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                          {!mine && !sameAsPrev && (
+                            <Avatar src={otherMember?.profilepic} name={otherMember?.firstname || ""} size={28} className="mr-2 self-end" />
+                          )}
+                          {!mine && sameAsPrev && <span className="w-7 mr-2 flex-shrink-0" />}
+                          <div
+                            className="max-w-[75%] sm:max-w-[60%] px-4 py-2 text-sm leading-relaxed animate-fade-in"
+                            style={{
+                              background: mine ? "var(--ink)" : "var(--paper-2)",
+                              color: mine ? "var(--paper)" : "var(--ink)",
+                              borderRadius: "var(--r-lg)",
+                              opacity: m.pending && !m.failed ? 0.7 : 1,
+                            }}
+                          >
+                            {m.audioUrl ? (
+                              <AudioMessage
+                                audioUrl={m.audioUrl}
+                                duration={m.audioDuration}
+                                isMine={mine}
+                              />
+                            ) : m.text}
+                          </div>
                         </div>
+                        {mine && m.failed && (
+                          <div className="mt-1 mr-9">
+                            <MessageError
+                              onRetry={() => handleRetrySend(m._id)}
+                              onDelete={() => handleDeleteFailed(m._id)}
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })
