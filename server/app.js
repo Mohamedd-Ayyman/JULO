@@ -147,6 +147,7 @@ v1.use("/calls", callSessionRouter);
 v1.use("/link-preview", linkPreviewRouter);
 v1.use("/keys", keyExchangeRouter);
 v1.use("/encryption", encryptionSessionRouter);
+v1.use("/participants", participantRouter);
 
 // Stripe webhook — raw body already parsed at step 4
 app.post("/webhooks/stripe", stripeWebhookController);
