@@ -33,6 +33,7 @@ const AUDIT_RESOURCES = [
   "signed_pre_key",
   "pre_key",
   "encryption_session",
+  "participant",
 ];
 
 const auditLogSchema = new mongoose.Schema(
