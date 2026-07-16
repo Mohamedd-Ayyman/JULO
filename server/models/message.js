@@ -63,6 +63,13 @@ const messageSchema = new mongoose.Schema(
     readBy: { type: [readReceiptSchema], default: [] },
     deliveredTo: { type: [readReceiptSchema], default: [] },
     edited: { type: Boolean, default: false },
+    editHistory: [{
+      text: { type: String, required: true },
+      editedAt: { type: Date, default: Date.now },
+      editedBy: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+      _id: false,
+    }],
+    editCount: { type: Number, default: 0 },
     deleted: { type: Boolean, default: false },
     pinned: { type: Boolean, default: false },
     pinnedBy: { type: mongoose.Schema.Types.ObjectId, ref: "users", default: null },
