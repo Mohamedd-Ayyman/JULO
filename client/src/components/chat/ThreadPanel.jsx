@@ -26,7 +26,6 @@ export default function ThreadPanel({ rootMessage, currentUserId, onClose, other
   const { socket } = useSocket();
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -43,7 +42,6 @@ export default function ThreadPanel({ rootMessage, currentUserId, onClose, other
         if (res.success && res.data) {
           setReplies(res.data.replies || []);
           setTotal(res.data.total || 0);
-          setPage(1);
         }
       } catch {
         // silent
