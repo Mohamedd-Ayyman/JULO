@@ -1,7 +1,7 @@
 import express from "express";
 import streamifier from "streamifier";
 import { requireAuth } from "../middlewares/authMiddleware.js";
-import { upload } from "../middlewares/upload.js";
+import { upload, uploadAudio } from "../middlewares/upload.js";
 import cloudinary from "../config/cloudinary.js";
 import User from "../models/user.js";
 import { asyncHandler, AppError } from "../utils/AppError.js";
