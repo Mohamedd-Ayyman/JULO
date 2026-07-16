@@ -27,9 +27,9 @@ export const sendMessage = async (chatId, text, receiverId = null) => {
   }
 };
 
-export const getMessages = async (chatId, page = 1) => {
+export const getMessages = async (chatId, page = 1, limit = 30) => {
   try {
-    const response = await axiosInstance.get(`/api/message/retrieve-chat/${chatId}?page=${page}`);
+    const response = await axiosInstance.get(`/api/message/retrieve-chat/${chatId}?page=${page}&limit=${limit}`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
