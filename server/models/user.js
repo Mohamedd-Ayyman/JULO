@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema(
     showOnlineStatus: { type: Boolean, default: true },
     allowMessageRequests: { type: Boolean, default: true },
     storyVisibility: { type: String, enum: ["everyone", "followers", "close_friends"], default: "everyone" },
+    dataClassification: { type: String, enum: ["standard", "sensitive", "confidential"], default: "standard" },
+    privacyLevel: { type: String, enum: ["standard", "enhanced", "maximum"], default: "standard" },
+    lastConsentReview: { type: Date, default: null },
+    encryptionKeyVersion: { type: String, default: "v1" },
 
     // ── Notification preferences ───────────────────────────────────────────
     notificationPrefs: {
