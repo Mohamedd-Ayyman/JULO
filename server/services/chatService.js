@@ -225,7 +225,7 @@ export class ChatService {
     };
   }
 
-  async getMessages(chatId, userId, { cursor = null, limit = 50, direction = "backward" } = {}) {
+  async getMessages(chatId, userId, { cursor = null, limit = 50, direction = "backward", includeDeleted = false, messageType, search } = {}) {
     const chat = await Chat.findById(chatId);
     if (!chat) {
       const err = new Error("Chat not found");
@@ -238,6 +238,7 @@ export class ChatService {
       throw err;
     }
 
+    if (!direction) direction = "backward";
     const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
     const query = { chatId };
 
@@ -247,6 +248,16 @@ export class ChatService {
       } else {
         query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
       }
+    }
+
+    if (!includeDeleted) {
+      query.deleted = { $ne: true };
+    }
+    if (messageType) {
+      query.messageType = messageType;
+    }
+    if (search) {
+      query.$text = { $search: search };
     }
 
     const sort = direction === "forward" ? { _id: 1 } : { _id: -1 };
@@ -318,7 +329,7 @@ export class ChatService {
       throw err;
     }
 
-    const messageData = { chatId, sender: senderId, tenantId, text: text || "", read: false };
+    const messageData = { chatId, sender: senderId, tenantId, text: sanitizeText(text), read: false };
 
     if (replyTo) {
       const parentMessage = await Message.findById(replyTo).lean();
@@ -348,7 +359,7 @@ export class ChatService {
       messageData.messageType = "file";
     } else if (fileUrl) {
       messageData.fileUrl = fileUrl;
-      messageData.fileName = fileName || null;
+      messageData.fileName = sanitizeText(fileName || null);
       messageData.fileSize = fileSize || null;
       messageData.mimeType = mimeType || null;
       messageData.messageType = "file";
@@ -356,11 +367,11 @@ export class ChatService {
 
     if (linkPreview) {
       messageData.linkPreview = {
-        title: linkPreview.title || "",
-        description: linkPreview.description || "",
+        title: sanitizeText(linkPreview.title || ""),
+        description: sanitizeText(linkPreview.description || ""),
         image: linkPreview.image || "",
         url: linkPreview.url || "",
-        siteName: linkPreview.siteName || "",
+        siteName: sanitizeText(linkPreview.siteName || ""),
       };
     }
 
@@ -568,7 +579,7 @@ export class ChatService {
     return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
   }
 
-  async deleteMessage(messageId, userId) {
+  async editMessage(messageId, userId, text) {
     const message = await Message.findById(messageId);
     if (!message) {
       const err = new Error("Message not found");
@@ -576,11 +587,82 @@ export class ChatService {
       throw err;
     }
     if (String(message.sender) !== String(userId)) {
+      const err = new Error("You can only edit your own messages");
+      err.statusCode = 403;
+      throw err;
+    }
+    if (message.deleted) {
+      const err = "Cannot edit a deleted message";
+      const error = new Error(err);
+      error.statusCode = 400;
+      throw error;
+    }
+    const sanitized = sanitizeText(text);
+    if (!sanitized) {
+      const err = new Error("Text is required");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!Array.isArray(message.editHistory)) {
+      message.editHistory = [];
+    }
+    if (message.text && message.text !== "[deleted]") {
+      message.editHistory.push({
+        text: message.text,
+        editedAt: new Date(),
+        editedBy: userId,
+      });
+    }
+    message.text = sanitized;
+    message.edited = true;
+    message.editCount = message.editHistory.length;
+    await message.save();
+    return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
+  }
+
+  async restoreMessage(messageId, userId) {
+    const message = await Message.findById(messageId);
+    if (!message) {
+      const err = new Error("Message not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    const chat = await Chat.findById(message.chatId).lean();
+    if (!chat || !chat.members.some((m) => String(m) === String(userId))) {
+      const err = new Error("Not a member of this chat");
+      err.statusCode = 403;
+      throw err;
+    }
+    if (!message.deleted) {
+      const err = new Error("Message is not deleted");
+      err.statusCode = 400;
+      throw err;
+    }
+    message.deleted = false;
+    message.text = message.editHistory && message.editHistory.length > 0
+      ? message.editHistory[message.editHistory.length - 1].text
+      : "[restored]";
+    await message.save();
+    return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
+  }
+
+  async deleteMessage(messageId, userId, { isAdmin = false } = {}) {
+    const message = await Message.findById(messageId);
+    if (!message) {
+      const err = new Error("Message not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (String(message.sender) !== String(userId) && !isAdmin) {
       const err = new Error("You can only delete your own messages");
       err.statusCode = 403;
       throw err;
     }
-    message.text = "[deleted]";
+    if (isAdmin && String(message.sender) !== String(userId)) {
+      message.text = "[deleted by admin]";
+    } else {
+      message.text = "[deleted]";
+    }
     message.deleted = true;
     message.edited = false;
     await message.save();
