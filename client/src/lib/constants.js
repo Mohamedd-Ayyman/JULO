@@ -42,6 +42,11 @@ export const API = {
   MSG_NEW: "/api/message/new-message",
   MSG_MARK_READ: "/api/message/mark-read",
   MSG_RETRIEVE: (chatId) => `/api/message/retrieve-chat/${chatId}`,
+  MSG_REPLY: "/api/message/reply",
+  MSG_EDIT: (messageId) => `/api/message/${messageId}`,
+  MSG_DELETE: (messageId) => `/api/message/${messageId}`,
+  MSG_REACT: (messageId) => `/api/message/${messageId}/react`,
+  MSG_THREAD: (messageId) => `/api/message/thread/${messageId}`,
 
   // Post
   POST_CREATE: "/api/post/create",
@@ -101,6 +106,9 @@ export const SOCKET_EVENTS = {
   RECEIVE_MESSAGE: "receive_message",
   USER_TYPING: "user_typing",
   USER_STOPPED_TYPING: "user_stopped_typing",
+  MESSAGE_EDITED: "message_edited",
+  MESSAGE_DELETED: "message_deleted",
+  REACTION_UPDATED: "reaction_updated",
   FEED_UPDATE: "feed_update",
   NOTIFICATION: "notification",
   NEW_POST_RECEIVED: "new_post",
