@@ -104,3 +104,47 @@ export const sendAudioMessage = async (chatId, audioUrl, audioDuration, receiver
     return error.response?.data || { success: false };
   }
 };
+
+export const uploadChatFile = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file, file.name || `chat-file-${Date.now()}`);
+    const response = await axiosInstance.post("/api/upload/chat-image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false, message: "File upload failed" };
+  }
+};
+
+export const sendImageMessage = async (chatId, imageUrl, text = "", receiverId = null, linkPreview = null) => {
+  try {
+    const response = await axiosInstance.post("/api/message/new-message", {
+      chatId, text, imageUrl, receiverId, linkPreview,
+    });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const sendFileMessage = async (chatId, fileUrl, fileName, fileSize, mimeType, text = "", receiverId = null) => {
+  try {
+    const response = await axiosInstance.post("/api/message/new-message", {
+      chatId, text, fileUrl, fileName, fileSize, mimeType, receiverId,
+    });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const fetchLinkPreview = async (url) => {
+  try {
+    const response = await axiosInstance.post("/api/link-preview", { url });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
