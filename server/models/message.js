@@ -85,6 +85,7 @@ const messageSchema = new mongoose.Schema(
 );
 
 messageSchema.index({ chatId: 1, createdAt: -1 });
+messageSchema.index({ chatId: 1, _id: -1 });
 messageSchema.index({ chatId: 1, pinned: 1, pinnedAt: -1 });
 messageSchema.index({ threadRootId: 1, createdAt: 1 });
 messageSchema.index({ chatId: 1, replyTo: 1 });
