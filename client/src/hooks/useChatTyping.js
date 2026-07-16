@@ -55,6 +55,8 @@ export default function useChatTyping(chats, currentUserId, socket) {
     socket.on(SOCKET_EVENTS.USER_TYPING, onTypingStart);
     socket.on(SOCKET_EVENTS.USER_STOPPED_TYPING, onTypingStop);
 
+    const joinedRooms = new Set(joinedRoomsRef.current);
+
     return () => {
       socket.off(SOCKET_EVENTS.USER_TYPING, onTypingStart);
       socket.off(SOCKET_EVENTS.USER_STOPPED_TYPING, onTypingStop);
@@ -62,7 +64,7 @@ export default function useChatTyping(chats, currentUserId, socket) {
       Object.values(timersRef.current).forEach(clearTimeout);
       timersRef.current = {};
 
-      joinedRoomsRef.current.forEach((cId) => {
+      joinedRooms.forEach((cId) => {
         socket.emit(SOCKET_EVENTS.LEAVE_CHAT, cId);
       });
       joinedRoomsRef.current.clear();
