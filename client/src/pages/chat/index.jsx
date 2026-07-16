@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -24,10 +24,13 @@ import ChatListItem from "../../components/chat/ChatListItem.jsx";
 import OfflineBanner from "../../components/chat/OfflineBanner.jsx";
 import MessageError from "../../components/chat/MessageError.jsx";
 import MessageListSkeleton from "../../components/chat/MessageListSkeleton.jsx";
+import MessageBubble from "../../components/chat/MessageBubble.jsx";
+import DateSeparator from "../../components/chat/DateSeparator.jsx";
+import ScrollToBottom from "../../components/chat/ScrollToBottom.jsx";
 import useAudioRecorder from "../../hooks/useAudioRecorder.js";
 import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
-import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage } from "../../apiCalls/message.js";
+import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, addReaction, deleteMessage } from "../../apiCalls/message.js";
 import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
@@ -50,6 +53,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [typingUsers, setTypingUsers] = useState({});
   const [sendingAudio, setSendingAudio] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [unseenCount, setUnseenCount] = useState(0);
   const scrollRef = useRef(null);
   const recorder = useAudioRecorder();
   const typingChats = useChatTyping(chats, user?._id, socket);
@@ -144,10 +149,16 @@ export default function ChatPage() {
 
   /* Auto-scroll to bottom on new messages */
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distFromBottom < 50;
+    if (atBottom) {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      setUnseenCount((c) => c + 1);
     }
-  }, [activeChat?.messages?.length, typingUsers]);
+  }, [activeChat?.messages?.length]);
 
   const handleSend = async () => {
     if (!draft.trim() || !activeChat?._id) return;
@@ -199,6 +210,56 @@ export default function ChatPage() {
     window.__typingTimer = setTimeout(() => {
       socket.emit(SOCKET_EVENTS.TYPING_STOP, { chatId: activeChat._id, userId: user?._id });
     }, 1500);
+  };
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distFromBottom < 50;
+    setShowScrollBtn(distFromBottom > 200);
+    if (atBottom) setUnseenCount(0);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    setUnseenCount(0);
+  };
+
+  const groupMessagesByDate = (messages) => {
+    const groups = [];
+    let currentDate = null;
+    messages.forEach((m) => {
+      const d = new Date(m.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (key !== currentDate) {
+        currentDate = key;
+        groups.push({ date: m.createdAt, messages: [] });
+      }
+      groups[groups.length - 1].messages.push(m);
+    });
+    return groups;
+  };
+
+  const handleReact = async (messageId, emoji) => {
+    const res = await addReaction(messageId, emoji);
+    if (res.success && res.data) {
+      dispatch(addMessage({ ...res.data, chatId: activeChat._id, _replace: messageId }));
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    const res = await deleteMessage(messageId);
+    if (res.success) {
+      dispatch(addMessage({ _id: messageId, deleted: true, chatId: activeChat._id, _replace: messageId }));
+    }
   };
 
   const handleSendAudio = async () => {
@@ -370,46 +431,38 @@ export default function ChatPage() {
                     <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Send the first one to start the conversation!</p>
                   </div>
                 ) : (
-                  (activeChat.messages || []).map((m, i) => {
-                    const mine = m.sender?._id === user?._id || m.sender === user?._id;
-                    const prev = activeChat.messages[i - 1];
-                    const sameAsPrev = prev && (prev.sender?._id === m.sender?._id || prev.sender === m.sender);
-                    return (
-                      <div key={m._id} className={`flex flex-col ${mine ? "items-end" : "items-start"} ${sameAsPrev ? "mt-0.5" : "mt-3"}`}>
-                        <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                          {!mine && !sameAsPrev && (
-                            <Avatar src={otherMember?.profilepic} name={otherMember?.firstname || ""} size={28} className="mr-2 self-end" />
-                          )}
-                          {!mine && sameAsPrev && <span className="w-7 mr-2 flex-shrink-0" />}
-                          <div
-                            className="max-w-[75%] sm:max-w-[60%] px-4 py-2 text-sm leading-relaxed animate-fade-in"
-                            style={{
-                              background: mine ? "var(--ink)" : "var(--paper-2)",
-                              color: mine ? "var(--paper)" : "var(--ink)",
-                              borderRadius: "var(--r-lg)",
-                              opacity: m.pending && !m.failed ? 0.7 : 1,
+                  groupMessagesByDate(activeChat.messages || []).map((group) => (
+                    <React.Fragment key={group.date}>
+                      <DateSeparator date={group.date} />
+                      {group.messages.map((m, i) => {
+                        const mine = m.sender?._id === user?._id || m.sender === user?._id;
+                        const msgs = group.messages;
+                        const prevMsg = i > 0 ? msgs[i - 1] : null;
+                        const nextMsg = i < msgs.length - 1 ? msgs[i + 1] : null;
+                        const prevSameSender = prevMsg && (prevMsg.sender?._id === m.sender?._id || prevMsg.sender === m.sender);
+                        const nextSameSender = nextMsg && (nextMsg.sender?._id === m.sender?._id || nextMsg.sender === m.sender);
+                        const isGroupStart = !prevSameSender;
+                        const isGroupEnd = !nextSameSender;
+                        return (
+                          <MessageBubble
+                            key={m._id}
+                            message={m}
+                            isMine={mine}
+                            isGroupStart={isGroupStart}
+                            isGroupEnd={isGroupEnd}
+                            otherMember={otherMember}
+                            currentUserId={user?._id}
+                            onRetry={handleRetrySend}
+                            onDelete={(id) => {
+                              if (m.pending || m.failed) handleDeleteFailed(id);
+                              else handleDeleteMessage(id);
                             }}
-                          >
-                            {m.audioUrl ? (
-                              <AudioMessage
-                                audioUrl={m.audioUrl}
-                                duration={m.audioDuration}
-                                isMine={mine}
-                              />
-                            ) : m.text}
-                          </div>
-                        </div>
-                        {mine && m.failed && (
-                          <div className="mt-1 mr-9">
-                            <MessageError
-                              onRetry={() => handleRetrySend(m._id)}
-                              onDelete={() => handleDeleteFailed(m._id)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
+                            onReact={handleReact}
+                          />
+                        );
+                      })}
+                    </React.Fragment>
+                  ))
                 )}
                 {Object.keys(typingUsers).length > 0 && (
                   <div className="flex justify-start mt-2">
@@ -420,6 +473,8 @@ export default function ChatPage() {
                   </div>
                 )}
               </div>
+
+              <ScrollToBottom visible={showScrollBtn} onClick={scrollToBottom} unseenCount={unseenCount} />
 
               {/* Composer / Recording Panel */}
               {recorder.isRecording || sendingAudio ? (
