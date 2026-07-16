@@ -21,6 +21,9 @@ const chatSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    isEncrypted: { type: Boolean, default: false },
+    encryptionType: { type: String, enum: ["none", "e2e"], default: "none" },
+    lastKeyRotation: { type: Date, default: null },
   },
   { timestamps: true }
 );
