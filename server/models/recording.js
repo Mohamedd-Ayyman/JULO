@@ -69,6 +69,19 @@ const recordingSchema = new mongoose.Schema(
     // ── Timestamps ────────────────────────────────────────────────────
     startedAt: { type: Date, default: null },
     endedAt: { type: Date, default: null },
+
+    // ── Retention ─────────────────────────────────────────────────────
+    retentionExpiresAt: { type: Date, default: null },
+    callSessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "call_sessions",
+      default: null,
+    },
+    initiatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -78,6 +91,8 @@ recordingSchema.index({ sender: 1, createdAt: -1 });
 recordingSchema.index({ tenantId: 1 });
 recordingSchema.index({ participants: 1 });
 recordingSchema.index({ status: 1 });
+recordingSchema.index({ retentionExpiresAt: 1 }, { sparse: true });
+recordingSchema.index({ callSessionId: 1 });
 
 const Recording = mongoose.model("recordings", recordingSchema);
 export { RECORDING_TYPES, RECORDING_STATUS };
