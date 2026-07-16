@@ -122,6 +122,7 @@ import billingRouter from "./controllers/billingController.js";
 import storyRouter from "./controllers/storyController.js";
 import consentRouter from "./controllers/consentController.js";
 import auditRouter from "./controllers/auditController.js";
+import recordingRouter from "./controllers/recordingController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
@@ -136,6 +137,7 @@ v1.use("/billing", billingRouter);
 v1.use("/stories", storyRouter);
 v1.use("/consent", consentRouter);
 v1.use("/audit", auditRouter);
+v1.use("/recordings", recordingRouter);
 
 // Stripe webhook — raw body already parsed at step 4
 app.post("/webhooks/stripe", stripeWebhookController);
