@@ -63,6 +63,60 @@ export const profileUpdateSchema = z.object({
   message: "At least one field must be provided",
 });
 
+// ── Consent ─────────────────────────────────────────────────────────────────────
+export const consentUpdateSchema = z.object({
+  consents: z.array(z.object({
+    consentType: z.enum([
+      "recording",
+      "location_sharing",
+      "analytics",
+      "marketing",
+      "third_party_sharing",
+      "data_processing",
+      "push_notifications",
+      "profile_indexing",
+    ]),
+    granted: z.boolean(),
+  })).min(1, "At least one consent must be provided"),
+});
+
+export const consentGrantSchema = z.object({
+  version: z.string().optional(),
+});
+
+export const consentRevokeSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
+
+// ── Privacy ─────────────────────────────────────────────────────────────────────
+export const privacySettingsSchema = z.object({
+  isPrivate: z.boolean().optional(),
+  showOnlineStatus: z.boolean().optional(),
+  allowMessageRequests: z.boolean().optional(),
+  storyVisibility: z.enum(["everyone", "followers", "close_friends"]).optional(),
+  dataClassification: z.enum(["standard", "sensitive", "confidential"]).optional(),
+  privacyLevel: z.enum(["standard", "enhanced", "maximum"]).optional(),
+}).refine((d) => Object.keys(d).length > 0, { message: "At least one field must be provided" });
+
+// ── Audit ───────────────────────────────────────────────────────────────────────
+export const auditQuerySchema = z.object({
+  userId: z.string().optional(),
+  action: z.enum([
+    "create", "read", "update", "delete", "export", "share",
+    "consent_grant", "consent_revoke", "login", "logout",
+    "password_change", "account_deactivate", "account_delete",
+  ]).optional(),
+  resource: z.enum([
+    "user", "post", "message", "chat", "consent",
+    "session", "notification", "story", "upload", "billing",
+  ]).optional(),
+  resourceId: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
 // ── Middleware factory ────────────────────────────────────────────────────────────
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body);
