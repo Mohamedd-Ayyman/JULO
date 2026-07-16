@@ -68,7 +68,7 @@ export class ChatService {
     return { messages, total, page: Number(page), pages: Math.ceil(total / Number(limit)) };
   }
 
-  async sendMessage(chatId, senderId, tenantId, { text, audioUrl, audioDuration, receiverId } = {}) {
+  async sendMessage(chatId, senderId, tenantId, { text, audioUrl, audioDuration, receiverId, encryptedContent, iv, authTag, keyId, ephemeralPublicKey, ratchetStep, messageType } = {}) {
     const chat = await Chat.findById(chatId);
     if (!chat) {
       const err = new Error("Chat not found");
@@ -82,7 +82,17 @@ export class ChatService {
     }
 
     const messageData = { chatId, sender: senderId, tenantId, text: text || "", receiverId, read: false };
-    if (audioUrl) {
+
+    if (encryptedContent) {
+      messageData.encryptedContent = encryptedContent;
+      messageData.iv = iv || null;
+      messageData.authTag = authTag || null;
+      messageData.keyId = keyId || null;
+      messageData.ephemeralPublicKey = ephemeralPublicKey || null;
+      messageData.ratchetStep = ratchetStep || 0;
+      messageData.messageType = messageType || "encrypted";
+      messageData.text = "";
+    } else if (audioUrl) {
       messageData.audioUrl = audioUrl;
       messageData.audioDuration = audioDuration || null;
     }

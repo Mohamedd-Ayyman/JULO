@@ -128,6 +128,66 @@ export const privacySettingsSchema = z.object({
   privacyLevel: z.enum(["standard", "enhanced", "maximum"]).optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: "At least one field must be provided" });
 
+// ── E2E Encryption ─────────────────────────────────────────────────────────────
+export const identityKeyUploadSchema = z.object({
+  publicKey: z.string().min(1, "Public key is required"),
+  signature: z.string().min(1, "Signature is required"),
+});
+
+export const signedPreKeyUploadSchema = z.object({
+  keyId: z.number().int().positive(),
+  publicKey: z.string().min(1, "Public key is required"),
+  privateKey: z.string().min(1, "Private key is required"),
+  signature: z.string().min(1, "Signature is required"),
+});
+
+export const oneTimePreKeysUploadSchema = z.object({
+  preKeys: z.array(z.object({
+    keyId: z.number().int().positive(),
+    publicKey: z.string().min(1, "Public key is required"),
+    privateKey: z.string().min(1, "Private key is required"),
+  })).min(1, "At least one pre-key is required").max(100, "Maximum 100 pre-keys per batch"),
+});
+
+export const encryptionSessionCreateSchema = z.object({
+  chatId: z.string().min(1, "chatId is required"),
+  partnerId: z.string().min(1, "partnerId is required"),
+  sessionData: z.string().min(1, "sessionData is required"),
+  rootKey: z.string().min(1, "rootKey is required"),
+  chainKey: z.string().min(1, "chainKey is required"),
+});
+
+export const encryptionSessionUpdateSchema = z.object({
+  messageNumber: z.number().int().min(0).optional(),
+  previousChainLength: z.number().int().min(0).optional(),
+  rootKey: z.string().optional(),
+  chainKey: z.string().optional(),
+  sendingKey: z.string().optional().nullable(),
+  receivingKey: z.string().optional().nullable(),
+  sessionData: z.string().optional(),
+}).refine((d) => Object.keys(d).length > 0, { message: "At least one field must be provided" });
+
+export const encryptedMessageSchema = z.object({
+  chatId: z.string().min(1, "chatId is required"),
+  receiverId: z.string().min(1, "receiverId is required"),
+  encryptedContent: z.string().min(1, "encryptedContent is required"),
+  iv: z.string().min(1, "iv is required"),
+  authTag: z.string().optional(),
+  keyId: z.string().optional(),
+  ephemeralPublicKey: z.string().optional(),
+  ratchetStep: z.number().int().min(0).optional(),
+  messageType: z.enum(["encrypted", "file", "system", "key_exchange"]).optional(),
+});
+
+export const keyRotationSchema = z.object({
+  chatId: z.string().optional(),
+  newSessionData: z.string().optional(),
+  newRootKey: z.string().optional(),
+  newChainKey: z.string().optional(),
+}).refine((d) => d.chatId || d.newRootKey || d.newChainKey, {
+  message: "At least one of chatId, newRootKey, or newChainKey must be provided",
+});
+
 // ── Audit ───────────────────────────────────────────────────────────────────────
 export const auditQuerySchema = z.object({
   userId: z.string().optional(),
@@ -139,12 +199,31 @@ export const auditQuerySchema = z.object({
   resource: z.enum([
     "user", "post", "message", "chat", "consent",
     "session", "notification", "story", "upload", "billing",
+    "identity_key", "pre_key", "signed_pre_key", "encryption_session",
   ]).optional(),
   resourceId: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+// ── Message (updated to support encrypted) ─────────────────────────────────────
+export const messageSchema = z.object({
+  chatId: z.string().min(1, "chatId is required"),
+  text: z.string().trim().max(2000).optional(),
+  audioUrl: z.string().url().optional(),
+  audioDuration: z.number().min(0).optional(),
+  receiverId: z.string().optional(),
+  encryptedContent: z.string().optional(),
+  iv: z.string().optional(),
+  authTag: z.string().optional(),
+  keyId: z.string().optional(),
+  ephemeralPublicKey: z.string().optional(),
+  ratchetStep: z.number().int().min(0).optional(),
+  messageType: z.enum(["text", "encrypted", "file", "system", "key_exchange"]).optional(),
+}).refine((d) => d.text?.trim() || d.audioUrl || d.encryptedContent, {
+  message: "Message must have text, audio, or encrypted content",
 });
 
 // ── Middleware factory ────────────────────────────────────────────────────────────

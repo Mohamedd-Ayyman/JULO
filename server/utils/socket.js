@@ -101,8 +101,19 @@ export async function initSocket(httpServer) {
 
     // ── Chat rooms ─────────────────────────────────────────────────────
     socket.on("join_chat", async (chatId) => {
-      socket.join(`chat:${chatId}`);
-      logger.debug(`[Socket] ${socket.userId} joined chat:${chatId}`);
+      try {
+        const { default: Chat } = await import("../models/chat.js");
+        const chat = await Chat.findById(chatId).lean();
+        if (!chat || !chat.members.some((m) => String(m) === String(socket.userId))) {
+          socket.emit("error", { message: "Not a member of this chat" });
+          return;
+        }
+        socket.join(`chat:${chatId}`);
+        logger.debug(`[Socket] ${socket.userId} joined chat:${chatId}`);
+      } catch (err) {
+        logger.error(`[Socket] join_chat error: ${err.message}`);
+        socket.emit("error", { message: "Failed to join chat" });
+      }
     });
 
     socket.on("leave_chat", (chatId) => {
@@ -111,25 +122,40 @@ export async function initSocket(httpServer) {
     });
 
     // ── Real-time message ──────────────────────────────────────────────
-    socket.on("send_message", async ({ chatId, text, receiverId }) => {
+    socket.on("send_message", async ({ chatId, text, receiverId, encryptedContent, iv, authTag, keyId, ephemeralPublicKey, ratchetStep, messageType }) => {
       logger.debug(`[Socket] send_message from ${socket.userId} to chat:${chatId}`, { requestId });
 
-      socket.to(`chat:${chatId}`).emit("receive_message", {
-        chatId,
-        senderId: socket.userId,
-        text,
-        createdAt: new Date(),
-        requestId,
-      });
+      try {
+        const { default: Chat } = await import("../models/chat.js");
+        const chat = await Chat.findById(chatId).lean();
+        if (!chat || !chat.members.some((m) => String(m) === String(socket.userId))) {
+          socket.emit("error", { message: "Not a member of this chat" });
+          return;
+        }
 
-      if (receiverId) {
-        io.to(`user:${receiverId}`).emit("receive_message", {
+        const messagePayload = {
           chatId,
           senderId: socket.userId,
           text,
+          encryptedContent,
+          iv,
+          authTag,
+          keyId,
+          ephemeralPublicKey,
+          ratchetStep,
+          messageType,
           createdAt: new Date(),
           requestId,
-        });
+        };
+
+        socket.to(`chat:${chatId}`).emit("receive_message", messagePayload);
+
+        if (receiverId) {
+          io.to(`user:${receiverId}`).emit("receive_message", messagePayload);
+        }
+      } catch (err) {
+        logger.error(`[Socket] send_message error: ${err.message}`);
+        socket.emit("error", { message: "Failed to send message" });
       }
     });
 
@@ -142,6 +168,31 @@ export async function initSocket(httpServer) {
     socket.on("typing_stop", ({ chatId, receiverId }) => {
       if (chatId) socket.to(`chat:${chatId}`).emit("user_stopped_typing", { chatId, userId: socket.userId });
       if (receiverId) io.to(`user:${receiverId}`).emit("user_stopped_typing", { chatId, userId: socket.userId });
+    });
+
+    // ── E2E Key Exchange ────────────────────────────────────────────────
+    socket.on("key_exchange", ({ recipientId, bundle }) => {
+      if (!recipientId || !bundle) {
+        socket.emit("error", { message: "Missing recipientId or bundle" });
+        return;
+      }
+      io.to(`user:${recipientId}`).emit("key_exchange", {
+        senderId: socket.userId,
+        bundle,
+      });
+      logger.debug(`[Socket] key_exchange from ${socket.userId} to ${recipientId}`);
+    });
+
+    socket.on("key_rotation", ({ recipientId, newBundle }) => {
+      if (!recipientId || !newBundle) {
+        socket.emit("error", { message: "Missing recipientId or newBundle" });
+        return;
+      }
+      io.to(`user:${recipientId}`).emit("key_rotation", {
+        senderId: socket.userId,
+        newBundle,
+      });
+      logger.debug(`[Socket] key_rotation from ${socket.userId} to ${recipientId}`);
     });
 
     // ── Presence sync ───────────────────────────────────────────────────
