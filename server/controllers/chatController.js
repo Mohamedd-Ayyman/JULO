@@ -4,7 +4,7 @@ import { requireAuth } from "../middlewares/authMiddleware.js";
 import { tenantMiddleware } from "../middlewares/tenantMiddleware.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { asyncHandler } from "../utils/AppError.js";
-import { validate, chatCreateSchema, chatUpdateSchema, messageSchema } from "../utils/validate.js";
+import { validate, chatCreateSchema, chatUpdateSchema, messageSchema, conversationListQuerySchema } from "../utils/validate.js";
 import { invalidateCache } from "../middlewares/cacheMiddleware.js";
 import { emitToChat, emitToUsers } from "../utils/socket.js";
 
@@ -49,8 +49,26 @@ router.get(
   requireAuth,
   tenantMiddleware,
   asyncHandler(async (req, res) => {
-    const chats = await chatService.getAllForUser(req.user.userId, req.tenantId);
-    res.send({ success: true, data: chats, statusCode: 200 });
+    const parsed = conversationListQuerySchema.safeParse(req.query);
+    const params = parsed.success ? parsed.data : { page: 1, limit: 20, archived: false };
+
+    const result = await chatService.getAllForUser(req.user.userId, req.tenantId, {
+      page: params.page,
+      limit: params.limit,
+      type: params.type,
+      archived: params.archived,
+      search: params.search,
+    });
+
+    res.send({
+      success: true,
+      data: result.conversations,
+      total: result.total,
+      page: result.page,
+      pages: result.pages,
+      totalUnread: result.totalUnread,
+      statusCode: 200,
+    });
   })
 );
 
