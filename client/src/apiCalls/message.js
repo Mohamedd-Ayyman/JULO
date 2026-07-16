@@ -148,3 +148,23 @@ export const fetchLinkPreview = async (url) => {
     return error.response?.data || { success: false };
   }
 };
+
+export const sendReply = async (chatId, replyTo, text, receiverId = null) => {
+  try {
+    const response = await axiosInstance.post("/api/message/reply", {
+      chatId, replyTo, text, receiverId,
+    });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const getThreadReplies = async (messageId, page = 1, limit = 50) => {
+  try {
+    const response = await axiosInstance.get(`/api/message/thread/${messageId}?page=${page}&limit=${limit}`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
