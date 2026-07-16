@@ -68,7 +68,7 @@ export class ChatService {
     return { messages, total, page: Number(page), pages: Math.ceil(total / Number(limit)) };
   }
 
-  async sendMessage(chatId, senderId, tenantId, { text, receiverId } = {}) {
+  async sendMessage(chatId, senderId, tenantId, { text, audioUrl, audioDuration, receiverId } = {}) {
     const chat = await Chat.findById(chatId);
     if (!chat) {
       const err = new Error("Chat not found");
@@ -81,9 +81,15 @@ export class ChatService {
       throw err;
     }
 
+    const messageData = { chatId, sender: senderId, tenantId, text: text || "", receiverId, read: false };
+    if (audioUrl) {
+      messageData.audioUrl = audioUrl;
+      messageData.audioDuration = audioDuration || null;
+    }
+
     // Atomic transaction: message + chat lastMessage update (only if supported)
     if (!canUseTransactions()) {
-      const message = new Message({ chatId, sender: senderId, tenantId, text, receiverId, read: false });
+      const message = new Message(messageData);
       await message.save();
       await Chat.findByIdAndUpdate(chatId, { lastMessage: message._id, $inc: { unreadMessageCount: 1 } });
       logger.info(`[Message] Sent: ${message._id} in chat ${chatId}`);
@@ -93,7 +99,7 @@ export class ChatService {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const message = new Message({ chatId, sender: senderId, tenantId, text, receiverId, read: false });
+      const message = new Message(messageData);
       await message.save({ session });
 
       await Chat.findByIdAndUpdate(
