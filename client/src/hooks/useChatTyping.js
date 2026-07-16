@@ -67,7 +67,7 @@ export default function useChatTyping(chats, currentUserId, socket) {
       joinedRooms.forEach((cId) => {
         socket.emit(SOCKET_EVENTS.LEAVE_CHAT, cId);
       });
-      joinedRoomsRef.current.clear();
+      joinedRooms.clear();
       setTypingChats({});
     };
   }, [socket, chats, currentUserId, clearTyping]);
