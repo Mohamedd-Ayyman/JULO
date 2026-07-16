@@ -44,9 +44,39 @@ export const commentSchema = z.object({
 // ── Messages ─────────────────────────────────────────────────────────────────────
 export const messageSchema = z.object({
   chatId: z.string().min(1, "chatId is required"),
-  text: z.string().trim().min(1, "Message cannot be empty").max(2000),
+  text: z.string().trim().max(2000).optional(),
+  audioUrl: z.string().url().optional(),
+  audioDuration: z.number().min(0).optional(),
   receiverId: z.string().optional(),
+}).refine((d) => d.text?.trim() || d.audioUrl, {
+  message: "Message must have text or audio",
 });
+
+// ── Recording ────────────────────────────────────────────────────────────────────
+export const recordingCreateSchema = z.object({
+  chatId: z.string().min(1, "chatId is required"),
+  fileUrl: z.string().url("Valid file URL is required"),
+  duration: z.number().min(0, "Duration must be non-negative"),
+  fileSize: z.number().min(0).optional(),
+  mimeType: z.string().optional(),
+  format: z.string().optional(),
+  title: z.string().trim().max(200).optional(),
+  description: z.string().trim().max(1000).optional(),
+  thumbnailUrl: z.string().url().optional().nullable(),
+  transcription: z.string().max(10000).optional(),
+  tags: z.array(z.string().trim().max(30)).max(10).optional(),
+  type: z.enum(["voice_message", "call_recording", "audio_note"]).optional(),
+  startedAt: z.string().datetime().optional(),
+  endedAt: z.string().datetime().optional(),
+});
+
+export const recordingUpdateSchema = z.object({
+  title: z.string().trim().max(200).optional().nullable(),
+  description: z.string().trim().max(1000).optional().nullable(),
+  thumbnailUrl: z.string().url().optional().nullable(),
+  transcription: z.string().max(10000).optional().nullable(),
+  tags: z.array(z.string().trim().max(30)).max(10).optional(),
+}).refine((d) => Object.keys(d).length > 0, { message: "At least one field must be provided" });
 
 // ── Chat ──────────────────────────────────────────────────────────────────────────
 export const chatCreateSchema = z.object({
