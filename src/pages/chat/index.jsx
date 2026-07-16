@@ -276,6 +276,7 @@ export default function ChatPage() {
                 ) : (
                   (activeChat.messages || []).map((m, i) => {
                     const mine = m.sender?._id === user?._id || m.sender === user?._id;
+                    const isUnread = !mine && m.read === false;
                     const prev = activeChat.messages[i - 1];
                     const sameAsPrev = prev && (prev.sender?._id === m.sender?._id || prev.sender === m.sender);
                     return (
@@ -288,11 +289,13 @@ export default function ChatPage() {
                           className={`max-w-[75%] sm:max-w-[60%] px-4 py-2 rounded-2xl text-sm leading-relaxed animate-fade-in ${
                             mine
                               ? `rounded-br-sm ${m.pending ? "opacity-70" : ""}`
-                              : "rounded-bl-sm border"
+                              : `rounded-bl-sm border${isUnread ? " unread-msg" : ""}`
                           }`}
                           style={mine
                             ? { background: "var(--acid)", color: "var(--ink)" }
-                            : { background: "var(--paper-3)", color: "var(--ink)", borderColor: "var(--line-soft)" }
+                            : isUnread
+                              ? { background: "var(--acid)", color: "var(--ink)", borderColor: "var(--acid)", boxShadow: "0 0 0 1px var(--acid)" }
+                              : { background: "var(--paper-3)", color: "var(--ink)", borderColor: "var(--line-soft)" }
                           }
                         >
                           {m.text}
