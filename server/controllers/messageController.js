@@ -76,8 +76,9 @@ router.get(
   "/retrieve-chat/:chatId",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const result = await chatService.getMessages(req.params.chatId, req.user.userId, req.query);
-    res.send({ success: true, data: result.messages, total: result.total, page: result.page, pages: result.pages, statusCode: 200 });
+    const { cursor, limit, direction } = req.query;
+    const result = await chatService.getMessages(req.params.chatId, req.user.userId, { cursor, limit, direction });
+    res.send({ success: true, data: result, statusCode: 200 });
   })
 );
 
