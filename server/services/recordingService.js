@@ -1,6 +1,10 @@
 import Recording from "../models/recording.js";
 import Chat from "../models/chat.js";
+import cloudinary from "../config/cloudinary.js";
+import { config } from "../config/env.js";
 import logger from "../utils/logger.js";
+
+const DEFAULT_RETENTION_DAYS = 30;
 
 export class RecordingService {
   async createRecording(chatId, senderId, tenantId, metadata) {
@@ -16,6 +20,9 @@ export class RecordingService {
       err.statusCode = 403;
       throw err;
     }
+
+    const retentionExpiresAt = new Date();
+    retentionExpiresAt.setDate(retentionExpiresAt.getDate() + DEFAULT_RETENTION_DAYS);
 
     const recording = await Recording.create({
       chatId,
@@ -36,9 +43,12 @@ export class RecordingService {
       status: metadata.status || "ready",
       startedAt: metadata.startedAt || null,
       endedAt: metadata.endedAt || null,
+      retentionExpiresAt,
+      callSessionId: metadata.callSessionId || null,
+      initiatedBy: metadata.initiatedBy || null,
     });
 
-    logger.info(`[Recording] Created: ${recording._id} in chat ${chatId}`);
+    logger.info(`[Recording] Created: ${recording._id} in chat ${chatId} (expires: ${retentionExpiresAt.toISOString()})`);
     return Recording.findById(recording._id)
       .populate("sender", "firstname lastname profilepic")
       .populate("participants", "firstname lastname profilepic");
@@ -186,11 +196,42 @@ export class RecordingService {
       throw err;
     }
 
+    if (recording.fileUrl) {
+      try {
+        await this.deleteFromCloudinary(recording.fileUrl);
+      } catch (error) {
+        logger.error(`[Recording] Cloudinary deletion failed: ${error.message}`);
+      }
+    }
+
     recording.status = "deleted";
     await recording.save();
 
     logger.info(`[Recording] Deleted: ${recordingId}`);
     return { deleted: true };
+  }
+
+  async deleteFromCloudinary(fileUrl) {
+    if (!fileUrl) return;
+
+    const isCloudinaryConfigured = Boolean(
+      config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret
+    );
+
+    if (!isCloudinaryConfigured) {
+      logger.warn("[Recording] Cloudinary not configured, skipping file deletion");
+      return;
+    }
+
+    const match = fileUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/);
+    if (!match) {
+      logger.warn(`[Recording] Could not extract public ID from URL: ${fileUrl}`);
+      return;
+    }
+
+    const publicId = match[1];
+    await cloudinary.uploader.destroy(publicId, { resource_type: "video" });
+    logger.info(`[Recording] Deleted Cloudinary file: ${publicId}`);
   }
 
   async searchRecordings(chatId, userId, { q, page = 1, limit = 20 } = {}) {
