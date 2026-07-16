@@ -21,7 +21,6 @@ import Avatar from "../../components/Avatar.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
 import ChatListItem from "../../components/chat/ChatListItem.jsx";
 import OfflineBanner from "../../components/chat/OfflineBanner.jsx";
-import MessageError from "../../components/chat/MessageError.jsx";
 import MessageListSkeleton from "../../components/chat/MessageListSkeleton.jsx";
 import MessageBubble from "../../components/chat/MessageBubble.jsx";
 import DateSeparator from "../../components/chat/DateSeparator.jsx";
