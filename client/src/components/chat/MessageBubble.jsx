@@ -1,4 +1,5 @@
-import { Check, CheckCheck } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Check, CheckCheck, MessageSquare, Pencil, X } from "lucide-react";
 import Avatar from "../Avatar.jsx";
 import AudioMessage from "./AudioMessage.jsx";
 import ImageMessage from "./ImageMessage.jsx";
@@ -51,6 +52,100 @@ function ReactionsRow({ reactions, currentUserId, onReact }) {
   );
 }
 
+function ReplyQuote({ replyTo }) {
+  if (!replyTo) return null;
+  const sender = replyTo.sender?.firstname || "Someone";
+  const preview = replyTo.text
+    ? replyTo.text.length > 50
+      ? replyTo.text.slice(0, 50) + "…"
+      : replyTo.text
+    : replyTo.audioUrl
+      ? "🎵 Voice message"
+      : replyTo.imageUrl
+        ? "📷 Photo"
+        : replyTo.fileUrl
+          ? "📎 File"
+          : "Message";
+
+  return (
+    <div
+      className="flex items-center gap-2 px-2.5 py-1.5 mb-1.5 rounded text-[11px]"
+      style={{
+        background: "rgba(0,0,0,0.06)",
+        borderLeft: "2px solid var(--acid)",
+      }}
+    >
+      <div className="min-w-0 flex-1">
+        <span className="font-bold" style={{ color: "var(--acid)", fontSize: 10 }}>{sender}</span>
+        <p className="truncate mt-0.5" style={{ color: "var(--muted)" }}>{preview}</p>
+      </div>
+    </div>
+  );
+}
+
+function InlineEditInput({ initialText, onSave, onCancel }) {
+  const [value, setValue] = useState(initialText);
+  const inputRef = useRef(null);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (value.trim()) onSave(value.trim());
+    }
+    if (e.key === "Escape") onCancel();
+  };
+
+  return (
+    <div className="py-1">
+      <input
+        ref={inputRef}
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="w-full bg-transparent border-b-2 outline-none text-sm py-1"
+        style={{ borderColor: "var(--acid)", color: "inherit" }}
+      />
+      <div className="flex items-center gap-2 mt-1.5">
+        <span className="text-[10px] italic" style={{ color: "var(--muted)" }}>Enter to save · Esc to cancel</span>
+        <div className="flex-1" />
+        <button
+          onClick={onCancel}
+          className="text-[10px] px-2 py-0.5 rounded"
+          style={{ color: "var(--muted)", background: "var(--paper-3)" }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => { if (value.trim()) onSave(value.trim()); }}
+          className="text-[10px] px-2 py-0.5 rounded font-bold"
+          style={{ color: "var(--ink)", background: "var(--acid)" }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ThreadIndicator({ count, onClick }) {
+  if (!count || count === 0) return null;
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 mt-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all hover:scale-105"
+      style={{
+        color: "var(--acid)",
+        background: "rgba(243,195,66,0.08)",
+        border: "1px solid rgba(243,195,66,0.2)",
+      }}
+    >
+      <MessageSquare className="w-3 h-3" />
+      {count} {count === 1 ? "reply" : "replies"}
+    </button>
+  );
+}
+
 export default function MessageBubble({
   message,
   isMine,
@@ -61,10 +156,43 @@ export default function MessageBubble({
   onRetry,
   onDelete,
   onReact,
+  onReply,
+  onEdit,
+  onOpenThread,
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+  const isSwipingRef = useRef(false);
+
   const deleted = message.deleted;
   const pending = message.pending && !message.failed;
   const failed = message.failed;
+
+  const handleTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    isSwipingRef.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
+    if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 15) return;
+    if (dx > 0 && isMine) return;
+    if (dx < 0 && !isMine) return;
+    isSwipingRef.current = true;
+    setSwipeX(Math.min(Math.max(dx, -120), 120));
+  }, [isMine]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (isSwipingRef.current && swipeX > 80 && onReply) {
+      onReply(message);
+    }
+    setSwipeX(0);
+    isSwipingRef.current = false;
+  }, [swipeX, onReply, message]);
 
   if (deleted) {
     return (
@@ -103,7 +231,15 @@ export default function MessageBubble({
   const hasText = !!message.text?.trim();
 
   let bubbleContent;
-  if (hasImage) {
+  if (isEditing) {
+    bubbleContent = (
+      <InlineEditInput
+        initialText={message.text || ""}
+        onSave={(text) => { setIsEditing(false); onEdit?.(message, text); }}
+        onCancel={() => setIsEditing(false)}
+      />
+    );
+  } else if (hasImage) {
     bubbleContent = <ImageMessage imageUrl={message.imageUrl} text={hasText ? message.text : ""} />;
   } else if (hasFile) {
     bubbleContent = <FileMessage fileUrl={message.fileUrl} fileName={message.fileName} fileSize={message.fileSize} mimeType={message.mimeType} isMine={isMine} />;
@@ -117,17 +253,37 @@ export default function MessageBubble({
   const isFileOnly = hasFile && !hasText;
 
   return (
-    <div className={cn("flex flex-col", isMine ? "items-end" : "items-start", isGroupStart ? "mt-3" : "mt-0.5")}>
+    <div
+      className={cn("flex flex-col", isMine ? "items-end" : "items-start", isGroupStart ? "mt-3" : "mt-0.5")}
+      style={{ transform: swipeX ? `translateX(${swipeX}px)` : undefined, transition: swipeX ? "none" : "transform 0.2s ease" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {swipeX > 40 && (
+        <div className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-60">
+          <Pencil className="w-4 h-4" style={{ color: "var(--acid)" }} />
+        </div>
+      )}
+
+      {message.replyTo && (
+        <div className={cn("max-w-[75%] sm:max-w-[60%]", isMine ? "mr-0" : "ml-0")}>
+          <ReplyQuote replyTo={message.replyTo} />
+        </div>
+      )}
+
       <MessageContextMenu
         message={message}
         isMine={isMine}
         onCopy={() => navigator.clipboard?.writeText(message.text || "")}
         onReact={(emoji) => onReact(message._id, emoji)}
         onDelete={() => onDelete(message._id)}
+        onReply={() => onReply?.(message)}
+        onEdit={() => setIsEditing(true)}
       >
         <div
           className={cn(
-            "max-w-[75%] sm:max-w-[60%] text-sm leading-relaxed",
+            "max-w-[75%] sm:max-w-[60%] text-sm leading-relaxed relative",
             isImageOnly ? "px-1 py-1" : "px-4 py-2",
             isGroupStart && isMine && "msg-tail-sent",
             isGroupStart && !isMine && "msg-tail-received",
@@ -157,6 +313,12 @@ export default function MessageBubble({
       {isMine && failed && (
         <div className="mt-1 mr-9">
           <MessageError onRetry={() => onRetry(message._id)} onDelete={() => onDelete(message._id)} />
+        </div>
+      )}
+
+      {isGroupEnd && (
+        <div className={cn("flex items-center gap-1.5 mt-0.5 px-1", isMine ? "mr-1" : "ml-9")}>
+          <ThreadIndicator count={message.threadReplyCount} onClick={() => onOpenThread?.(message)} />
         </div>
       )}
 
