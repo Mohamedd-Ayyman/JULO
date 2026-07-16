@@ -8,6 +8,13 @@ const chatSlice = createSlice({
     setActiveChat: (state, action) => { state.activeChat = action.payload; },
     addMessage: (state, action) => {
       const msg = action.payload;
+      if (msg._replace && state.activeChat?._id === msg.chatId) {
+        const idx = state.activeChat.messages.findIndex((m) => m._id === msg._replace);
+        if (idx !== -1) {
+          state.activeChat.messages[idx] = { ...state.activeChat.messages[idx], ...msg, _replace: undefined };
+          return;
+        }
+      }
       if (state.activeChat?._id === msg.chatId) {
         state.activeChat.messages = [...(state.activeChat.messages || []), msg];
       }
