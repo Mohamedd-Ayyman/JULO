@@ -60,23 +60,123 @@ export class ChatService {
     return chat;
   }
 
-  async getAllForUser(userId, tenantId) {
-    const participants = await Participant.find({ userId, isDeleted: false })
-      .populate({
-        path: "chatId",
-        match: tenantId ? { tenantId } : {},
-        populate: [
-          { path: "lastMessage", select: "text sender createdAt messageType" },
-          { path: "createdBy", select: "firstname lastname" },
-        ],
-      })
-      .sort({ pinned: -1, updatedAt: -1 })
-      .lean();
+  async getAllForUser(userId, tenantId, { page = 1, limit = 20, type, archived = false, search } = {}) {
+    const participantQuery = { userId, isDeleted: false, archived };
 
-    return participants
-      .filter((p) => p.chatId)
-      .map((p) => ({
-        ...p.chatId,
+    const chatMatch = {};
+    if (tenantId) chatMatch.tenantId = tenantId;
+    if (type) chatMatch.type = type;
+    if (search) {
+      chatMatch.$or = [
+        { name: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [participants, total] = await Promise.all([
+      Participant.find(participantQuery)
+        .populate({
+          path: "chatId",
+          match: Object.keys(chatMatch).length ? chatMatch : undefined,
+          populate: [
+            { path: "lastMessage", select: "text sender createdAt messageType" },
+            { path: "createdBy", select: "firstname lastname" },
+          ],
+        })
+        .sort({ pinned: -1, updatedAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      Participant.countDocuments(participantQuery),
+    ]);
+
+    const validParticipants = participants.filter((p) => p.chatId);
+
+    const directChatPartnerIds = [];
+    for (const p of validParticipants) {
+      const chat = p.chatId;
+      if (chat.type === "direct" && Array.isArray(chat.members)) {
+        const partnerId = chat.members.find((m) => String(m) !== String(userId));
+        if (partnerId) directChatPartnerIds.push(partnerId);
+      }
+    }
+
+    let partnerMap = {};
+    if (directChatPartnerIds.length > 0) {
+      const User = (await import("../models/user.js")).default;
+      const partners = await User.find({ _id: { $in: directChatPartnerIds } })
+        .select("firstname lastname profilepic isOnline lastSeen")
+        .lean();
+      for (const u of partners) {
+        partnerMap[String(u._id)] = u;
+      }
+    }
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const matchedPartnerIds = new Set(
+        Object.entries(partnerMap)
+          .filter(([, u]) => {
+            const fullName = `${u.firstname} ${u.lastname}`.toLowerCase();
+            return fullName.includes(searchLower);
+          })
+          .map(([id]) => id)
+      );
+
+      const filtered = validParticipants.filter((p) => {
+        const chat = p.chatId;
+        if (chat.name && chat.name.toLowerCase().includes(searchLower)) return true;
+        if (chat.type === "direct" && Array.isArray(chat.members)) {
+          const partnerId = chat.members.find((m) => String(m) !== String(userId));
+          if (partnerId && matchedPartnerIds.has(String(partnerId))) return true;
+        }
+        return false;
+      });
+
+      return this._buildConversationResponse(filtered, partnerMap, userId, {
+        total: filtered.length,
+        page: Number(page),
+        pages: Math.ceil(filtered.length / Number(limit)),
+        userId,
+      });
+    }
+
+    return this._buildConversationResponse(validParticipants, partnerMap, userId, {
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+      userId,
+    });
+  }
+
+  async _buildConversationResponse(validParticipants, partnerMap, currentUserId, pagination) {
+    let totalUnread = 0;
+
+    const unreadParticipants = await Participant.find({
+      userId: currentUserId,
+      isDeleted: false,
+      archived: false,
+    })
+      .select("unreadCount")
+      .lean();
+    for (const p of unreadParticipants) {
+      totalUnread += p.unreadCount || 0;
+    }
+
+    const conversations = validParticipants.map((p) => {
+      const chat = p.chatId;
+      const base = {
+        _id: chat._id,
+        type: chat.type,
+        name: chat.name,
+        description: chat.description,
+        icon: chat.icon,
+        isEncrypted: chat.isEncrypted,
+        lastMessage: chat.lastMessage || null,
+        members: chat.members,
+        createdAt: chat.createdAt,
+        updatedAt: chat.updatedAt,
         participant: {
           _id: p._id,
           role: p.role,
@@ -89,7 +189,35 @@ export class ChatService {
           notificationsEnabled: p.notificationsEnabled,
           joinedAt: p.joinedAt,
         },
-      }));
+      };
+
+      if (chat.type === "direct" && Array.isArray(chat.members)) {
+        const partnerId = chat.members.find((m) => String(m) !== String(currentUserId));
+        if (partnerId && partnerMap[String(partnerId)]) {
+          const partner = partnerMap[String(partnerId)];
+          base.otherUser = {
+            _id: partner._id,
+            firstname: partner.firstname,
+            lastname: partner.lastname,
+            profilepic: partner.profilepic,
+            isOnline: partner.isOnline,
+            lastSeen: partner.lastSeen,
+          };
+        }
+      } else {
+        base.memberCount = chat.members ? chat.members.length : 0;
+      }
+
+      return base;
+    });
+
+    return {
+      conversations,
+      total: pagination.total,
+      page: pagination.page,
+      pages: pagination.pages,
+      totalUnread,
+    };
   }
 
   async getMessages(chatId, userId, { cursor = null, limit = 50, direction = "backward" } = {}) {
