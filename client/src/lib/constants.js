@@ -74,6 +74,7 @@ export const API = {
   UPLOAD_COVER: "/api/upload/cover",
   UPLOAD_STORY: "/api/upload/story",
   UPLOAD_POST_IMAGE: "/api/upload/post-image",
+  UPLOAD_AUDIO: "/api/upload/audio",
 
   // Stories
   STORIES_ALL: "/api/stories",
