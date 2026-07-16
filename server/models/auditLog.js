@@ -29,6 +29,10 @@ const AUDIT_RESOURCES = [
   "billing",
   "recording",
   "call",
+  "identity_key",
+  "signed_pre_key",
+  "pre_key",
+  "encryption_session",
 ];
 
 const auditLogSchema = new mongoose.Schema(
@@ -67,6 +71,11 @@ const auditLogSchema = new mongoose.Schema(
     userAgent: { type: String, default: null },
 
     details: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
+    metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
