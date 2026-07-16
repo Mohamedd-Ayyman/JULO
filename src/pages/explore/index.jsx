@@ -114,7 +114,7 @@ export default function ExplorePage() {
           className="relative mb-4 animate-fade-in"
         >
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
             style={{ color: "var(--muted-2)" }}
           />
           <input

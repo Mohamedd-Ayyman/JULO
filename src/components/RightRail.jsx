@@ -49,7 +49,7 @@ export default function RightRail() {
   return (
     <aside className="hidden xl:block fixed top-0 right-0 h-screen w-[320px] p-4 overflow-y-auto z-20">
       <form onSubmit={submit} className="relative mb-4">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}

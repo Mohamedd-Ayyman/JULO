@@ -37,10 +37,10 @@ export default function SignUp() {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
           <div className="relative">
-            <User
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: "var(--muted-2)" }}
-            />
+          <User
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            style={{ color: "var(--muted-2)" }}
+          />
             <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="brutal-input pl-11" required />
           </div>
           <div className="relative">
@@ -49,14 +49,14 @@ export default function SignUp() {
         </div>
         <div className="relative">
           <Mail
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
             style={{ color: "var(--muted-2)" }}
           />
           <input type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className="brutal-input pl-11" required />
         </div>
         <div className="relative">
           <Lock
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
             style={{ color: "var(--muted-2)" }}
           />
           <input

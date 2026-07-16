@@ -105,7 +105,7 @@ export default function StoryUploader({ open, onClose, onPosted }) {
         {previewUrl && (
           <>
             <div className="relative">
-              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--muted)" }} />
+              <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted)" }} />
               <input type="text" maxLength={120} value={caption} onChange={(e) => setCaption(e.target.value)}
                 placeholder="Add a caption (optional)"
                 className="brutal-input pl-10 pr-3 py-2.5 rounded-full" />

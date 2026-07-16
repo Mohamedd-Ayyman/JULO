@@ -74,7 +74,7 @@ export default function RightRail() {
       style={{ background: "var(--paper)", borderLeft: "2px solid var(--ink)" }}
     >
       <form onSubmit={submit} className="relative mb-5">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}

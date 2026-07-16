@@ -251,7 +251,7 @@ export function TopBar({ title }) {
             }}
           >
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
               <input
                 autoFocus
                 value={q}
