@@ -26,8 +26,35 @@ const chatSlice = createSlice({
         chat.lastMessage = message;
       }
     },
+    markMessageFailed: (state, action) => {
+      const messageId = action.payload;
+      if (!state.activeChat?.messages) return;
+      const msg = state.activeChat.messages.find((m) => m._id === messageId);
+      if (msg) msg.failed = true;
+    },
+    markMessageSuccess: (state, action) => {
+      const { tempId, realMessage } = action.payload;
+      if (!state.activeChat?.messages) return;
+      const idx = state.activeChat.messages.findIndex((m) => m._id === tempId);
+      if (idx !== -1) {
+        state.activeChat.messages[idx] = { ...realMessage, failed: false };
+      }
+    },
+    removeMessage: (state, action) => {
+      const messageId = action.payload;
+      if (!state.activeChat?.messages) return;
+      state.activeChat.messages = state.activeChat.messages.filter((m) => m._id !== messageId);
+    },
   },
 });
 
-export const { setChats, setActiveChat, addMessage, updateLastMessage } = chatSlice.actions;
+export const {
+  setChats,
+  setActiveChat,
+  addMessage,
+  updateLastMessage,
+  markMessageFailed,
+  markMessageSuccess,
+  removeMessage,
+} = chatSlice.actions;
 export default chatSlice.reducer;
