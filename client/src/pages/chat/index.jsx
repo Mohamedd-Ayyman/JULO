@@ -18,7 +18,6 @@ import {
 import toast from "react-hot-toast";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
-import AudioMessage from "../../components/chat/AudioMessage.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
 import ChatListItem from "../../components/chat/ChatListItem.jsx";
 import OfflineBanner from "../../components/chat/OfflineBanner.jsx";
