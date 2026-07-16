@@ -1,6 +1,9 @@
 import { Check, CheckCheck } from "lucide-react";
 import Avatar from "../Avatar.jsx";
 import AudioMessage from "./AudioMessage.jsx";
+import ImageMessage from "./ImageMessage.jsx";
+import FileMessage from "./FileMessage.jsx";
+import LinkPreview from "./LinkPreview.jsx";
 import MessageError from "./MessageError.jsx";
 import MessageContextMenu from "./MessageContextMenu.jsx";
 import { cn } from "@/lib/utils";
@@ -95,11 +98,23 @@ export default function MessageBubble({
     );
   }
 
-  const bubbleContent = message.audioUrl ? (
-    <AudioMessage audioUrl={message.audioUrl} duration={message.audioDuration} isMine={isMine} />
-  ) : (
-    <span className="whitespace-pre-wrap break-words">{message.text}</span>
-  );
+  const hasImage = !!message.imageUrl;
+  const hasFile = !!message.fileUrl;
+  const hasText = !!message.text?.trim();
+
+  let bubbleContent;
+  if (hasImage) {
+    bubbleContent = <ImageMessage imageUrl={message.imageUrl} text={hasText ? message.text : ""} />;
+  } else if (hasFile) {
+    bubbleContent = <FileMessage fileUrl={message.fileUrl} fileName={message.fileName} fileSize={message.fileSize} mimeType={message.mimeType} isMine={isMine} />;
+  } else if (message.audioUrl) {
+    bubbleContent = <AudioMessage audioUrl={message.audioUrl} duration={message.audioDuration} isMine={isMine} />;
+  } else {
+    bubbleContent = <span className="whitespace-pre-wrap break-words">{message.text}</span>;
+  }
+
+  const isImageOnly = hasImage && !hasText;
+  const isFileOnly = hasFile && !hasText;
 
   return (
     <div className={cn("flex flex-col", isMine ? "items-end" : "items-start", isGroupStart ? "mt-3" : "mt-0.5")}>
@@ -112,18 +127,22 @@ export default function MessageBubble({
       >
         <div
           className={cn(
-            "max-w-[75%] sm:max-w-[60%] px-4 py-2 text-sm leading-relaxed",
+            "max-w-[75%] sm:max-w-[60%] text-sm leading-relaxed",
+            isImageOnly ? "px-1 py-1" : "px-4 py-2",
             isGroupStart && isMine && "msg-tail-sent",
             isGroupStart && !isMine && "msg-tail-received",
             pending && "opacity-60",
           )}
           style={{
-            background: isMine ? "var(--ink)" : "var(--paper-2)",
+            background: isImageOnly || isFileOnly ? "transparent" : (isMine ? "var(--ink)" : "var(--paper-2)"),
             color: isMine ? "var(--paper)" : "var(--ink)",
             borderRadius: "var(--r-lg)",
           }}
         >
           {bubbleContent}
+          {message.linkPreview && !isImageOnly && (
+            <LinkPreview preview={message.linkPreview} />
+          )}
           {message.edited && !deleted && (
             <span
               className="ml-1 text-[10px] italic font-mono"
