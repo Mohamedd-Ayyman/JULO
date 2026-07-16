@@ -113,7 +113,7 @@ function YourStoryTile({ user, hasStory, onAdd, onOpen }) {
           <button
             onClick={onAdd}
             className="absolute -bottom-1 -right-1 w-6 h-6 grid place-items-center rounded-full hover:scale-110 transition-transform"
-            style={{ background: "var(--acid)", border: "2px solid var(--ink)", boxShadow: "2px 2px 0 0 var(--ink)" }}
+            style={{ background: "var(--acid)", border: "1px solid var(--line)", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}
             aria-label="Add story"
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={3} style={{ color: "var(--ink)" }} />
@@ -138,7 +138,7 @@ function StoryTile({ group, onOpen }) {
     >
       <span
         className="p-[2px] rounded-full transition-transform group-hover:scale-105"
-        style={{ background: hasUnseen ? "var(--acid)" : "var(--paper-2)", border: "2px solid var(--ink)" }}
+        style={{ background: hasUnseen ? "var(--accent)" : "var(--paper-2)", border: "1px solid var(--line)" }}
       >
         <span className="block p-[2px] rounded-full" style={{ background: "var(--paper)" }}>
           <Avatar src={u.profilepic} name={name} size={50} />

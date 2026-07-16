@@ -7,7 +7,7 @@ import { ROUTES } from "../lib/constants.js";
 import { getSuggestions, followUser } from "../apiCalls/follow.js";
 import toast from "react-hot-toast";
 import { MOODS } from "../lib/moods.js";
-import Sticker from "./ui-brutal/Sticker.jsx";
+
 
 /**
  * RightRail — editorial column with Today's mood poll, suggested correspondents, footer.
@@ -85,10 +85,7 @@ export default function RightRail() {
 
       {/* Today's mood poll */}
       <div className="brutal-card p-4 mb-4 anim-fade-in-up" style={{ background: "var(--paper)" }}>
-        <p className="eyebrow mb-1">Today · Vol 1</p>
-        <h3 className="font-display font-black text-xl leading-tight mb-3">
-          What&apos;s the <em className="not-italic" style={{ background: "var(--acid)", padding: "0 4px" }}>mood</em>?
-        </h3>
+        <h3 className="font-display text-lg font-bold leading-tight mb-3">What&apos;s the mood?</h3>
         <div className="space-y-1.5">
           {MOODS.map((m) => {
             const count = poll[m.id] || 0;
@@ -99,9 +96,9 @@ export default function RightRail() {
                 key={m.id}
                 onClick={() => vote(m.id)}
                 disabled={!!voted}
-                className="w-full text-left relative overflow-hidden border-2 transition-all"
+                className="w-full text-left relative overflow-hidden transition-all"
                 style={{
-                  borderColor: "var(--ink)",
+                  border: "1px solid var(--line)",
                   background: "var(--paper-2)",
                   borderRadius: "var(--r-sm)",
                   cursor: voted ? "default" : "pointer",
@@ -131,8 +128,7 @@ export default function RightRail() {
       {/* Correspondents */}
       <div className="brutal-card p-4 mb-4 anim-fade-in-up" style={{ background: "var(--paper)" }}>
         <div className="flex items-center justify-between mb-3">
-          <p className="eyebrow">New voices</p>
-          <Sticker tone="acid" rotate={-3} className="text-[9px]">FRESH</Sticker>
+          <h3 className="font-display text-lg font-bold leading-tight">Suggested</h3>
         </div>
         {loading ? (
           <div className="flex justify-center py-4">
@@ -170,7 +166,7 @@ export default function RightRail() {
         )}
       </div>
 
-      <div className="font-mono text-[10px] uppercase tracking-wider px-2 leading-relaxed" style={{ color: "var(--muted-2)" }}>
+      <div className="font-mono text-[10px] uppercase tracking-wider px-2 leading-relaxed font-light" style={{ color: "var(--muted-2)" }}>
         © {new Date().getFullYear()} JULO Press · No paywall · No ads · No drama
       </div>
     </aside>

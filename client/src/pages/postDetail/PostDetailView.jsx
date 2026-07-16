@@ -198,7 +198,7 @@ export default function PostDetailView({ postId, onClose }) {
         {isQuote ? (
           <div className="space-y-4 mb-4">
             <p className="text-base leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink)" }}>{post.text}</p>
-            <div className="p-4" style={{ background: "var(--paper-2)", border: "2px solid var(--ink)", borderRadius: "var(--r-md)" }}>
+            <div className="p-4" style={{ background: "var(--paper-2)", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
               <div className="flex items-center gap-2 mb-2">
                 <Avatar src={originalAuthor?.profilepic} name={`${originalAuthor?.firstname || ""}`} size={24} />
                 <span className="text-sm font-bold" style={{ fontFamily: "var(--font-display)" }}>{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
@@ -206,7 +206,7 @@ export default function PostDetailView({ postId, onClose }) {
               </div>
               <p className="text-sm leading-relaxed" style={{ color: "var(--ink)" }}>{originalPost.text}</p>
               {originalPost.image && (
-                <img src={originalPost.image} alt="" className="mt-3 max-h-60 w-full object-cover" style={{ border: "2px solid var(--ink)", borderRadius: "var(--r-sm)" }} />
+                <img src={originalPost.image} alt="" className="mt-3 max-h-60 w-full object-cover" style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)" }} />
               )}
             </div>
           </div>
@@ -214,7 +214,7 @@ export default function PostDetailView({ postId, onClose }) {
           <>
             {display?.text && <p className="text-[15px] leading-relaxed whitespace-pre-wrap mb-4" style={{ color: "var(--ink)" }}>{display.text}</p>}
             {display?.image && (
-              <img src={display.image} alt="" className="w-full max-h-[60vh] object-cover mb-4" style={{ border: "2px solid var(--ink)", borderRadius: "var(--r-md)" }} />
+              <img src={display.image} alt="" className="w-full max-h-[60vh] object-cover mb-4" style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)" }} />
             )}
           </>
         )}
@@ -277,7 +277,7 @@ export default function PostDetailView({ postId, onClose }) {
               width: 32,
               height: 32,
               background: comment.trim() ? "var(--acid)" : "var(--paper-2)",
-              border: "2px solid var(--ink)",
+              border: "1px solid var(--line)",
               borderRadius: "50%",
               cursor: comment.trim() ? "pointer" : "not-allowed",
             }}
@@ -297,7 +297,7 @@ export default function PostDetailView({ postId, onClose }) {
           <div key={c._id} className="flex gap-2.5">
             <Avatar src={c.author?.profilepic} name={c.author?.firstname || ""} size={34} />
             <div className="flex-1">
-              <div className="px-3.5 py-2" style={{ background: "var(--paper-2)", border: "2px solid var(--ink)", borderRadius: "var(--r-md)" }}>
+              <div className="px-3.5 py-2" style={{ background: "var(--paper-2)", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
                 <p className="text-xs font-bold" style={{ fontFamily: "var(--font-display)" }}>{c.author?.firstname} {c.author?.lastname}</p>
                 <p className="text-sm" style={{ color: "var(--ink)" }}>{c.text}</p>
               </div>

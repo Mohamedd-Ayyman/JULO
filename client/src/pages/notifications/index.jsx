@@ -73,9 +73,6 @@ export default function NotificationsPage() {
                 </span>
               )}
             </h1>
-            <p className="font-mono text-[11px] uppercase tracking-widest mt-0.5" style={{ color: "var(--muted-2)" }}>
-              Stay in the loop
-            </p>
           </div>
           {unread > 0 && (
             <button onClick={handleMarkAllRead} className="brutal-btn brutal-btn-sm">
@@ -99,11 +96,11 @@ export default function NotificationsPage() {
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
-              className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 border-2 transition-all"
+              className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 transition-all"
               style={{
-                background: filter === f.id ? "var(--ink)" : "var(--paper)",
-                color: filter === f.id ? "var(--paper)" : "var(--ink)",
-                borderColor: "var(--ink)",
+                background: filter === f.id ? "var(--ink)" : "transparent",
+                color: filter === f.id ? "var(--paper)" : "var(--muted)",
+                border: "1px solid " + (filter === f.id ? "var(--ink)" : "var(--line)"),
                 borderRadius: "var(--r-pill)",
               }}
             >
@@ -131,7 +128,7 @@ export default function NotificationsPage() {
                   <div className="relative flex-shrink-0">
                     <Avatar src={n.actor?.profilepic} name={n.actor?.firstname || n.title || "·"} size={42} />
                     <div
-                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full grid place-items-center border-2 border-ink"
+                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full grid place-items-center border border-ink"
                       style={{ backgroundColor: cfg.bg }}
                     >
                       <Icon className="w-2.5 h-2.5" style={{ color: cfg.color }} strokeWidth={2.5} />
@@ -146,7 +143,7 @@ export default function NotificationsPage() {
                     </p>
                   </div>
                   {!n.read && (
-                    <span className="w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0" style={{ background: "var(--riso-red)" }} />
+                    <span className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: "var(--riso-red)" }} />
                   )}
                 </div>
               );

@@ -11,14 +11,15 @@ export default function MoodPicker({ value, onChange, className = "" }) {
             key={m.id}
             type="button"
             onClick={() => onChange(active ? null : m.id)}
-            className="font-mono text-[11px] font-bold uppercase tracking-wider px-2.5 py-1.5 border-2 transition-all"
+            className="font-mono text-[11px] font-medium uppercase tracking-wider px-2.5 py-1.5 transition-all"
             style={{
               background: active ? m.color : "var(--paper)",
               color: active ? "var(--ink)" : "var(--ink)",
-              borderColor: "var(--ink)",
+              border: "1px solid var(--line)",
               borderRadius: "var(--r-pill)",
-              boxShadow: active ? "3px 3px 0 0 var(--ink)" : "none",
-              transform: active ? "translate(-1px,-1px) rotate(-1deg)" : "none",
+              boxShadow: active ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+              transform: active ? "scale(1.05)" : "scale(1)",
+              transition: "all 200ms cubic-bezier(0.22,1,0.36,1)",
             }}
             aria-pressed={active}
           >

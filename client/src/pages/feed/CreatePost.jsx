@@ -68,8 +68,7 @@ export default function CreatePost({ user, onPostCreated }) {
 
   return (
     <div className="brutal-card p-4 sm:p-5 anim-fade-in-up relative" style={{ background: "var(--paper)" }}>
-      <span className="absolute -top-3 left-8 tape" />
-      <p className="eyebrow mb-2">File a dispatch</p>
+      <p className="text-xs font-medium mb-2" style={{ color: "var(--muted)" }}>What&apos;s happening?</p>
       <div className="flex gap-3">
         <Avatar src={user?.profilepic} name={`${user?.firstname || ""} ${user?.lastname || ""}`} size={42} />
         <div className="flex-1 min-w-0">
@@ -98,7 +97,7 @@ export default function CreatePost({ user, onPostCreated }) {
           )}
 
           <div className="mt-3 pt-3 ink-rule-thin">
-            <p className="eyebrow mb-2">Pick a mood</p>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--muted)" }}>Mood</p>
             <MoodPicker value={mood} onChange={setMood} />
           </div>
 

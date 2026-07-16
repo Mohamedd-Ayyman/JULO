@@ -8,7 +8,7 @@ export default function Avatar({
   src,
   name = "",
   size = 40,
-  shape = "squircle",
+  shape = "circle",
   online = false,
   className = "",
   style = {},
@@ -22,7 +22,7 @@ export default function Avatar({
     .toUpperCase();
 
   const radius =
-    shape === "circle" ? "50%" : shape === "square" ? "0" : "6px";
+    shape === "circle" ? "50%" : shape === "square" ? "0" : "8px";
 
   return (
     <span

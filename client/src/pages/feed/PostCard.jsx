@@ -196,10 +196,10 @@ export default function PostCard({
     <div
       className="flex items-center gap-2 px-4 py-1.5 -mx-[2px] -mt-[2px]"
       style={{
-        background: "var(--ink)",
-        color: "var(--paper)",
-        borderTopLeftRadius: "var(--r-md)",
-        borderTopRightRadius: "var(--r-md)",
+        background: "var(--paper-2)",
+        color: "var(--ink)",
+        borderRadius: 0,
+        borderBottom: "1px solid var(--line-soft)",
       }}
     >
       <Repeat2 className="w-3.5 h-3.5" />
@@ -267,7 +267,7 @@ export default function PostCard({
                   {authorName || "Unknown"}
                 </Link>
                 <p className="font-mono text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--muted-2)" }}>
-                  Filed · {formatTime(displayCreatedAt)}
+                  {formatTime(displayCreatedAt)}
                 </p>
               </div>
             </div>
@@ -295,8 +295,7 @@ export default function PostCard({
                     className="absolute right-0 top-full mt-1 z-30 min-w-[180px] anim-scale-in p-1"
                     style={{
                       background: "var(--paper)",
-                      border: "2px solid var(--ink)",
-                      boxShadow: "var(--sh-2)",
+                      border: "1px solid var(--line)",
                     }}
                   >
                     <MenuItem onClick={handleCopyLink} icon={Link2} label="Copy link" />
@@ -358,8 +357,7 @@ export default function PostCard({
               className="block w-full mt-3 text-left p-3"
               style={{
                 background: "var(--paper-2)",
-                border: "2px solid var(--ink)",
-                boxShadow: "var(--sh-1)",
+                border: "1px solid var(--line)",
               }}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -379,7 +377,7 @@ export default function PostCard({
                   src={originalPost.image}
                   alt=""
                   className="mt-2 max-h-40 w-full object-cover"
-                  style={{ border: "2px solid var(--ink)" }}
+                  style={{ border: "1px solid var(--line)" }}
                 />
               )}
             </button>
@@ -400,7 +398,7 @@ export default function PostCard({
           {/* Actions */}
           <div
             className="flex items-stretch mt-3 pt-3"
-            style={{ borderTop: "2px solid var(--ink)" }}
+            style={{ borderTop: "1px solid var(--line)" }}
           >
             <ActionButton onClick={handleLike} active={liked} label="LIKE">
               <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} />
@@ -439,7 +437,7 @@ export default function PostCard({
                   width: 32,
                   height: 32,
                   background: comment.trim() ? "var(--acid)" : "var(--paper-2)",
-                  border: "2px solid var(--ink)",
+                  border: "1px solid var(--line)",
                   borderRadius: "var(--r-sm)",
                   cursor: comment.trim() ? "pointer" : "not-allowed",
                 }}
@@ -466,7 +464,7 @@ export default function PostCard({
                         className="px-3 py-2"
                         style={{
                           background: "var(--paper-2)",
-                          border: "2px solid var(--ink)",
+                          border: "1px solid var(--line)",
                           borderRadius: "var(--r-sm)",
                         }}
                       >
@@ -515,7 +513,6 @@ function ActionButton({ children, onClick, active, label }) {
       style={{
         color: active ? "var(--ink)" : "var(--muted-2)",
         background: active ? "var(--acid)" : "transparent",
-        borderRight: "1.5px solid var(--line-soft)",
       }}
       onMouseOver={(e) => {
         if (!active) e.currentTarget.style.background = "var(--paper-2)";

@@ -27,7 +27,7 @@ export default function StoryViewersSheet({ storyId, onClose }) {
       <div className="brutal-card w-full sm:max-w-md max-h-[70vh] flex flex-col animate-fade-in"
         onClick={(e) => e.stopPropagation()}
         style={{ borderRadius: "var(--r-lg) var(--r-lg) 0 0", borderTop: "none" }}>
-        <div className="flex items-center justify-between p-4" style={{ borderBottom: "2px solid var(--line-soft)" }}>
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: "1px solid var(--line)" }}>
           <div className="flex items-center gap-2">
             <Eye className="w-4 h-4" style={{ color: "var(--ink)" }} />
             <h3 className="text-sm font-bold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>

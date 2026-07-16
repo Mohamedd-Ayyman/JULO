@@ -19,12 +19,12 @@ import Logo from "./Logo.jsx";
 import Avatar from "./Avatar.jsx";
 
 const navItems = [
-  { to: ROUTES.HOME, n: "01", icon: Home, label: "Home" },
-  { to: ROUTES.FEED, n: "02", icon: Sparkles, label: "Feed" },
-  { to: ROUTES.EXPLORE, n: "03", icon: Compass, label: "Explore" },
-  { to: ROUTES.CHAT, n: "04", icon: MessageCircle, label: "Messages" },
-  { to: ROUTES.NOTIFICATIONS, n: "05", icon: Bell, label: "Alerts" },
-  { to: ROUTES.PROFILE, n: "06", icon: User, label: "Profile" },
+  { to: ROUTES.HOME, icon: Home, label: "Home" },
+  { to: ROUTES.FEED, icon: Sparkles, label: "Feed" },
+  { to: ROUTES.EXPLORE, icon: Compass, label: "Explore" },
+  { to: ROUTES.CHAT, icon: MessageCircle, label: "Messages" },
+  { to: ROUTES.NOTIFICATIONS, icon: Bell, label: "Alerts" },
+  { to: ROUTES.PROFILE, icon: User, label: "Profile" },
 ];
 
 /* ─── Desktop "masthead" sidebar ───────────────────────────────────────── */
@@ -34,13 +34,6 @@ export function Sidebar() {
   const navigate = useNavigate();
   const { user } = useSelector((s) => s.userReducer);
   const { unreadCount } = useSelector((s) => s.notificationReducer);
-
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 
   const handleLogout = () => {
     dispatch(logout());
@@ -52,35 +45,31 @@ export function Sidebar() {
       className="hidden lg:flex fixed top-0 left-0 h-screen w-[260px] flex-col p-5 z-30"
       style={{
         background: "var(--paper)",
-        borderRight: "2px solid var(--ink)",
+        borderRight: "1px solid var(--line-soft)",
       }}
     >
-      <Link to={ROUTES.HOME} className="block mb-1">
+      <Link to={ROUTES.HOME} className="block mb-6">
         <Logo size={34} />
       </Link>
-      <p className="font-mono text-[10px] uppercase tracking-widest mb-6" style={{ color: "var(--muted-2)" }}>
-        Issue · {today}
-      </p>
 
       <nav className="flex-1 space-y-0.5 stagger">
-        {navItems.map(({ to, n, icon: Icon, label }) => {
+        {navItems.map(({ to, icon: Icon, label }) => {
           const active = pathname === to || (to !== "/" && pathname.startsWith(to));
           return (
             <Link
               key={to}
               to={to}
-              className="group flex items-center gap-3 px-2 py-2.5 transition-all"
+              className="group flex items-center gap-3 px-2 py-2.5 transition-all relative"
               style={{
                 color: "var(--ink)",
-                fontWeight: active ? 800 : 500,
+                fontWeight: active ? 600 : 400,
               }}
             >
-              <span className="font-mono text-[10px] w-5" style={{ color: "var(--muted-2)" }}>{n}</span>
+              {active && (
+                <span className="w-[3px] h-5 bg-accent rounded-full absolute left-0" />
+              )}
               <Icon className="w-4 h-4" strokeWidth={active ? 2.6 : 2} />
-              <span
-                className={`text-[15px] ${active ? "highlight-swipe" : ""}`}
-                style={{ fontFamily: active ? "var(--font-display)" : "var(--font-sans)", letterSpacing: active ? "-0.01em" : 0 }}
-              >
+              <span className="text-[15px]">
                 {label}
               </span>
               {label === "Alerts" && unreadCount > 0 && (
@@ -89,7 +78,6 @@ export function Sidebar() {
                   style={{
                     background: "var(--riso-red)",
                     color: "var(--paper)",
-                    border: "1.5px solid var(--ink)",
                     borderRadius: "var(--r-pill)",
                   }}
                 >
@@ -110,8 +98,8 @@ export function Sidebar() {
       </Link>
 
       <div
-        className="brutal-card p-3 flex items-center gap-3"
-        style={{ background: "var(--paper-2)" }}
+        className="p-3 flex items-center gap-3"
+        style={{ background: "var(--paper-2)", borderRadius: "var(--r-md)" }}
       >
         <Link to={ROUTES.PROFILE} className="flex items-center gap-3 flex-1 min-w-0">
           <Avatar
@@ -120,11 +108,8 @@ export function Sidebar() {
             size={38}
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold truncate" style={{ fontFamily: "var(--font-display)" }}>
+            <p className="text-sm font-semibold truncate">
               {user?.firstname} {user?.lastname}
-            </p>
-            <p className="font-mono text-[10px] truncate uppercase" style={{ color: "var(--muted-2)" }}>
-              correspondent
             </p>
           </div>
         </Link>
@@ -162,7 +147,7 @@ export function MobileNav() {
               key={to}
               to={to}
               className="flex-1 flex flex-col items-center gap-0.5 py-1.5 relative"
-              style={{ color: "var(--ink)" }}
+              style={{ color: active ? "var(--accent)" : "var(--ink)" }}
             >
               <Icon
                 className="w-5 h-5"
@@ -170,17 +155,11 @@ export function MobileNav() {
                 style={active ? { transform: "translateY(-2px)" } : undefined}
               />
               <span
-                className="font-mono text-[9px] uppercase tracking-wider font-bold"
+                className="text-[10px] font-sans"
                 style={{ opacity: active ? 1 : 0.6 }}
               >
                 {label}
               </span>
-              {active && (
-                <span
-                  className="absolute -bottom-1 w-8 h-1.5"
-                  style={{ background: "var(--acid)", border: "1.5px solid var(--ink)" }}
-                />
-              )}
             </Link>
           );
         })}
@@ -196,12 +175,6 @@ export function TopBar({ title }) {
   const [q, setQ] = useState("");
   const ref = useRef(null);
 
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
-
   useEffect(() => {
     const onClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -212,23 +185,20 @@ export function TopBar({ title }) {
 
   return (
     <header
-      className="lg:hidden sticky top-0 z-30"
-      style={{ background: "var(--paper)", borderBottom: "2px solid var(--ink)" }}
+      className="lg:hidden sticky top-0 z-30 backdrop-blur-safe"
+      style={{ background: "var(--glass-bg, var(--paper))", borderBottom: "1px solid var(--line-soft)" }}
     >
       <div className="flex items-center justify-between px-4 h-14">
         <Link to={ROUTES.HOME} className="flex items-center gap-2">
           <Logo size={26} withText={!title} />
           {title && (
             <>
-              <span className="w-px h-5" style={{ background: "var(--ink)" }} />
-              <span className="font-display font-black text-base tracking-tight">{title}</span>
+              <span className="w-px h-5" style={{ background: "var(--line-soft)" }} />
+              <span className="font-display font-semibold text-base tracking-tight">{title}</span>
             </>
           )}
         </Link>
         <div className="flex items-center gap-1.5" ref={ref}>
-          <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-wider mr-1" style={{ color: "var(--muted-2)" }}>
-            {today}
-          </span>
           <button
             onClick={() => setOpen((v) => !v)}
             className="brutal-btn brutal-btn-ghost brutal-btn-icon"
@@ -251,12 +221,12 @@ export function TopBar({ title }) {
             }}
           >
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
               <input
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="> search julo…"
+                placeholder="Search Julo..."
                 className="brutal-input pl-11"
               />
             </div>

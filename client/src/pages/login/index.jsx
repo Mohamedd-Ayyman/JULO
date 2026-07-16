@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { setUser } from "../../redux/usersSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import toast from "react-hot-toast";
-import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import AuthShell from "../AuthShell.jsx";
 
 export default function Login() {
@@ -51,15 +51,14 @@ export default function Login() {
         />
 
         <div className="flex items-center justify-between text-xs">
-          <label className="flex items-center gap-2 font-mono text-[11px] cursor-pointer" style={{ color: "var(--muted-2)" }}>
+          <label className="flex items-center gap-2 text-[11px] cursor-pointer" style={{ color: "var(--muted-2)" }}>
             <input
               type="checkbox"
               className="accent-[var(--ink)]"
-              style={{ accentColor: "var(--ink)" }}
             />
             Remember me
           </label>
-          <button type="button" className="font-mono text-[11px] font-bold story-link" style={{ color: "var(--ink)" }}>
+          <button type="button" className="text-[11px] font-bold story-link" style={{ color: "var(--ink)" }}>
             Forgot password?
           </button>
         </div>
@@ -77,20 +76,20 @@ export default function Login() {
 
       <div className="my-6 flex items-center gap-3">
         <div className="flex-1 h-px" style={{ background: "var(--line-soft)" }} />
-        <span className="font-mono text-[11px] uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>OR</span>
+        <span className="font-sans text-xs uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>OR</span>
         <div className="flex-1 h-px" style={{ background: "var(--line-soft)" }} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button className="brutal-btn brutal-btn-outline" disabled>
+        <button className="brutal-btn brutal-btn-outline">
           <span className="text-lg font-bold">G</span> Google
         </button>
-        <button className="brutal-btn brutal-btn-outline" disabled>
+        <button className="brutal-btn brutal-btn-outline">
           <span className="text-lg">✦</span> Apple
         </button>
       </div>
 
-      <p className="text-center font-mono text-[11px] mt-8" style={{ color: "var(--muted-2)" }}>
+      <p className="text-center text-xs mt-8" style={{ color: "var(--muted-2)" }}>
         New to JULO?{" "}
         <Link to="/signup" className="font-bold story-link" style={{ color: "var(--ink)" }}>
           Create an account
@@ -103,7 +102,7 @@ export default function Login() {
 function Field({ icon: Icon, rightIcon: RightIcon, onRightClick, ...rest }) {
   return (
     <div className="relative">
-      {Icon && <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />}
+      {Icon && <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-40" />}
       <input
         {...rest}
         onChange={(e) => rest.onChange(e.target.value)}

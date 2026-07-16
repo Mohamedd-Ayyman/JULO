@@ -5,13 +5,13 @@ const InkInput = forwardRef(function InkInput(
   ref,
 ) {
   return (
-    <div className={`relative ${wrapperClassName}`}>
+    <div className={`relative transition-smooth ${wrapperClassName}`}>
       {Icon && (
-        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--ink)" }} />
+        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-40 peer-focus:opacity-70 transition-opacity" />
       )}
       <input
         ref={ref}
-        className={`brutal-input ${Icon ? "pl-11" : ""} ${rightSlot ? "pr-11" : ""} ${className}`}
+        className={`peer brutal-input ${Icon ? "pl-11" : ""} ${rightSlot ? "pr-11" : ""} ${className}`}
         {...rest}
       />
       {rightSlot && (

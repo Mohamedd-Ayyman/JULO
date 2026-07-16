@@ -70,7 +70,7 @@ export default function SettingsPage() {
                 onClick={() => setSection(s.id)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold transition-all"
                 style={section === s.id
-                  ? { background: "var(--ink)", color: "var(--paper)", borderRadius: "var(--r-sm)", border: "2px solid var(--ink)" }
+                  ? { background: "var(--paper-2)", color: "var(--ink)", borderRadius: "var(--r-sm)", borderLeft: "2px solid var(--accent)" }
                   : { color: "var(--muted-2)" }
                 }
               >
@@ -90,7 +90,7 @@ export default function SettingsPage() {
                 style={{
                   background: section === s.id ? "var(--ink)" : "var(--paper-2)",
                   color: section === s.id ? "var(--paper)" : "var(--ink)",
-                  border: "2px solid var(--ink)",
+                  border: "1px solid var(--line)",
                   borderRadius: "var(--r-sm)",
                 }}
               >
@@ -132,7 +132,7 @@ function Card({ title, desc, children, className = "" }) {
 function Field({ label, value, onChange, type = "text", multiline, className = "", error, hint }) {
   return (
     <label className={`block ${className}`}>
-      <span className="font-mono text-[10px] uppercase tracking-widest font-bold mb-1.5 block" style={{ color: "var(--muted-2)" }}>{label}</span>
+      <span className="text-xs font-medium mb-1.5 block" style={{ color: "var(--muted-2)" }}>{label}</span>
       {multiline ? (
         <textarea value={value} onChange={(e) => onChange(e.target.value)} className={`brutal-input ${error ? "" : ""}`} rows={3} style={{ resize: "none" }} />
       ) : (
@@ -158,8 +158,8 @@ function Toggle({ label, desc, checked, onChange }) {
         aria-checked={checked}
         className="relative w-11 h-6 flex-shrink-0 transition-all"
         style={{
-          background: checked ? "var(--ink)" : "var(--paper-2)",
-          border: "2px solid var(--ink)",
+          background: checked ? "var(--accent)" : "var(--paper-2)",
+          border: "1px solid var(--line)",
           borderRadius: "var(--r-pill)",
           cursor: "pointer",
         }}
@@ -170,7 +170,7 @@ function Toggle({ label, desc, checked, onChange }) {
             background: "var(--paper)",
             borderRadius: "50%",
             left: checked ? 22 : 2,
-            border: "2px solid var(--ink)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
           }}
         />
       </button>
@@ -295,7 +295,7 @@ function ProfileSection({ user, dispatch }) {
               type="button"
               onClick={() => avatarRef.current?.click()}
               className="absolute bottom-0 right-0 w-9 h-9 grid place-items-center"
-              style={{ background: "var(--acid)", color: "var(--ink)", border: "2px solid var(--ink)", borderRadius: "50%", cursor: "pointer" }}
+              style={{ background: "var(--acid)", color: "var(--ink)", border: "1px solid var(--line)", borderRadius: "50%", cursor: "pointer" }}
             >
               <Camera className="w-4 h-4" />
             </button>
@@ -320,7 +320,7 @@ function ProfileSection({ user, dispatch }) {
             type="button"
             onClick={() => coverRef.current?.click()}
             className="w-full h-24 transition-all"
-            style={{ border: "2px solid var(--line-soft)", background: "var(--paper-2)", borderRadius: "var(--r-md)", overflow: "hidden", cursor: "pointer" }}
+            style={{ border: "1px dashed var(--line)", background: "var(--paper-2)", borderRadius: "var(--r-md)", overflow: "hidden", cursor: "pointer" }}
           >
             {coverPreview ? (
               <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
@@ -459,7 +459,7 @@ function AccountSection({ navigate, dispatch }) {
               <Trash2 className="w-4 h-4" /> Delete account
             </button>
           ) : (
-            <div className="p-4 space-y-3" style={{ border: "2px solid var(--riso-red)", background: "var(--paper-2)", borderRadius: "var(--r-md)" }}>
+            <div className="p-4 space-y-3" style={{ border: "1px solid var(--riso-red)", background: "var(--paper-2)", borderRadius: "var(--r-md)" }}>
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: "var(--riso-red)" }} />
                 <div>
@@ -475,7 +475,7 @@ function AccountSection({ navigate, dispatch }) {
                 className="brutal-input"
               />
               <div className="flex gap-2">
-                <button onClick={handleDeleteAccount} disabled={deleting} className="brutal-btn flex-1" style={{ background: "var(--riso-red)", color: "var(--paper)", borderColor: "var(--ink)" }}>
+                <button onClick={handleDeleteAccount} disabled={deleting} className="brutal-btn flex-1" style={{ background: "var(--riso-red)", color: "var(--paper)", borderColor: "var(--riso-red)" }}>
                   {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   Delete forever
                 </button>
@@ -618,9 +618,9 @@ function PrivacySection() {
               onClick={() => setPrefs((p) => ({ ...p, storyVisibility: opt }))}
               className="py-2 px-3 font-mono text-[10px] uppercase tracking-widest font-bold transition-all"
               style={{
-                background: prefs.storyVisibility === opt ? "var(--ink)" : "var(--paper-2)",
+                background: prefs.storyVisibility === opt ? "var(--accent)" : "var(--paper-2)",
                 color: prefs.storyVisibility === opt ? "var(--paper)" : "var(--ink)",
-                border: "2px solid var(--ink)",
+                border: "1px solid var(--line)",
                 borderRadius: "var(--r-sm)",
               }}
             >
@@ -679,7 +679,7 @@ function NotificationsSection() {
           return (
             <div key={k} className="flex items-center justify-between py-3 border-b" style={{ borderColor: "var(--line-soft)" }}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 grid place-items-center" style={{ background: "var(--paper-2)", border: "2px solid var(--line-soft)", borderRadius: "var(--r-sm)" }}>
+                <div className="w-8 h-8 grid place-items-center" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
                   <Icon className="w-4 h-4" style={{ color: "var(--muted-2)" }} />
                 </div>
                 <div>
@@ -694,8 +694,8 @@ function NotificationsSection() {
                 aria-checked={prefs[k]}
                 className="relative w-11 h-6 flex-shrink-0 transition-all"
                 style={{
-                  background: prefs[k] ? "var(--ink)" : "var(--paper-2)",
-                  border: "2px solid var(--ink)",
+                  background: prefs[k] ? "var(--accent)" : "var(--paper-2)",
+                  border: "1px solid var(--line)",
                   borderRadius: "var(--r-pill)",
                   cursor: "pointer",
                 }}
@@ -706,7 +706,7 @@ function NotificationsSection() {
                     background: "var(--paper)",
                     borderRadius: "50%",
                     left: prefs[k] ? 22 : 2,
-                    border: "2px solid var(--ink)",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
                   }}
                 />
               </button>
@@ -776,7 +776,7 @@ function SecuritySection() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2].map((i) => (
-              <div key={i} className="flex items-center gap-3 p-3" style={{ background: "var(--paper-2)", border: "2px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
+              <div key={i} className="flex items-center gap-3 p-3" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
                 <div className="w-10 h-10 skeleton" style={{ background: "var(--line-soft)", borderRadius: "var(--r-sm)" }} />
                 <div className="flex-1"><div className="h-3 w-32 rounded mb-1.5" style={{ background: "var(--line-soft)", borderRadius: 4 }} /><div className="h-2.5 w-48 rounded" style={{ background: "var(--line-soft)", borderRadius: 4 }} /></div>
               </div>
@@ -790,14 +790,14 @@ function SecuritySection() {
               const Icon = DeviceIcon(sess.deviceType);
               const isCurrent = sess.isCurrent || sess._id === sessions[0]?._id;
               return (
-                <div key={sess._id} className="flex items-center gap-3 p-3" style={{ background: "var(--paper-2)", border: isCurrent ? "2px solid var(--acid)" : "2px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
-                  <div className="w-10 h-10 grid place-items-center" style={{ background: "var(--paper)", border: "2px solid var(--line-soft)", borderRadius: "var(--r-sm)" }}>
+                <div key={sess._id} className="flex items-center gap-3 p-3" style={{ background: "var(--paper-2)", border: `1px solid ${isCurrent ? "var(--accent)" : "var(--line-soft)"}`, borderRadius: "var(--r-md)" }}>
+                  <div className="w-10 h-10 grid place-items-center" style={{ background: "var(--paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-sm)" }}>
                     <Icon className="w-5 h-5" style={{ color: "var(--muted-2)" }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>{sess.deviceType || "Unknown device"}</p>
-                      {isCurrent && <span className="font-mono text-[10px] font-bold px-2 py-0.5 flex-shrink-0" style={{ background: "var(--acid)", color: "var(--ink)", border: "2px solid var(--ink)" }}>This device</span>}
+                      {isCurrent && <span className="font-mono text-[10px] font-bold px-2 py-0.5 flex-shrink-0" style={{ background: "var(--accent)", color: "var(--paper)", border: "1px solid var(--accent)" }}>This device</span>}
                     </div>
                     <p className="font-mono text-[10px] truncate" style={{ color: "var(--muted-2)" }}>
                       {sess.ip || "Unknown location"} {sess.createdAt ? `· ${new Date(sess.createdAt).toLocaleDateString()}` : ""}
@@ -808,7 +808,7 @@ function SecuritySection() {
                       onClick={() => revokeSession(sess._id)}
                       disabled={revoking === sess._id}
                       className="font-mono text-[10px] font-bold px-3 py-1.5 transition-colors flex-shrink-0"
-                      style={{ background: "var(--paper-2)", color: "var(--riso-red)", border: "2px solid var(--riso-red)", borderRadius: "var(--r-sm)" }}
+                      style={{ background: "var(--paper-2)", color: "var(--riso-red)", border: "1px solid var(--riso-red)", borderRadius: "var(--r-sm)" }}
                     >
                       {revoking === sess._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Sign out"}
                     </button>

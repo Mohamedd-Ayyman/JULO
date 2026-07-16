@@ -153,10 +153,10 @@ export default function ChatPage() {
       <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex">
         {/* Chat list */}
         <aside
-          className={`${activeChat?._id ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] flex-shrink-0 border-r-2 z-10`}
+          className={`${activeChat?._id ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] flex-shrink-0 border-r z-10`}
           style={{ borderColor: "var(--line-soft)", background: "var(--paper-2)" }}
         >
-          <div className="p-4 border-b-2" style={{ borderColor: "var(--line-soft)" }}>
+          <div className="p-4" style={{ borderBottom: "1px solid var(--line-soft)" }}>
             <h1 className="font-display text-xl font-black tracking-tight mb-3" style={{ color: "var(--ink)" }}>Messages</h1>
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
@@ -185,9 +185,9 @@ export default function ChatPage() {
                       key={c._id}
                       onClick={() => navigate(ROUTES.CHAT_ID(c._id))}
                       className={`w-full flex items-center gap-3 p-2.5 text-left transition-all ${
-                        active ? "border-2 bg-paper" : "hover:bg-paper-2"
+                        active ? "bg-paper-2" : "hover:bg-paper-2"
                       }`}
-                      style={active ? { borderColor: "var(--ink)", boxShadow: "var(--sh-1)" } : {}}
+                      style={active ? { boxShadow: "var(--sh-1)" } : {}}
                     >
                       <Avatar src={other?.profilepic} name={name} size={44} online={other?.isOnline} />
                       <div className="flex-1 min-w-0">
@@ -204,7 +204,7 @@ export default function ChatPage() {
                         </p>
                       </div>
                       {c.unreadCount > 0 && (
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 flex-shrink-0" style={{ background: "var(--riso-red)", color: "var(--paper)", border: "2px solid var(--ink)" }}>
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 flex-shrink-0" style={{ background: "var(--riso-red)", color: "var(--paper)", border: "1px solid var(--ink)" }}>
                           {c.unreadCount}
                         </span>
                       )}
@@ -221,7 +221,7 @@ export default function ChatPage() {
           {!activeChat?._id ? (
             <div className="flex-1 grid place-items-center text-center p-8">
               <div className="animate-fade-in-up">
-                <div className="w-20 h-20 rounded-full mx-auto mb-4 grid place-items-center animate-float" style={{ background: "var(--acid)", border: "2px solid var(--ink)", boxShadow: "var(--sh-3)" }}>
+                <div className="w-20 h-20 rounded-full mx-auto mb-4 grid place-items-center animate-float" style={{ background: "var(--acid)", boxShadow: "var(--sh-3)" }}>
                   <Send className="w-8 h-8" style={{ color: "var(--ink)" }} />
                 </div>
                 <h2 className="font-display text-xl font-black tracking-tight mb-1" style={{ color: "var(--ink)" }}>Your messages</h2>
@@ -231,7 +231,7 @@ export default function ChatPage() {
           ) : (
             <>
               {/* Thread header */}
-              <header className="flex items-center justify-between p-3 border-b-2" style={{ borderColor: "var(--line-soft)", background: "var(--paper-2)" }}>
+              <header className="flex items-center justify-between p-3" style={{ borderBottom: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
                 <div className="flex items-center gap-3 min-w-0">
                   <button
                     onClick={() => navigate(ROUTES.CHAT)}
@@ -278,8 +278,7 @@ export default function ChatPage() {
                           style={{
                             background: mine ? "var(--ink)" : "var(--paper-2)",
                             color: mine ? "var(--paper)" : "var(--ink)",
-                            border: "2px solid var(--ink)",
-                            borderRadius: "var(--r-md)",
+                            borderRadius: "var(--r-lg)",
                             opacity: m.pending ? 0.7 : 1,
                           }}
                         >
@@ -292,7 +291,7 @@ export default function ChatPage() {
                 {Object.keys(typingUsers).length > 0 && (
                   <div className="flex justify-start mt-2">
                     <span className="w-7 mr-2 flex-shrink-0" />
-                    <div className="px-3 py-2 flex items-center gap-1" style={{ background: "var(--paper-2)", border: "2px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
+                    <div className="px-3 py-2 flex items-center gap-1" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
                       <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
                     </div>
                   </div>
@@ -300,7 +299,7 @@ export default function ChatPage() {
               </div>
 
               {/* Composer */}
-              <div className="p-3 border-t-2" style={{ borderColor: "var(--line-soft)", background: "var(--paper-2)" }}>
+              <div className="p-3" style={{ borderTop: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
                 <div className="flex items-center gap-2">
                   <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Paperclip className="w-4 h-4" /></button>
                   <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Smile className="w-4 h-4" /></button>

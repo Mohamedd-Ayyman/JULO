@@ -118,9 +118,9 @@ export default function ProfilePage() {
     <AppLayout title="Profile">
       <div className="max-w-2xl mx-auto pb-6">
         {/* Cover */}
-        <div className="relative h-48 sm:h-60 overflow-hidden">
-          <div className="absolute inset-0" style={{ background: "var(--riso-yellow)", opacity: 0.3 }} />
-          <div className="absolute -bottom-20 -right-20 w-72 h-72" style={{ background: "var(--acid)", opacity: 0.25 }} />
+        <div className="relative h-48 sm:h-60 overflow-hidden rounded-t-2xl">
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 50%, var(--riso-blue) 100%)", opacity: 0.25 }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--paper) 0%, transparent 60%)" }} />
         </div>
 
         {/* Identity */}
@@ -186,7 +186,7 @@ export default function ProfilePage() {
 
         {/* Tabs */}
         <div className="px-4 sm:px-6 mt-6">
-          <div className="flex gap-1 p-1" style={{ border: "2px solid var(--ink)", background: "var(--paper)" }}>
+          <div className="flex gap-0" style={{ borderBottom: "1px solid var(--line)" }}>
             {[
               { id: "posts", label: "Posts", icon: Grid3X3 },
               { id: "echoes", label: "Echoes", icon: Megaphone },
@@ -197,15 +197,16 @@ export default function ProfilePage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 font-mono text-[10px] uppercase tracking-widest font-bold transition-all"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 font-mono text-[10px] uppercase tracking-widest font-bold transition-all relative"
                 style={{
-                  background: tab === t.id ? "var(--ink)" : "transparent",
-                  color: tab === t.id ? "var(--paper)" : "var(--ink)",
-                  borderRadius: "var(--r-sm)",
+                  color: tab === t.id ? "var(--accent)" : "var(--muted-2)",
                 }}
               >
                 <t.icon className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{t.label}</span>
+                {tab === t.id && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full" style={{ background: "var(--accent)" }} />
+                )}
               </button>
             ))}
           </div>
@@ -270,8 +271,8 @@ function Stat({ label, value, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="brutal-card p-3 text-left transition-all"
-      style={active ? { boxShadow: "var(--sh-2)", borderColor: "var(--acid)" } : {}}
+      className="text-left transition-all"
+      style={{ background: "var(--paper-2)", borderRadius: "var(--r-md)", padding: 12, transition: "all 200ms", borderTop: active ? "2px solid var(--accent)" : "2px solid transparent" }}
     >
       <p className="font-display text-xl font-black" style={{ color: "var(--ink)" }}>{value}</p>
       <p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>{label}</p>

@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { AnimatePresence, motion } from "framer-motion";
 import ProtectedRoute from "./components/protectedRoute.jsx";
 import LoadingIndicator from "./components/loaderIndicator.jsx";
 import { SocketProvider } from "./context/SocketContext.jsx";
@@ -30,6 +31,44 @@ function LoadingSpinner() {
   );
 }
 
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
+};
+
+function AnimatedPage({ children }) {
+  return (
+    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+      {children}
+    </motion.div>
+  );
+}
+
+function AnimatedRoutes({ authReady }) {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path={ROUTES.HOME} element={<ProtectedRoute authReady={authReady}><AnimatedPage><Home /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.FEED} element={<ProtectedRoute authReady={authReady}><AnimatedPage><FeedPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.CHAT} element={<ProtectedRoute authReady={authReady}><AnimatedPage><ChatPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.CHAT_ID(":chatId")} element={<ProtectedRoute authReady={authReady}><AnimatedPage><ChatPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.EXPLORE} element={<ProtectedRoute authReady={authReady}><AnimatedPage><ExplorePage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute authReady={authReady}><AnimatedPage><NotificationsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.PROFILE} element={<ProtectedRoute authReady={authReady}><AnimatedPage><ProfilePage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.PROFILE_USER(":userId")} element={<ProtectedRoute authReady={authReady}><AnimatedPage><ProfilePage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.SETTINGS} element={<ProtectedRoute authReady={authReady}><AnimatedPage><SettingsPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.POST_DETAIL(":postId")} element={<ProtectedRoute authReady={authReady}><AnimatedPage><PostDetailPage /></AnimatedPage></ProtectedRoute>} />
+        <Route path={ROUTES.SIGNUP} element={<AnimatedPage><SignUp /></AnimatedPage>} />
+        <Route path={ROUTES.LOGIN} element={<AnimatedPage><Login /></AnimatedPage>} />
+        <Route path="*" element={<AnimatedPage><NotFoundPage /></AnimatedPage>} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 function App() {
   const { loader } = useSelector((state) => state.loaderReducer);
   const { user } = useSelector((state) => state.userReducer);
@@ -38,7 +77,6 @@ function App() {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem("julo_theme");
-    // Default to "dusk" (cozy warm-dark). Migrate legacy "light"/"midnight"/"ink" labels.
     const theme = storedTheme === "paper" || storedTheme === "light" ? "paper" : "dusk";
     document.documentElement.setAttribute("data-theme", theme);
     if (storedTheme !== theme) localStorage.setItem("julo_theme", theme);
@@ -70,11 +108,10 @@ function App() {
       if (cancelled) return;
       if (res.success) {
         dispatch(setUser(res.data));
-        setAuthReady(true);
       } else {
         localStorage.removeItem("token");
-        setAuthReady(true);
       }
+      setAuthReady(true);
     };
 
     hydrateUser();
@@ -88,33 +125,22 @@ function App() {
     <ErrorBoundary>
       <Toaster position="top-center" reverseOrder={false} toastOptions={{
         style: {
-          background: "var(--paper)",
+          background: "var(--paper-2)",
           color: "var(--ink)",
-          border: "2px solid var(--ink)",
-          boxShadow: "4px 4px 0 0 var(--ink)",
-          fontFamily: "var(--font-mono)",
-          fontSize: "13px",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-md)",
+          boxShadow: "var(--sh-2)",
+          backdropFilter: "blur(12px)",
+          fontFamily: "var(--font-sans)",
+          fontSize: "14px",
+          fontWeight: 500,
         },
       }} />
       {loader && <LoadingIndicator />}
       <SocketProvider>
         <BrowserRouter>
           <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              <Route path={ROUTES.HOME} element={<ProtectedRoute authReady={authReady}><Home /></ProtectedRoute>} />
-              <Route path={ROUTES.FEED} element={<ProtectedRoute authReady={authReady}><FeedPage /></ProtectedRoute>} />
-              <Route path={ROUTES.CHAT} element={<ProtectedRoute authReady={authReady}><ChatPage /></ProtectedRoute>} />
-              <Route path={ROUTES.CHAT_ID(":chatId")} element={<ProtectedRoute authReady={authReady}><ChatPage /></ProtectedRoute>} />
-              <Route path={ROUTES.EXPLORE} element={<ProtectedRoute authReady={authReady}><ExplorePage /></ProtectedRoute>} />
-              <Route path={ROUTES.NOTIFICATIONS} element={<ProtectedRoute authReady={authReady}><NotificationsPage /></ProtectedRoute>} />
-              <Route path={ROUTES.PROFILE} element={<ProtectedRoute authReady={authReady}><ProfilePage /></ProtectedRoute>} />
-              <Route path={ROUTES.PROFILE_USER(":userId")} element={<ProtectedRoute authReady={authReady}><ProfilePage /></ProtectedRoute>} />
-              <Route path={ROUTES.SETTINGS} element={<ProtectedRoute authReady={authReady}><SettingsPage /></ProtectedRoute>} />
-              <Route path={ROUTES.POST_DETAIL(":postId")} element={<ProtectedRoute authReady={authReady}><PostDetailPage /></ProtectedRoute>} />
-              <Route path={ROUTES.SIGNUP} element={<SignUp />} />
-              <Route path={ROUTES.LOGIN} element={<Login />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
+            {authReady && <AnimatedRoutes authReady={authReady} />}
           </Suspense>
         </BrowserRouter>
       </SocketProvider>

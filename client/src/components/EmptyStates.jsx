@@ -8,7 +8,7 @@ function Empty({ icon: Icon, title, desc, badge }) {
       <span className="absolute -top-3 left-6 tape" />
       <div
         className="w-16 h-16 mx-auto mb-4 grid place-items-center"
-        style={{ background: "var(--acid)", border: "2px solid var(--ink)", borderRadius: "var(--r-sm)" }}
+        style={{ background: "var(--acid)", border: "1px solid var(--line)", borderRadius: "var(--r-sm)" }}
       >
         <Icon className="w-7 h-7" strokeWidth={2.4} />
       </div>

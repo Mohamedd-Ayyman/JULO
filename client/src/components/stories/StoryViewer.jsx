@@ -233,7 +233,7 @@ export default function StoryViewer({ groups, startGroupIndex = 0, startStoryInd
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowDeleteConfirm(false)} className="brutal-btn brutal-btn-outline flex-1">Cancel</button>
-              <button onClick={handleDelete} className="brutal-btn flex-1" style={{ background: "var(--riso-red)", color: "var(--paper)", border: "2px solid var(--ink)", boxShadow: "3px 3px 0 0 var(--ink)" }}>Delete</button>
+              <button onClick={handleDelete} className="brutal-btn flex-1" style={{ background: "var(--riso-red)", color: "var(--paper)", border: "1px solid var(--line)" }}>Delete</button>
             </div>
           </div>
         </div>

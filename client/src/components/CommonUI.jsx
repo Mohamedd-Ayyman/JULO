@@ -38,7 +38,7 @@ export function ImagePreview({ file, onRemove }) {
         src={src}
         alt="Preview"
         className="w-24 h-24 object-cover"
-        style={{ border: "2px solid var(--ink)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-1)" }}
+        style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}
       />
       {onRemove && (
         <button

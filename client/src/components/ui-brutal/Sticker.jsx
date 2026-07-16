@@ -11,7 +11,7 @@ const TONES = {
 
 export default function Sticker({
   tone = "acid",
-  rotate = -2,
+  rotate = 0,
   className = "",
   style = {},
   children,
@@ -20,7 +20,7 @@ export default function Sticker({
   return (
     <span
       className={`sticker ${TONES[tone] || ""} ${className}`}
-      style={{ transform: `rotate(${rotate}deg)`, ...style }}
+      style={{ ...style }}
       {...rest}
     >
       {children}

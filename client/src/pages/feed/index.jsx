@@ -9,7 +9,6 @@ import { PostSkeleton } from "../../components/Skeletons.jsx";
 import { EmptyFeedState } from "../../components/EmptyStates.jsx";
 import StoriesRail from "../../components/stories/StoriesRail.jsx";
 import { MOODS } from "../../lib/moods.js";
-import SectionHeader from "../../components/ui-brutal/SectionHeader.jsx";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -59,22 +58,14 @@ export default function FeedPage() {
     <AppLayout title="Feed">
       <div className="max-w-2xl mx-auto px-3 sm:px-5 py-5 sm:py-8">
         {/* Editorial header */}
-        <div className="hidden lg:block mb-6 anim-fade-in">
-          <SectionHeader
-            eyebrow={`Issue #${new Date().toISOString().slice(0, 10)}`}
-            title={
-              <>
-                The <em className="not-italic" style={{ background: "var(--acid)", padding: "0 6px" }}>Feed</em>
-              </>
-            }
-          />
+        <div className="hidden lg:block mb-5 animate-fade-in">
+          <h1 className="font-display text-2xl font-bold tracking-tight" style={{ color: "var(--ink)" }}>
+            Feed
+          </h1>
         </div>
 
         {/* Tabs */}
-        <div
-          className="flex gap-1 mb-4 anim-fade-in"
-          style={{ border: "2px solid var(--ink)", padding: 3, background: "var(--paper)" }}
-        >
+        <div className="flex gap-0 mb-4 anim-fade-in" style={{ borderBottom: "1px solid var(--line)" }}>
           {[
             { id: "for-you", label: "For You" },
             { id: "following", label: "Following" },
@@ -82,13 +73,15 @@ export default function FeedPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className="flex-1 py-2 px-3 font-mono text-[11px] uppercase tracking-widest font-bold transition-all"
+              className="flex-1 py-2.5 px-3 text-sm font-medium transition-all relative"
               style={{
-                background: tab === t.id ? "var(--ink)" : "transparent",
-                color: tab === t.id ? "var(--paper)" : "var(--ink)",
+                color: tab === t.id ? "var(--ink)" : "var(--muted)",
               }}
             >
               {t.label}
+              {tab === t.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style={{ background: "var(--accent)" }} />
+              )}
             </button>
           ))}
         </div>

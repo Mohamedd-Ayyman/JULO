@@ -61,7 +61,7 @@ export default function StoryUploader({ open, onClose, onPosted }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[90] grid place-items-center p-4 animate-fade-in"
-      style={{ background: "rgba(20,17,15,0.6)" }}
+      style={{ background: "rgba(20,17,15,0.5)", backdropFilter: "blur(4px)" }}
       onClick={busy ? undefined : onClose}
     >
       <div className="brutal-card w-full max-w-md p-5 space-y-4 animate-scale-in" onClick={(e) => e.stopPropagation()}>
@@ -78,7 +78,7 @@ export default function StoryUploader({ open, onClose, onPosted }) {
           <button
             onClick={() => fileRef.current?.click()}
             className="w-full border-2 border-dashed grid place-items-center"
-            style={{ aspectRatio: "9/16", maxHeight: "55vh", borderColor: "var(--ink)", borderRadius: "var(--r-lg)", background: "var(--paper-2)" }}
+            style={{ aspectRatio: "9/16", maxHeight: "55vh", borderColor: "var(--line)", borderRadius: "var(--r-lg)", background: "var(--paper-2)" }}
           >
             <div className="text-center space-y-2 px-4">
               <Upload className="w-10 h-10 mx-auto" style={{ color: "var(--muted)" }} />

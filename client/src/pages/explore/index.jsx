@@ -143,7 +143,7 @@ export default function ExplorePage() {
           className="relative mb-4 animate-fade-in flex items-center gap-2"
         >
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -175,7 +175,7 @@ export default function ExplorePage() {
 
         {/* Tabs */}
         {showResults && (
-          <div className="flex gap-1 p-1 mb-4 animate-fade-in" style={{ border: "2px solid var(--ink)", background: "var(--paper)" }}>
+          <div className="flex gap-1 mb-4 animate-fade-in" style={{ borderBottom: "1px solid var(--line)" }}>
             {[
               { id: "all", label: "Top", icon: Flame },
               {
@@ -192,15 +192,12 @@ export default function ExplorePage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 font-mono text-[11px] uppercase tracking-widest font-bold transition-all"
-                style={{
-                  background: tab === t.id ? "var(--ink)" : "transparent",
-                  color: tab === t.id ? "var(--paper)" : "var(--ink)",
-                  borderRadius: "var(--r-sm)",
-                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-all relative"
+                style={{ color: tab === t.id ? "var(--ink)" : "var(--muted)" }}
               >
                 <t.icon className="w-3.5 h-3.5" />
                 {t.label}
+                {tab === t.id && <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style={{ background: "var(--accent)" }} />}
               </button>
             ))}
           </div>
@@ -255,7 +252,7 @@ export default function ExplorePage() {
                             handleFollowToggle(u._id);
                           }}
                           className={`brutal-btn brutal-btn-sm flex-shrink-0 ${followingMap[u._id] ? "" : "brutal-btn-primary"}`}
-                          style={followingMap[u._id] ? { background: "var(--paper-2)", border: "2px solid var(--ink)" } : {}}
+                          style={followingMap[u._id] ? { background: "var(--paper-2)", border: "1px solid var(--line)" } : {}}
                         >
                           {followingMap[u._id] ? "Following" : "Follow"}
                         </button>

@@ -14,7 +14,7 @@ export default function AuthShell({ children, title, subtitle }) {
         className="hidden lg:flex flex-col w-1/2 relative overflow-hidden p-12 justify-between"
         style={{ background: "var(--ink)" }}
       >
-        <div className="absolute inset-0 grid-bg opacity-10" />
+        <div className="absolute inset-0 grid-bg opacity-5" />
 
         <div className="relative z-10 animate-fade-in-down">
           <Logo size={36} withText />
@@ -23,9 +23,7 @@ export default function AuthShell({ children, title, subtitle }) {
         <div className="relative z-10 max-w-md animate-fade-in-up">
           <h1 className="font-display text-5xl font-black tracking-tight leading-[1.05] mb-5" style={{ color: "var(--paper)" }}>
             A&nbsp;
-            <span className="sticker" style={{ background: "var(--acid)", fontSize: "inherit" }}>
-              new universe
-            </span>
+            <span style={{ color: "var(--accent)" }}>new universe</span>
             <br />
             of social.
           </h1>
@@ -71,8 +69,8 @@ function Feature({ icon: Icon, title, desc }) {
   return (
     <div className="flex items-start gap-3">
       <div
-        className="w-10 h-10 rounded-md border-2 grid place-items-center flex-shrink-0"
-        style={{ background: "var(--acid)", borderColor: "var(--paper)", boxShadow: "3px 3px 0 0 var(--paper)" }}
+        className="w-10 h-10 grid place-items-center flex-shrink-0"
+        style={{ background: "var(--acid)", borderRadius: "var(--r-md)" }}
       >
         <Icon className="w-5 h-5" style={{ color: "var(--ink)" }} strokeWidth={2} />
       </div>

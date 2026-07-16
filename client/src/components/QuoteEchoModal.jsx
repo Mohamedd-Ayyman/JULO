@@ -27,9 +27,9 @@ export default function QuoteEchoModal({ post, user, onClose, onEchoed }) {
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in" style={{ background: "rgba(20,17,15,0.6)" }}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in" style={{ background: "rgba(20,17,15,0.5)", backdropFilter: "blur(4px)" }}>
       <div className="brutal-card w-full max-w-lg overflow-hidden animate-scale-in flex flex-col max-h-[90vh]" style={{ background: "var(--paper)" }}>
-        <header className="flex items-center justify-between p-4 border-b-2 flex-shrink-0" style={{ borderColor: "var(--line-soft)" }}>
+        <header className="flex items-center justify-between p-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--line)" }}>
           <h2 className="font-display text-lg font-black" style={{ color: "var(--ink)" }}>Quote Echo</h2>
           <button onClick={onClose} className="brutal-btn brutal-btn-ghost brutal-btn-icon">
             <X className="w-4 h-4" />
@@ -51,7 +51,7 @@ export default function QuoteEchoModal({ post, user, onClose, onEchoed }) {
           </div>
 
           {/* Preview of the post being echoed */}
-          <div className="p-3" style={{ background: "var(--paper-2)", border: "2px solid var(--ink)", borderRadius: "var(--r-md)" }}>
+          <div className="p-3" style={{ background: "var(--paper-2)", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
             <div className="flex items-center gap-2 mb-2">
               <Avatar src={author.profilepic} name={authorName} size={20} />
               <span className="text-xs font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>{authorName}</span>
@@ -59,12 +59,12 @@ export default function QuoteEchoModal({ post, user, onClose, onEchoed }) {
             </div>
             <p className="text-sm line-clamp-3 leading-relaxed" style={{ color: "var(--ink)" }}>{post.text}</p>
             {post.image && (
-              <img src={post.image} alt="" className="mt-2 max-h-40 w-full object-cover" style={{ border: "2px solid var(--ink)", borderRadius: "var(--r-sm)" }} />
+              <img src={post.image} alt="" className="mt-2 max-h-40 w-full object-cover" style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)" }} />
             )}
           </div>
         </div>
 
-        <footer className="flex justify-end p-4 border-t-2 flex-shrink-0" style={{ borderColor: "var(--line-soft)" }}>
+        <footer className="flex justify-end p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--line)" }}>
           <button
             onClick={handleSubmit}
             disabled={loading || !text.trim()}

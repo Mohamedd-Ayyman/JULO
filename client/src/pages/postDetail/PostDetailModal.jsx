@@ -17,7 +17,7 @@ export default function PostDetailModal() {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
-      style={{ background: "var(--ink)", opacity: 0.7 }}
+      style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
       onClick={close}
     >
       <div

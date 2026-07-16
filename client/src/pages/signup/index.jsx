@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { setUser } from "../../redux/usersSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import toast from "react-hot-toast";
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from "lucide-react";
 import AuthShell from "../AuthShell.jsx";
 
 export default function SignUp() {
@@ -37,19 +37,18 @@ export default function SignUp() {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
           <div className="relative">
-            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
-            <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="brutal-input pl-11" required />
+            <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="brutal-input" required />
           </div>
           <div className="relative">
             <input value={form.lastname} onChange={update("lastname")} placeholder="Last name" className="brutal-input" required />
           </div>
         </div>
         <div className="relative">
-          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-40" />
           <input type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className="brutal-input pl-11" required />
         </div>
         <div className="relative">
-          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
+          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-40" />
           <input
             type={showPw ? "text" : "password"}
             value={form.password}
@@ -69,7 +68,7 @@ export default function SignUp() {
           </button>
         </div>
 
-        <p className="font-mono text-[11px] leading-relaxed" style={{ color: "var(--muted-2)" }}>
+        <p className="text-xs leading-relaxed" style={{ color: "var(--muted-2)" }}>
           By signing up, you agree to our{" "}
           <span className="font-bold story-link">Terms</span> and{" "}
           <span className="font-bold story-link">Privacy Policy</span>.
@@ -82,7 +81,7 @@ export default function SignUp() {
         </button>
       </form>
 
-      <p className="text-center font-mono text-[11px] mt-8" style={{ color: "var(--muted-2)" }}>
+      <p className="text-center text-xs mt-8" style={{ color: "var(--muted-2)" }}>
         Already have an account?{" "}
         <Link to="/login" className="font-bold story-link">Sign in</Link>
       </p>

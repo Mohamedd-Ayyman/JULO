@@ -6,6 +6,7 @@ const VARIANTS = {
   ink: "brutal-btn-ink",
   danger: "brutal-btn-danger",
   ghost: "brutal-btn-ghost",
+  outline: "brutal-btn-outline",
 };
 
 const SIZES = {
