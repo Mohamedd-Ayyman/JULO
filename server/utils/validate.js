@@ -115,6 +115,15 @@ export const participantNotificationsSchema = z.object({
   enabled: z.boolean(),
 });
 
+// ── Conversation list ─────────────────────────────────────────────────────────
+export const conversationListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  type: z.enum(["direct", "group", "channel"]).optional(),
+  archived: z.coerce.boolean().optional().default(false),
+  search: z.string().trim().max(100).optional(),
+});
+
 // ── Message threading ────────────────────────────────────────────────────────────
 export const messageReplySchema = z.object({
   chatId: z.string().min(1, "chatId is required"),
