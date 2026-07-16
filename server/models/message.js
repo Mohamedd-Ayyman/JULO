@@ -74,6 +74,10 @@ const messageSchema = new mongoose.Schema(
     pinned: { type: Boolean, default: false },
     pinnedBy: { type: mongoose.Schema.Types.ObjectId, ref: "users", default: null },
     pinnedAt: { type: Date, default: null },
+    mentions: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
+      default: [],
+    },
     forwardedFrom: {
       type: {
         messageId: { type: mongoose.Schema.Types.ObjectId, ref: "messages" },
@@ -92,10 +96,10 @@ const messageSchema = new mongoose.Schema(
 );
 
 messageSchema.index({ chatId: 1, createdAt: -1 });
-messageSchema.index({ chatId: 1, _id: -1 });
 messageSchema.index({ chatId: 1, pinned: 1, pinnedAt: -1 });
 messageSchema.index({ threadRootId: 1, createdAt: 1 });
 messageSchema.index({ chatId: 1, replyTo: 1 });
+messageSchema.index({ mentions: 1, createdAt: -1 });
 
 const Message = mongoose.model("messages", messageSchema);
 export default Message;
