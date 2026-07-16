@@ -4,6 +4,7 @@ import { requireAuth } from "../middlewares/authMiddleware.js";
 import { tenantMiddleware } from "../middlewares/tenantMiddleware.js";
 import { asyncHandler } from "../utils/AppError.js";
 import { validate } from "../utils/validate.js";
+import { emitToChat, emitToUser } from "../utils/socket.js";
 
 const router = express.Router();
 
@@ -47,6 +48,22 @@ router.post(
       { role, addedBy: req.user.userId, tenantId: req.tenantId }
     );
 
+    try {
+      userIds.forEach((uid) => {
+        emitToChat(req.params.chatId, "participant_added", {
+          chatId: req.params.chatId,
+          userId: uid,
+          addedBy: req.user.userId,
+          role: role || "member",
+        });
+        emitToUser(uid, "chat_invitation", {
+          chatId: req.params.chatId,
+          addedBy: req.user.userId,
+          role: role || "member",
+        });
+      });
+    } catch (_) {}
+
     res.status(201).send({ success: true, data: results, statusCode: 201 });
   })
 );
@@ -57,6 +74,15 @@ router.delete(
   requireAuth,
   asyncHandler(async (req, res) => {
     await participantService.removeParticipant(req.params.chatId, req.params.userId, req.user.userId);
+
+    try {
+      emitToChat(req.params.chatId, "participant_removed", {
+        chatId: req.params.chatId,
+        userId: req.params.userId,
+        removedBy: req.user.userId,
+      });
+    } catch (_) {}
+
     res.send({ success: true, message: "Participant removed", statusCode: 200 });
   })
 );
@@ -67,6 +93,16 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     await participantService.removeParticipant(req.params.chatId, req.user.userId, req.user.userId);
+
+    try {
+      emitToChat(req.params.chatId, "participant_removed", {
+        chatId: req.params.chatId,
+        userId: req.user.userId,
+        removedBy: req.user.userId,
+        left: true,
+      });
+    } catch (_) {}
+
     res.send({ success: true, message: "Left chat", statusCode: 200 });
   })
 );
@@ -87,6 +123,15 @@ router.put(
       role,
       req.user.userId
     );
+
+    try {
+      emitToChat(req.params.chatId, "participant_role_changed", {
+        chatId: req.params.chatId,
+        userId: req.params.userId,
+        newRole: role,
+        changedBy: req.user.userId,
+      });
+    } catch (_) {}
 
     res.send({ success: true, data: participant, statusCode: 200 });
   })
