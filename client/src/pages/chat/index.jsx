@@ -212,41 +212,16 @@ export default function ChatPage() {
               <div className="p-4"><EmptyChatsState /></div>
             ) : (
               <div className="space-y-1 stagger">
-                {filteredChats.map((c) => {
-                  const other = c.members?.find((m) => m._id !== user?._id);
-                  const name = `${other?.firstname || ""} ${other?.lastname || ""}`.trim();
-                  const active = c._id === activeChat?._id;
-                  return (
-                    <button
-                      key={c._id}
-                      onClick={() => navigate(ROUTES.CHAT_ID(c._id))}
-                      className={`w-full flex items-center gap-3 p-2.5 text-left transition-all ${
-                        active ? "bg-paper-2" : "hover:bg-paper-2"
-                      }`}
-                      style={active ? { boxShadow: "var(--sh-1)" } : {}}
-                    >
-                      <Avatar src={other?.profilepic} name={name} size={44} online={other?.isOnline} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>{name || "Unknown"}</p>
-                          {c.lastMessage?.createdAt && (
-                            <span className="font-mono text-[10px] flex-shrink-0" style={{ color: "var(--muted-2)" }}>
-                              {formatTime(c.lastMessage.createdAt)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs truncate" style={{ color: "var(--muted-2)" }}>
-                          {c.lastMessage?.text || "Say hi"}
-                        </p>
-                      </div>
-                      {c.unreadCount > 0 && (
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 flex-shrink-0" style={{ background: "var(--riso-red)", color: "var(--paper)", border: "1px solid var(--ink)" }}>
-                          {c.unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                {filteredChats.map((c) => (
+                  <ChatListItem
+                    key={c._id}
+                    chat={c}
+                    currentUserId={user?._id}
+                    isActive={c._id === activeChat?._id}
+                    isTyping={!!typingChats[c._id]}
+                    onClick={() => navigate(ROUTES.CHAT_ID(c._id))}
+                  />
+                ))}
               </div>
             )}
           </div>
