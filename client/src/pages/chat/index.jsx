@@ -166,7 +166,7 @@ export default function ChatPage() {
     }
   }, [activeChat?.messages?.length]);
 
-  const handleSendAudio = async () => {
+  const handleRetrySend = async (messageId) => {
     if (!activeChat?._id) return;
     const msg = activeChat.messages?.find((m) => m._id === messageId);
     if (!msg) return;
