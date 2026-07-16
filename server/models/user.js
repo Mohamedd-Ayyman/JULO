@@ -23,6 +23,8 @@ const userSchema = new mongoose.Schema(
     privacyLevel: { type: String, enum: ["standard", "enhanced", "maximum"], default: "standard" },
     lastConsentReview: { type: Date, default: null },
     encryptionKeyVersion: { type: String, default: "v1" },
+    hasIdentityKey: { type: Boolean, default: false },
+    lastKeyRotation: { type: Date, default: null },
 
     // ── Notification preferences ───────────────────────────────────────────
     notificationPrefs: {
