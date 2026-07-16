@@ -118,16 +118,93 @@ describe("Message Routes", () => {
 
   // ── GET /api/message/retrieve-chat/:chatId ────────────────────────────────────
   describe("GET /api/message/retrieve-chat/:chatId", () => {
-    it("returns 200 with paginated messages", async () => {
+    it("returns 200 with cursor-paginated messages", async () => {
       const res = await request(app)
-        .get(`/api/message/retrieve-chat/${chatId}?page=1&limit=50`)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=50`)
         .set("Authorization", `Bearer ${aliceToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.length).toBeGreaterThan(0);
-      expect(typeof res.body.total).toBe("number");
+      expect(res.body.data.messages).toBeDefined();
+      expect(Array.isArray(res.body.data.messages)).toBe(true);
+      expect(res.body.data.messages.length).toBeGreaterThan(0);
+      expect(typeof res.body.data.hasMore).toBe("boolean");
+    });
+
+    it("returns correct cursor fields on first page", async () => {
+      const res = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=5`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      const { messages, nextCursor, prevCursor, hasMore } = res.body.data;
+      expect(messages.length).toBeLessThanOrEqual(5);
+      expect(prevCursor).toBeNull();
+      if (messages.length === 5) {
+        expect(typeof nextCursor).toBe("string");
+        expect(hasMore).toBe(true);
+      } else {
+        expect(nextCursor).toBeNull();
+        expect(hasMore).toBe(false);
+      }
+    });
+
+    it("fetches older messages using nextCursor", async () => {
+      const page1 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      const { nextCursor } = page1.body.data;
+      expect(nextCursor).toBeDefined();
+
+      const page2 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?cursor=${nextCursor}&limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(page2.status).toBe(200);
+      expect(page2.body.data.messages.length).toBeGreaterThan(0);
+      expect(page2.body.data.messages[0]._id).not.toBe(page1.body.data.messages[0]._id);
+    });
+
+    it("fetches newer messages using prevCursor + direction=forward", async () => {
+      const page1 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      const { nextCursor } = page1.body.data;
+      const page2 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?cursor=${nextCursor}&limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      const { prevCursor } = page2.body.data;
+      expect(prevCursor).toBeDefined();
+
+      const page2Forward = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?cursor=${prevCursor}&direction=forward&limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(page2Forward.status).toBe(200);
+      expect(page2Forward.body.data.messages.length).toBeGreaterThan(0);
+      expect(page2Forward.body.data.messages[0]._id).toBe(page1.body.data.messages[0]._id);
+    });
+
+    it("returns hasMore=false when no more messages", async () => {
+      const res = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=100`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.hasMore).toBe(false);
+      expect(res.body.data.nextCursor).toBeNull();
+    });
+
+    it("caps limit at 100", async () => {
+      const res = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=999`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.messages.length).toBeLessThanOrEqual(100);
     });
 
     it("returns 403 for non-member", async () => {
