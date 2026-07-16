@@ -71,3 +71,36 @@ export const addReaction = async (messageId, emoji) => {
     return error.response?.data || { success: false };
   }
 };
+
+export const uploadAudio = async (blob) => {
+  try {
+    const formData = new FormData();
+    formData.append("audio", blob, `voice-${Date.now()}.webm`);
+    const response = await axiosInstance.post("/api/upload/audio", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const raw = response.data;
+    return {
+      success: raw.success !== false,
+      url: raw.url || raw.data?.url,
+      duration: raw.duration || 0,
+    };
+  } catch (error) {
+    return error.response?.data || { success: false, message: "Audio upload failed" };
+  }
+};
+
+export const sendAudioMessage = async (chatId, audioUrl, audioDuration, receiverId = null) => {
+  try {
+    const response = await axiosInstance.post("/api/message/new-message", {
+      chatId,
+      text: "",
+      audioUrl,
+      audioDuration,
+      receiverId,
+    });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
