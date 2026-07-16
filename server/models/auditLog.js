@@ -27,6 +27,8 @@ const AUDIT_RESOURCES = [
   "story",
   "upload",
   "billing",
+  "recording",
+  "call",
 ];
 
 const auditLogSchema = new mongoose.Schema(
