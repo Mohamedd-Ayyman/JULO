@@ -2,9 +2,13 @@ import express from "express";
 import userService from "../services/userService.js";
 import authService from "../services/authService.js";
 import storyService from "../services/storyService.js";
+import consentService from "../services/consentService.js";
+import auditService from "../services/auditService.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/rbac.js";
+import { auditAction } from "../middlewares/auditMiddleware.js";
 import { asyncHandler, AppError } from "../utils/AppError.js";
-import { validate, profileUpdateSchema } from "../utils/validate.js";
+import { validate, profileUpdateSchema, privacySettingsSchema } from "../utils/validate.js";
 import { cacheMiddleware, invalidateCache } from "../middlewares/cacheMiddleware.js";
 import User from "../models/user.js";
 import logger from "../utils/logger.js";
@@ -83,8 +87,10 @@ router.put(
 router.put(
   "/privacy",
   requireAuth,
+  validate(privacySettingsSchema),
+  auditAction("update", "user"),
   asyncHandler(async (req, res) => {
-    const allowed = ["isPrivate", "showOnlineStatus", "allowMessageRequests", "storyVisibility"];
+    const allowed = ["isPrivate", "showOnlineStatus", "allowMessageRequests", "storyVisibility", "dataClassification", "privacyLevel"];
     const updates = {};
     allowed.forEach((k) => {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -93,6 +99,93 @@ router.put(
     if (!user) throw new AppError("User not found", 404);
     await invalidateCache(`user:me:${req.user.userId}`);
     res.send({ success: true, message: "Privacy settings updated", data: user, statusCode: 200 });
+  })
+);
+
+// ── Get privacy settings ────────────────────────────────────────────────
+router.get(
+  "/privacy",
+  requireAuth,
+  cacheMiddleware("user:privacy", 60),
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.userId).select("isPrivate showOnlineStatus allowMessageRequests storyVisibility dataClassification privacyLevel").lean();
+    if (!user) throw new AppError("User not found", 404);
+    res.send({ success: true, data: user, statusCode: 200 });
+  })
+);
+
+// ── Export user data (GDPR right to access) ─────────────────────────────
+router.post(
+  "/export-data",
+  requireAuth,
+  requirePermission("data:export_own"),
+  auditAction("export", "user"),
+  asyncHandler(async (req, res) => {
+    const { format } = req.body;
+    const user = await User.findById(req.user.userId).select("-password").lean();
+    if (!user) throw new AppError("User not found", 404);
+
+    const consents = await consentService.getUserConsents(req.user.userId, req.user.tenantId || null);
+    const auditLogs = await auditService.getUserAuditTrail(req.user.userId, req.user.tenantId || null, { limit: 100 });
+
+    const exportData = {
+      profile: {
+        firstname: user.firstname,
+        lastname: user.lastname,
+        email: user.email,
+        bio: user.bio,
+        location: user.location,
+        website: user.website,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+      },
+      privacy: {
+        isPrivate: user.isPrivate,
+        showOnlineStatus: user.showOnlineStatus,
+        allowMessageRequests: user.allowMessageRequests,
+        storyVisibility: user.storyVisibility,
+        dataClassification: user.dataClassification,
+        privacyLevel: user.privacyLevel,
+      },
+      consents,
+      recentActivity: auditLogs.logs,
+      exportedAt: new Date().toISOString(),
+      format: "json",
+    };
+
+    logger.info(`[User] Data exported: ${req.user.userId}`);
+    res.send({ success: true, data: exportData, statusCode: 200 });
+  })
+);
+
+// ── Get user's consent summary ──────────────────────────────────────────
+router.get(
+  "/consents",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const tenantId = req.user.tenantId || null;
+    const consents = await consentService.getUserConsents(req.user.userId, tenantId);
+    res.send({ success: true, data: consents, statusCode: 200 });
+  })
+);
+
+// ── Update user consents ────────────────────────────────────────────────
+router.put(
+  "/consents",
+  requireAuth,
+  requirePermission("consent:manage_own"),
+  asyncHandler(async (req, res) => {
+    const { consents } = req.body;
+    if (!Array.isArray(consents)) throw new AppError("Consents must be an array", 400);
+
+    const metadata = {
+      tenantId: req.user.tenantId || null,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    };
+
+    const results = await consentService.bulkUpdateConsents(req.user.userId, consents, metadata);
+    res.send({ success: true, data: results, statusCode: 200 });
   })
 );
 
