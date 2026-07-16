@@ -7,12 +7,27 @@ const chatSlice = createSlice({
     setChats: (state, action) => { state.chats = action.payload; },
     setActiveChat: (state, action) => { state.activeChat = action.payload; },
     addMessage: (state, action) => {
-      if (state.activeChat?._id === action.payload.chatId) {
-        state.activeChat.messages = [...(state.activeChat.messages || []), action.payload];
+      const msg = action.payload;
+      if (state.activeChat?._id === msg.chatId) {
+        state.activeChat.messages = [...(state.activeChat.messages || []), msg];
+      }
+      const chat = state.chats.find((c) => c._id === msg.chatId);
+      if (chat) {
+        chat.lastMessage = msg;
+        if (msg.sender?._id !== msg.sender && !msg.pending) {
+          chat.unreadMessageCount = (chat.unreadMessageCount || 0) + 1;
+        }
+      }
+    },
+    updateLastMessage: (state, action) => {
+      const { chatId, message } = action.payload;
+      const chat = state.chats.find((c) => c._id === chatId);
+      if (chat) {
+        chat.lastMessage = message;
       }
     },
   },
 });
 
-export const { setChats, setActiveChat, addMessage } = chatSlice.actions;
+export const { setChats, setActiveChat, addMessage, updateLastMessage } = chatSlice.actions;
 export default chatSlice.reducer;
