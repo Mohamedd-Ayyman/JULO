@@ -25,10 +25,13 @@ import MessageListSkeleton from "../../components/chat/MessageListSkeleton.jsx";
 import MessageBubble from "../../components/chat/MessageBubble.jsx";
 import DateSeparator from "../../components/chat/DateSeparator.jsx";
 import ScrollToBottom from "../../components/chat/ScrollToBottom.jsx";
+import EmojiPicker from "../../components/chat/EmojiPicker.jsx";
+import AttachmentsPreview from "../../components/chat/AttachmentsPreview.jsx";
 import useAudioRecorder from "../../hooks/useAudioRecorder.js";
 import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
-import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, addReaction, deleteMessage } from "../../apiCalls/message.js";
+import useLinkPreview from "../../hooks/useLinkPreview.js";
+import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage } from "../../apiCalls/message.js";
 import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
@@ -53,10 +56,15 @@ export default function ChatPage() {
   const [sendingAudio, setSendingAudio] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [unseenCount, setUnseenCount] = useState(0);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
   const recorder = useAudioRecorder();
   const typingChats = useChatTyping(chats, user?._id, socket);
   const { isOnline, wasOffline } = useOnlineStatus();
+  const { preview: linkPreview, clear: clearLinkPreview } = useLinkPreview(draft);
 
   useEffect(() => {
     if (wasOffline) toast.success("You're back online");
@@ -158,31 +166,7 @@ export default function ChatPage() {
     }
   }, [activeChat?.messages?.length]);
 
-  const handleSend = async () => {
-    if (!draft.trim() || !activeChat?._id) return;
-    const text = draft.trim();
-    setDraft("");
-    const other = activeChat.members?.find((m) => m._id !== user?._id);
-    const tempId = `temp-${Date.now()}`;
-    const tempMsg = {
-      _id: tempId,
-      chatId: activeChat._id,
-      sender: user,
-      text,
-      createdAt: new Date().toISOString(),
-      pending: true,
-    };
-    dispatch(addMessage(tempMsg));
-    const res = await sendMessage(activeChat._id, text, other?._id);
-    if (res.success && socket) {
-      socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
-      dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
-    } else {
-      dispatch(markMessageFailed(tempId));
-    }
-  };
-
-  const handleRetrySend = async (messageId) => {
+  const handleSendAudio = async () => {
     if (!activeChat?._id) return;
     const msg = activeChat.messages?.find((m) => m._id === messageId);
     if (!msg) return;
@@ -257,6 +241,105 @@ export default function ChatPage() {
     const res = await deleteMessage(messageId);
     if (res.success) {
       dispatch(addMessage({ _id: messageId, deleted: true, chatId: activeChat._id, _replace: messageId }));
+    }
+  };
+
+  const isImageFile = (file) => file.type?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    const newAttachments = files.map((file) => ({
+      file,
+      preview: isImageFile(file) ? URL.createObjectURL(file) : null,
+      type: isImageFile(file) ? "image" : "file",
+      uploading: false,
+    }));
+    setAttachments((prev) => [...prev, ...newAttachments]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveAttachment = (index) => {
+    setAttachments((prev) => {
+      const next = [...prev];
+      if (next[index]?.preview) URL.revokeObjectURL(next[index].preview);
+      next.splice(index, 1);
+      return next;
+    });
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setDraft((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleSendWithAttachments = async () => {
+    if (!activeChat?._id) return;
+    const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const text = draft.trim();
+    const hasAttachments = attachments.length > 0;
+    const hasText = text.length > 0;
+
+    if (!hasAttachments && !hasText) return;
+
+    if (hasAttachments) {
+      setUploadingFiles(true);
+      setDraft("");
+      for (const att of attachments) {
+        const tempId = `temp-media-${Date.now()}-${Math.random()}`;
+        const tempMsg = {
+          _id: tempId,
+          chatId: activeChat._id,
+          sender: user,
+          text: "",
+          createdAt: new Date().toISOString(),
+          pending: true,
+          ...(att.type === "image" ? { imageUrl: att.preview } : { fileUrl: att.preview, fileName: att.file.name, fileSize: att.file.size, mimeType: att.file.type }),
+        };
+        dispatch(addMessage(tempMsg));
+
+        const uploadRes = await uploadChatFile(att.file);
+        if (uploadRes.success) {
+          let res;
+          if (att.type === "image") {
+            res = await sendImageMessage(activeChat._id, uploadRes.url, "", other?._id, linkPreview);
+          } else {
+            res = await sendFileMessage(activeChat._id, uploadRes.url, uploadRes.fileName || att.file.name, uploadRes.fileSize || att.file.size, uploadRes.mimeType || att.file.type, "", other?._id);
+          }
+          if (res.success && socket) {
+            socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
+            dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
+          } else {
+            dispatch(markMessageFailed(tempId));
+          }
+        } else {
+          dispatch(markMessageFailed(tempId));
+        }
+      }
+      setAttachments([]);
+      setUploadingFiles(false);
+      clearLinkPreview();
+    } else if (hasText) {
+      setDraft("");
+      clearLinkPreview();
+      const tempId = `temp-${Date.now()}`;
+      const tempMsg = {
+        _id: tempId,
+        chatId: activeChat._id,
+        sender: user,
+        text,
+        createdAt: new Date().toISOString(),
+        pending: true,
+      };
+      dispatch(addMessage(tempMsg));
+      const msgPayload = { chatId: activeChat._id, text, receiverId: other?._id };
+      if (linkPreview) msgPayload.linkPreview = linkPreview;
+      const res = await sendMessage(activeChat._id, text, other?._id);
+      if (res.success && socket) {
+        socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
+        dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
+      } else {
+        dispatch(markMessageFailed(tempId));
+      }
     }
   };
 
@@ -483,34 +566,91 @@ export default function ChatPage() {
                   error={recorder.error}
                 />
               ) : (
-                <div className="p-3" style={{ borderTop: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
-                  <div className="flex items-center gap-2">
-                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Paperclip className="w-4 h-4" /></button>
-                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Smile className="w-4 h-4" /></button>
-                    <input
-                      value={draft}
-                      onChange={(e) => { setDraft(e.target.value); handleTyping(); }}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
-                      placeholder="Write a message…"
-                      className="brutal-input rounded-full text-sm"
-                      style={{ paddingTop: 10, paddingBottom: 10 }}
-                    />
-                    {draft.trim() ? (
-                      <button
-                        onClick={handleSend}
-                        className="brutal-btn brutal-btn-primary brutal-btn-icon"
-                      >
-                        <Send className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={recorder.startRecording}
-                        className="brutal-btn brutal-btn-primary brutal-btn-icon"
-                        aria-label="Record voice message"
-                      >
-                        <Mic className="w-4 h-4" />
-                      </button>
+                <div style={{ borderTop: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
+                  <AttachmentsPreview attachments={attachments} onRemove={handleRemoveAttachment} />
+
+                  {linkPreview && (
+                    <div className="px-4 pt-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-[10px] uppercase tracking-wide" style={{ color: "var(--muted)" }}>Link preview</span>
+                        <button
+                          onClick={clearLinkPreview}
+                          className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                          style={{ color: "var(--riso-red)", background: "rgba(217,122,108,0.1)" }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      {linkPreview.image && (
+                        <div className="flex gap-2 p-2 rounded-lg" style={{ background: "var(--paper-3)", border: "1px solid var(--line-soft)" }}>
+                          <img src={linkPreview.image} alt="" className="w-16 h-16 object-cover rounded flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold truncate" style={{ color: "var(--ink)" }}>{linkPreview.title}</p>
+                            <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--muted)" }}>{linkPreview.siteName}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="p-3 relative">
+                    {showEmojiPicker && (
+                      <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmojiPicker(false)} />
                     )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="brutal-btn brutal-btn-ghost brutal-btn-icon"
+                        disabled={uploadingFiles}
+                        aria-label="Attach file"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowEmojiPicker((v) => !v)}
+                        className="brutal-btn brutal-btn-ghost brutal-btn-icon"
+                        aria-label="Emoji picker"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+                      <input
+                        value={draft}
+                        onChange={(e) => { setDraft(e.target.value); handleTyping(); }}
+                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendWithAttachments())}
+                        placeholder="Write a message…"
+                        className="brutal-input rounded-full text-sm"
+                        style={{ paddingTop: 10, paddingBottom: 10 }}
+                      />
+                      {(draft.trim() || attachments.length > 0) ? (
+                        <button
+                          onClick={handleSendWithAttachments}
+                          disabled={uploadingFiles}
+                          className="brutal-btn brutal-btn-primary brutal-btn-icon"
+                        >
+                          {uploadingFiles ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={recorder.startRecording}
+                          className="brutal-btn brutal-btn-primary brutal-btn-icon"
+                          aria-label="Record voice message"
+                        >
+                          <Mic className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
