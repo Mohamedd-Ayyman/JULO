@@ -126,6 +126,7 @@ import recordingRouter from "./controllers/recordingController.js";
 import callSessionRouter from "./controllers/callSessionController.js";
 import keyExchangeRouter from "./controllers/keyExchangeController.js";
 import encryptionSessionRouter from "./controllers/encryptionSessionController.js";
+import linkPreviewRouter from "./controllers/linkPreviewController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
@@ -142,6 +143,7 @@ v1.use("/consent", consentRouter);
 v1.use("/audit", auditRouter);
 v1.use("/recordings", recordingRouter);
 v1.use("/calls", callSessionRouter);
+v1.use("/link-preview", linkPreviewRouter);
 v1.use("/keys", keyExchangeRouter);
 v1.use("/encryption", encryptionSessionRouter);
 
