@@ -11,7 +11,6 @@ const TONES = {
 
 export default function Sticker({
   tone = "acid",
-  rotate = 0,
   className = "",
   style = {},
   children,

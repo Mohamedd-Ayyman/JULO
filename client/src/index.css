@@ -172,6 +172,7 @@
 }
 
 /* ─── Glass primitives ───────────────────────────────────────────── */
+@layer components {
 .brutal-card {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
@@ -293,6 +294,7 @@
 /* ─── Decorative (minimized) ─────────────────────────────────────────── */
 .ink-rule       { border-top: 1px solid var(--line); }
 .ink-rule-thin  { border-top: 1px solid var(--line-soft); }
+} /* end @layer components */
 
 /* ─── Animations ──────────────────────────────────────────────────── */
 @keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
