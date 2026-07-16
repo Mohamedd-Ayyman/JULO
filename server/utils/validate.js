@@ -125,6 +125,20 @@ export const conversationListQuerySchema = z.object({
 });
 
 // ── Message threading ────────────────────────────────────────────────────────────
+export const messageEditSchema = z.object({
+  text: z.string().trim().min(1, "Text is required").max(2000),
+});
+
+export const messageQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  before: z.string().optional(),
+  after: z.string().optional(),
+  includeDeleted: z.coerce.boolean().optional().default(false),
+  messageType: z.enum(["text", "encrypted", "file", "system", "key_exchange"]).optional(),
+  search: z.string().trim().max(200).optional(),
+});
+
 export const messageReplySchema = z.object({
   chatId: z.string().min(1, "chatId is required"),
   replyTo: z.string().min(1, "replyTo message ID is required"),
@@ -305,12 +319,17 @@ export const messageSchema = z.object({
 });
 
 // ── Middleware factory ────────────────────────────────────────────────────────────
-export const validate = (schema) => (req, res, next) => {
-  const result = schema.safeParse(req.body);
+export const validate = (schema, mode = "body") => (req, res, next) => {
+  const source = mode === "query" ? req.query : req.body;
+  const result = schema.safeParse(source);
   if (!result.success) {
     const msg = result.error.errors[0]?.message || "Validation failed";
     return res.status(400).send({ success: false, message: msg, statusCode: 400 });
   }
-  req.body = result.data;
+  if (mode === "query") {
+    req.query = result.data;
+  } else {
+    req.body = result.data;
+  }
   next();
 };
