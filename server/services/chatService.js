@@ -5,6 +5,11 @@ import Participant from "../models/participant.js";
 import { scopeByTenant } from "../middlewares/tenantMiddleware.js";
 import logger from "../utils/logger.js";
 
+export function sanitizeText(text) {
+  if (!text) return "";
+  return text.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
 const canUseTransactions = () => {
   const type = mongoose.connection?.client?.topology?.description?.type;
   return type === "ReplicaSetWithPrimary" || type === "Sharded";
