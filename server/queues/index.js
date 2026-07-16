@@ -17,9 +17,11 @@ let notificationWorker = null;
 let emailWorker = null;
 let storyWorker = null;
 let cleanupWorker = null;
+let retentionWorker = null;
 let notificationQueue = null;
 let emailQueue = null;
 let storyQueue = null;
+let recordingsQueue = null;
 let emailQueueForCleanup = null; // cleanup job reuses email queue connection
 
 /**
@@ -61,6 +63,16 @@ export async function createQueues(redisClient) {
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: "exponential", delay: 500 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 200 },
+    },
+  });
+
+  recordingsQueue = new Queue("recordings", {
+    connection: redisClient,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 1000 },
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 200 },
     },
@@ -135,6 +147,24 @@ export async function createQueues(redisClient) {
     { connection: redisClient, concurrency: config.workers.storyConcurrency }
   );
 
+  // ── Retention Worker (daily at 2am UTC) ──────────────────────────────
+  retentionWorker = new Worker(
+    "recordings",
+    async (job) => {
+      if (job.name !== "cleanup-expired-recordings") return;
+      logger.info("[Queue] Running recording retention cleanup");
+
+      const { default: retentionService } = await import("../services/retentionService.js");
+      const results = await retentionService.deleteExpiredRecordings();
+
+      const deleted = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success).length;
+      logger.info(`[Queue] Retention cleanup: ${deleted} deleted, ${failed} failed`);
+      return { deleted, failed };
+    },
+    { connection: redisClient, concurrency: 1 }
+  );
+
   // ── Cleanup Worker (daily at 3am UTC) ────────────────────────────────────
   emailQueueForCleanup = new Queue("emails", { connection: redisClient });
 
@@ -159,6 +189,13 @@ export async function createQueues(redisClient) {
     "cleanup-old-notifications",
     {},
     { repeat: { pattern: "0 3 * * *" }, jobId: "cleanup-notifications-daily" }
+  );
+
+  // Retention cleanup — daily at 2am UTC
+  recordingsQueue.add(
+    "cleanup-expired-recordings",
+    {},
+    { repeat: { pattern: "0 2 * * *" }, jobId: "cleanup-recordings-daily" }
   );
 
   // ── Event handlers ──────────────────────────────────────────────────────
@@ -208,14 +245,14 @@ export async function createQueues(redisClient) {
  * Safe to call even if createQueues() was never called — no-ops on nulls.
  */
 export async function closeQueues() {
-  const workers = [notificationWorker, emailWorker, storyWorker, cleanupWorker].filter(Boolean);
-  const queues = [notificationQueue, emailQueue, storyQueue, emailQueueForCleanup].filter(Boolean);
+  const workers = [notificationWorker, emailWorker, storyWorker, cleanupWorker, retentionWorker].filter(Boolean);
+  const queues = [notificationQueue, emailQueue, storyQueue, recordingsQueue, emailQueueForCleanup].filter(Boolean);
 
   await Promise.allSettled(workers.map((w) => w.close()));
   await Promise.allSettled(queues.map((q) => q.close()));
 
-  notificationWorker = emailWorker = storyWorker = cleanupWorker = null;
-  notificationQueue = emailQueue = storyQueue = emailQueueForCleanup = null;
+  notificationWorker = emailWorker = storyWorker = cleanupWorker = retentionWorker = null;
+  notificationQueue = emailQueue = storyQueue = recordingsQueue = emailQueueForCleanup = null;
 
   logger.info("[Queues] Closed");
 }
