@@ -32,7 +32,7 @@ import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import useLinkPreview from "../../hooks/useLinkPreview.js";
 import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage } from "../../apiCalls/message.js";
-import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage } from "../../redux/chatSlice.js";
+import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 import { ChatListSkeleton } from "../../components/Skeletons.jsx";
@@ -59,6 +59,9 @@ export default function ChatPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const recorder = useAudioRecorder();
@@ -97,6 +100,9 @@ export default function ChatPage() {
       dispatch(setActiveChat(null));
       return;
     }
+    setCurrentPage(1);
+    setHasMore(true);
+    setLoadingOlder(false);
     const found = chats.find((c) => c._id === chatId);
     if (found) dispatch(setActiveChat({ ...found, messages: [] }));
   }, [chatId, chats, dispatch]);
@@ -109,10 +115,12 @@ export default function ChatPage() {
     setMsgError(null);
     (async () => {
       try {
-        const res = await getMessages(activeChat._id);
+        const res = await getMessages(activeChat._id, 1, 30);
         if (cancelled) return;
         if (res.success) {
           dispatch(setActiveChat({ ...activeChat, messages: (res.data || []).reverse() }));
+          setHasMore(res.page < res.pages);
+          setCurrentPage(1);
           setMsgError(null);
         } else {
           setMsgError("Failed to load messages");
@@ -194,6 +202,37 @@ export default function ChatPage() {
     }, 1500);
   };
 
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeChat?._id || loadingOlder || !hasMore) return;
+    setLoadingOlder(true);
+    const el = scrollRef.current;
+    const prevHeight = el?.scrollHeight || 0;
+    const nextPage = currentPage + 1;
+    try {
+      const res = await getMessages(activeChat._id, nextPage, 30);
+      if (res.success && res.data?.length) {
+        const older = (res.data || []).reverse();
+        dispatch(prependMessages({ chatId: activeChat._id, messages: older }));
+        setCurrentPage(nextPage);
+        setHasMore(nextPage < res.pages);
+      } else {
+        setHasMore(false);
+      }
+    } catch {
+      // silent
+    }
+    requestAnimationFrame(() => {
+      if (el) {
+        const newHeight = el.scrollHeight;
+        el.scrollTop = el.scrollTop + (newHeight - prevHeight);
+      }
+      setLoadingOlder(false);
+    });
+  }, [activeChat?._id, currentPage, hasMore, loadingOlder, dispatch]);
+
+  const loadOlderRef = useRef(loadOlderMessages);
+  loadOlderRef.current = loadOlderMessages;
+
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -201,7 +240,10 @@ export default function ChatPage() {
     const atBottom = distFromBottom < 50;
     setShowScrollBtn(distFromBottom > 200);
     if (atBottom) setUnseenCount(0);
-  }, []);
+    if (el.scrollTop < 80 && !loadingOlder && !loadingMsgs) {
+      loadOlderRef.current();
+    }
+  }, [loadingOlder, loadingMsgs]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -488,6 +530,11 @@ export default function ChatPage() {
 
               {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
+                {loadingOlder && (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--muted)" }} />
+                  </div>
+                )}
                 {loadingMsgs ? (
                   <MessageListSkeleton />
                 ) : msgError ? (
