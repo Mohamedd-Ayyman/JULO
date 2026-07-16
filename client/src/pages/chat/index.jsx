@@ -11,10 +11,14 @@ import {
   MoreHorizontal,
   Phone,
   Video,
+  Mic,
 } from "lucide-react";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
-import { getAllChats, getMessages, sendMessage, markMessagesRead } from "../../apiCalls/message.js";
+import AudioMessage from "../../components/chat/AudioMessage.jsx";
+import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
+import useAudioRecorder from "../../hooks/useAudioRecorder.js";
+import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage } from "../../apiCalls/message.js";
 import { setChats, setActiveChat, addMessage } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
@@ -35,7 +39,9 @@ export default function ChatPage() {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [typingUsers, setTypingUsers] = useState({});
+  const [sendingAudio, setSendingAudio] = useState(false);
   const scrollRef = useRef(null);
+  const recorder = useAudioRecorder();
 
   /* Load chats once */
   useEffect(() => {
@@ -137,6 +143,33 @@ export default function ChatPage() {
     window.__typingTimer = setTimeout(() => {
       socket.emit(SOCKET_EVENTS.TYPING_STOP, { chatId: activeChat._id, userId: user?._id });
     }, 1500);
+  };
+
+  const handleSendAudio = async () => {
+    const blob = recorder.audioBlob;
+    if (!blob || !activeChat?._id) return;
+    setSendingAudio(true);
+    const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const tempMsg = {
+      _id: `temp-audio-${Date.now()}`,
+      chatId: activeChat._id,
+      sender: user,
+      text: "",
+      audioUrl: URL.createObjectURL(blob),
+      audioDuration: recorder.duration,
+      createdAt: new Date().toISOString(),
+      pending: true,
+    };
+    dispatch(addMessage(tempMsg));
+    recorder.resetBlob();
+    const uploadRes = await uploadAudio(blob);
+    if (uploadRes.success) {
+      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recorder.duration, other?._id);
+      if (res.success && socket) {
+        socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
+      }
+    }
+    setSendingAudio(false);
   };
 
   const filteredChats = chats.filter((c) => {
@@ -282,7 +315,13 @@ export default function ChatPage() {
                             opacity: m.pending ? 0.7 : 1,
                           }}
                         >
-                          {m.text}
+                          {m.audioUrl ? (
+                            <AudioMessage
+                              audioUrl={m.audioUrl}
+                              duration={m.audioDuration}
+                              isMine={mine}
+                            />
+                          ) : m.text}
                         </div>
                       </div>
                     );
@@ -298,28 +337,46 @@ export default function ChatPage() {
                 )}
               </div>
 
-              {/* Composer */}
-              <div className="p-3" style={{ borderTop: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
-                <div className="flex items-center gap-2">
-                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Paperclip className="w-4 h-4" /></button>
-                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Smile className="w-4 h-4" /></button>
-                  <input
-                    value={draft}
-                    onChange={(e) => { setDraft(e.target.value); handleTyping(); }}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
-                    placeholder="Write a message…"
-                    className="brutal-input rounded-full text-sm"
-                    style={{ paddingTop: 10, paddingBottom: 10 }}
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!draft.trim()}
-                    className="brutal-btn brutal-btn-primary brutal-btn-icon"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
+              {/* Composer / Recording Panel */}
+              {recorder.isRecording || sendingAudio ? (
+                <RecordingPanel
+                  duration={recorder.duration}
+                  onCancel={recorder.cancelRecording}
+                  onStop={handleSendAudio}
+                  error={recorder.error}
+                />
+              ) : (
+                <div className="p-3" style={{ borderTop: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
+                  <div className="flex items-center gap-2">
+                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Paperclip className="w-4 h-4" /></button>
+                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Smile className="w-4 h-4" /></button>
+                    <input
+                      value={draft}
+                      onChange={(e) => { setDraft(e.target.value); handleTyping(); }}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
+                      placeholder="Write a message…"
+                      className="brutal-input rounded-full text-sm"
+                      style={{ paddingTop: 10, paddingBottom: 10 }}
+                    />
+                    {draft.trim() ? (
+                      <button
+                        onClick={handleSend}
+                        className="brutal-btn brutal-btn-primary brutal-btn-icon"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={recorder.startRecording}
+                        className="brutal-btn brutal-btn-primary brutal-btn-icon"
+                        aria-label="Record voice message"
+                      >
+                        <Mic className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </section>
