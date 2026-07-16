@@ -52,6 +52,12 @@ const chatSlice = createSlice({
       if (!state.activeChat?.messages) return;
       state.activeChat.messages = state.activeChat.messages.filter((m) => m._id !== messageId);
     },
+    prependMessages: (state, action) => {
+      const { chatId, messages } = action.payload;
+      if (state.activeChat?._id === chatId) {
+        state.activeChat.messages = [...messages, ...(state.activeChat.messages || [])];
+      }
+    },
   },
 });
 
@@ -63,5 +69,6 @@ export const {
   markMessageFailed,
   markMessageSuccess,
   removeMessage,
+  prependMessages,
 } = chatSlice.actions;
 export default chatSlice.reducer;
