@@ -19,12 +19,25 @@ const audioStorage = new CloudinaryStorage({
   },
 });
 
+const chatFileStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "julo/chat",
+    allowed_formats: ["jpg", "png", "jpeg", "webp", "gif", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"],
+  },
+});
+
 export const upload = multer({
   storage: imageStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 export const uploadAudio = multer({
   storage: audioStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB for audio
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
+
+export const uploadChatFile = multer({
+  storage: chatFileStorage,
+  limits: { fileSize: 15 * 1024 * 1024 },
 });
