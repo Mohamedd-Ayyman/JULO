@@ -54,6 +54,30 @@ export const PERMISSIONS = {
   // Billing
   "billing:view":      [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
   "billing:manage":    [ROLES.ADMIN],
+
+  // Data access
+  "data:read_own":     [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "data:read_any":     [ROLES.MODERATOR, ROLES.ADMIN],
+  "data:update_own":   [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "data:update_any":   [ROLES.ADMIN],
+  "data:export_own":   [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "data:export_any":   [ROLES.ADMIN],
+  "data:delete_own":   [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "data:delete_any":   [ROLES.ADMIN],
+
+  // Consent management
+  "consent:manage_own": [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "consent:view_own":   [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "consent:view_any":   [ROLES.MODERATOR, ROLES.ADMIN],
+
+  // Audit logs
+  "audit:view_own":    [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "audit:view_any":    [ROLES.MODERATOR, ROLES.ADMIN],
+  "audit:manage":      [ROLES.ADMIN],
+
+  // Privacy
+  "privacy:manage_own": [ROLES.USER, ROLES.MODERATOR, ROLES.ADMIN],
+  "privacy:manage_any": [ROLES.ADMIN],
 };
 
 // Role level map for comparison
