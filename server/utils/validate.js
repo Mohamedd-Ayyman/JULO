@@ -41,17 +41,6 @@ export const commentSchema = z.object({
   parentComment: z.string().optional().nullable(),
 });
 
-// ── Messages ─────────────────────────────────────────────────────────────────────
-export const messageSchema = z.object({
-  chatId: z.string().min(1, "chatId is required"),
-  text: z.string().trim().max(2000).optional(),
-  audioUrl: z.string().url().optional(),
-  audioDuration: z.number().min(0).optional(),
-  receiverId: z.string().optional(),
-}).refine((d) => d.text?.trim() || d.audioUrl, {
-  message: "Message must have text or audio",
-});
-
 // ── Recording ────────────────────────────────────────────────────────────────────
 export const recordingCreateSchema = z.object({
   chatId: z.string().min(1, "chatId is required"),
@@ -80,7 +69,75 @@ export const recordingUpdateSchema = z.object({
 
 // ── Chat ──────────────────────────────────────────────────────────────────────────
 export const chatCreateSchema = z.object({
-  members: z.array(z.string()).min(1, "At least one member required").max(10),
+  members: z.array(z.string()).min(1, "At least one member required").max(100),
+  type: z.enum(["direct", "group", "channel"]).optional(),
+  name: z.string().trim().max(100).optional().nullable(),
+  description: z.string().trim().max(500).optional().nullable(),
+  icon: z.string().url().optional().nullable(),
+});
+
+export const chatUpdateSchema = z.object({
+  name: z.string().trim().max(100).optional().nullable(),
+  description: z.string().trim().max(500).optional().nullable(),
+  icon: z.string().url().optional().nullable(),
+}).refine((d) => d.name !== undefined || d.description !== undefined || d.icon !== undefined, {
+  message: "At least one field must be provided",
+});
+
+// ── Participant ──────────────────────────────────────────────────────────────────
+export const participantAddSchema = z.object({
+  userIds: z.array(z.string()).min(1, "At least one user required").max(50),
+  role: z.enum(["admin", "moderator", "member"]).optional(),
+});
+
+export const participantRoleSchema = z.object({
+  role: z.enum(["admin", "moderator", "member"]),
+});
+
+export const participantMuteSchema = z.object({
+  muted: z.boolean(),
+  mutedUntil: z.string().datetime().optional().nullable(),
+});
+
+export const participantArchiveSchema = z.object({
+  archived: z.boolean(),
+});
+
+export const participantPinSchema = z.object({
+  pinned: z.boolean(),
+});
+
+export const participantNicknameSchema = z.object({
+  nickname: z.string().trim().max(50).optional().nullable(),
+});
+
+export const participantNotificationsSchema = z.object({
+  enabled: z.boolean(),
+});
+
+// ── Message threading ────────────────────────────────────────────────────────────
+export const messageReplySchema = z.object({
+  chatId: z.string().min(1, "chatId is required"),
+  replyTo: z.string().min(1, "replyTo message ID is required"),
+  text: z.string().trim().max(2000).optional(),
+  audioUrl: z.string().url().optional(),
+  audioDuration: z.number().min(0).optional(),
+  imageUrl: z.string().url().optional(),
+  fileUrl: z.string().url().optional(),
+  fileName: z.string().max(255).optional(),
+  fileSize: z.number().min(0).optional(),
+  mimeType: z.string().max(100).optional(),
+  encryptedContent: z.string().optional(),
+  iv: z.string().optional(),
+  authTag: z.string().optional(),
+  keyId: z.string().optional(),
+}).refine((d) => d.text?.trim() || d.audioUrl || d.encryptedContent || d.imageUrl || d.fileUrl, {
+  message: "Message must have text, audio, file, image, or encrypted content",
+});
+
+export const messageForwardSchema = z.object({
+  messageId: z.string().min(1, "messageId is required"),
+  targetChatId: z.string().min(1, "targetChatId is required"),
 });
 
 // ── Profile ──────────────────────────────────────────────────────────────────────
@@ -214,6 +271,18 @@ export const messageSchema = z.object({
   text: z.string().trim().max(2000).optional(),
   audioUrl: z.string().url().optional(),
   audioDuration: z.number().min(0).optional(),
+  imageUrl: z.string().url().optional(),
+  fileUrl: z.string().url().optional(),
+  fileName: z.string().max(255).optional(),
+  fileSize: z.number().min(0).optional(),
+  mimeType: z.string().max(100).optional(),
+  linkPreview: z.object({
+    title: z.string().max(500).optional(),
+    description: z.string().max(1000).optional(),
+    image: z.string().url().optional(),
+    url: z.string().url().optional(),
+    siteName: z.string().max(200).optional(),
+  }).optional().nullable(),
   receiverId: z.string().optional(),
   encryptedContent: z.string().optional(),
   iv: z.string().optional(),
@@ -222,8 +291,8 @@ export const messageSchema = z.object({
   ephemeralPublicKey: z.string().optional(),
   ratchetStep: z.number().int().min(0).optional(),
   messageType: z.enum(["text", "encrypted", "file", "system", "key_exchange"]).optional(),
-}).refine((d) => d.text?.trim() || d.audioUrl || d.encryptedContent, {
-  message: "Message must have text, audio, or encrypted content",
+}).refine((d) => d.text?.trim() || d.audioUrl || d.encryptedContent || d.imageUrl || d.fileUrl, {
+  message: "Message must have text, audio, file, image, or encrypted content",
 });
 
 // ── Middleware factory ────────────────────────────────────────────────────────────
