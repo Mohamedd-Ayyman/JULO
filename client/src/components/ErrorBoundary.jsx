@@ -13,15 +13,16 @@ export function ErrorBoundary({ children }) {
 
   if (hasError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
+      <div className="min-h-screen flex items-center justify-center p-6 pb-16">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold mb-3">Something went wrong</h1>
-          <p className="text-muted-foreground mb-6">
+          <div className="sticker sticker-red inline-flex mb-6 text-xs">Error</div>
+          <h1 className="font-display text-4xl font-bold tracking-tight mb-3" style={{ color: "var(--ink)" }}>Something went wrong</h1>
+          <p className="text-sm mb-8" style={{ color: "var(--muted-2)" }}>
             We encountered an unexpected error. Please refresh the page.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary-hover transition-colors"
+            className="brutal-btn brutal-btn-primary"
           >
             Refresh Page
           </button>

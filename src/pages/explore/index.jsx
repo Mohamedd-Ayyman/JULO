@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useSearchParams, Link } from "react-router-dom";
-import { Search, Compass, Users, FileText, Loader2, X, Flame } from "lucide-react";
+import { Search, Compass, Users, FileText, X, Flame } from "lucide-react";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import { searchPosts, getFeed } from "../../apiCalls/post.js";
@@ -101,11 +101,11 @@ export default function ExplorePage() {
     <AppLayout title="Explore">
       <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6">
         <div className="hidden lg:block mb-5 animate-fade-in-down">
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-            <Compass className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2" style={{ color: "var(--ink)" }}>
+            <Compass className="w-6 h-6" style={{ color: "var(--ink)" }} />
             Explore
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Discover people, posts and ideas</p>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted-2)" }}>Discover people, posts and ideas</p>
         </div>
 
         {/* Search */}
@@ -113,18 +113,21 @@ export default function ExplorePage() {
           onSubmit={(e) => { e.preventDefault(); performSearch(query); }}
           className="relative mb-4 animate-fade-in"
         >
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search posts and people…"
-              className="input pl-12 pr-20 py-3 rounded-full text-base"
-            />
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            style={{ color: "var(--muted-2)" }}
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search posts and people…"
+            className="brutal-input pl-12 pr-20 py-3 rounded-full text-base"
+          />
           {query && (
             <button
               type="button"
               onClick={clear}
-              className="absolute right-20 top-1/2 -translate-y-1/2 btn btn-ghost btn-icon"
+              className="absolute right-20 top-1/2 -translate-y-1/2 brutal-btn brutal-btn-ghost brutal-btn-icon"
             >
               <X className="w-4 h-4" />
             </button>
@@ -132,15 +135,15 @@ export default function ExplorePage() {
           <button
             type="submit"
             disabled={loading || !query.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 btn btn-primary px-4 py-1.5"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 brutal-btn brutal-btn-primary px-4 py-1.5"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+            {loading ? <div className="spinner" /> : "Search"}
           </button>
         </form>
 
         {/* Tabs */}
         {showResults && (
-          <div className="flex gap-1 p-1 bg-glass rounded-full mb-4 animate-fade-in">
+          <div className="flex gap-1 p-1 rounded-full mb-4 animate-fade-in" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)" }}>
             {[
               { id: "all", label: "Top", icon: Flame },
               { id: "people", label: `People${users.length ? ` (${users.length})` : ""}`, icon: Users },
@@ -149,9 +152,11 @@ export default function ExplorePage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all ${
-                  tab === t.id ? "bg-gradient-primary text-white" : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all"
+                style={tab === t.id
+                  ? { background: "var(--acid)", color: "var(--ink)" }
+                  : { color: "var(--muted-2)" }
+                }
               >
                 <t.icon className="w-3.5 h-3.5" />
                 {t.label}
@@ -174,45 +179,51 @@ export default function ExplorePage() {
             <div className="space-y-5 animate-fade-in">
               {(tab === "all" || tab === "people") && users.length > 0 && (
                 <section>
-                  {tab === "all" && (
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5" /> People
-                    </h3>
-                  )}
-                  <div className="space-y-2 stagger">
-                    {users.map((u) => (
-                      <Link
-                        key={u._id}
-                        to={ROUTES.PROFILE_USER(u._id)}
-                        className="card card-interactive p-3 flex items-center justify-between gap-3"
+                    {tab === "all" && (
+                      <h3
+                        className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2"
+                        style={{ color: "var(--muted-2)" }}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar src={u.profilepic} name={`${u.firstname || ""} ${u.lastname || ""}`} size={42} ring online={u.isOnline} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-foreground truncate">{u.firstname} {u.lastname}</p>
-                            <p className="text-xs text-muted-foreground truncate">{u.bio || ""}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleFollowToggle(u._id); }}
-                          className={`text-xs font-bold px-3.5 py-1.5 rounded-full transition-all flex-shrink-0 ${
-                            followingMap[u._id]
-                              ? "bg-glass-hover text-foreground border border-glass-border-strong"
-                              : "bg-gradient-primary text-white glow-primary-soft hover:scale-105"
-                          }`}
+                        <Users className="w-3.5 h-3.5" /> People
+                      </h3>
+                    )}
+                    <div className="space-y-2 stagger">
+                      {users.map((u) => (
+                        <Link
+                          key={u._id}
+                          to={ROUTES.PROFILE_USER(u._id)}
+                          className="brutal-card p-3 flex items-center justify-between gap-3"
                         >
-                          {followingMap[u._id] ? "Following" : "Follow"}
-                        </button>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar src={u.profilepic} name={`${u.firstname || ""} ${u.lastname || ""}`} size={42} ring online={u.isOnline} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>{u.firstname} {u.lastname}</p>
+                              <p className="text-xs truncate" style={{ color: "var(--muted-2)" }}>{u.bio || ""}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.preventDefault(); handleFollowToggle(u._id); }}
+                            className="text-xs font-bold px-3.5 py-1.5 rounded-full transition-all flex-shrink-0"
+                            style={followingMap[u._id]
+                              ? { background: "var(--paper-2)", color: "var(--ink)", border: "2px solid var(--ink)" }
+                              : { background: "var(--acid)", color: "var(--ink)", border: "2px solid var(--ink)" }
+                            }
+                          >
+                            {followingMap[u._id] ? "Following" : "Follow"}
+                          </button>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
               )}
 
               {(tab === "all" || tab === "posts") && posts.length > 0 && (
                 <section>
                   {tab === "all" && (
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <h3
+                      className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2"
+                      style={{ color: "var(--muted-2)" }}
+                    >
                       <FileText className="w-3.5 h-3.5" /> Posts
                     </h3>
                   )}

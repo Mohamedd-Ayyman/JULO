@@ -25,7 +25,7 @@ const PostDetailPage = lazy(() => import("./pages/postDetail/PostDetailPage.jsx"
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="spinner" />
     </div>
   );
 }
@@ -36,16 +36,18 @@ function App() {
   const dispatch = useDispatch();
   const [authReady, setAuthReady] = useState(false);
 
-  // Apply persisted appearance preferences (theme + reduced motion) on boot
   useEffect(() => {
-    const theme = localStorage.getItem("julo_theme") || "dark";
+    const storedTheme = localStorage.getItem("julo_theme");
+    // Default to "dusk" (cozy warm-dark). Migrate legacy "light"/"midnight"/"ink" labels.
+    const theme = storedTheme === "paper" || storedTheme === "light" ? "paper" : "dusk";
     document.documentElement.setAttribute("data-theme", theme);
+    if (storedTheme !== theme) localStorage.setItem("julo_theme", theme);
 
-    const stored = localStorage.getItem("julo_reduced_motion");
+    const storedMotion = localStorage.getItem("julo_reduced_motion");
     const systemPref =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const reduced = stored === null ? systemPref : stored === "true";
+    const reduced = storedMotion === null ? systemPref : storedMotion === "true";
     document.documentElement.classList.toggle("reduced-motion", !!reduced);
   }, []);
 
@@ -84,7 +86,16 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Toaster position="top-center" reverseOrder={false} />
+      <Toaster position="top-center" reverseOrder={false} toastOptions={{
+        style: {
+          background: "var(--paper)",
+          color: "var(--ink)",
+          border: "2px solid var(--ink)",
+          boxShadow: "4px 4px 0 0 var(--ink)",
+          fontFamily: "var(--font-mono)",
+          fontSize: "13px",
+        },
+      }} />
       {loader && <LoadingIndicator />}
       <SocketProvider>
         <BrowserRouter>

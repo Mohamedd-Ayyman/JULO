@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, UserPlus, Loader2 } from "lucide-react";
+import { Search, UserPlus, Loader2, TrendingUp } from "lucide-react";
 import { useSelector } from "react-redux";
 import Avatar from "./Avatar.jsx";
 import { ROUTES } from "../lib/constants.js";
 import { getSuggestions, followUser } from "../apiCalls/follow.js";
 import toast from "react-hot-toast";
+import { MOODS } from "../lib/moods.js";
+import Sticker from "./ui-brutal/Sticker.jsx";
 
 /**
- * RightRail — Search bar, follow suggestions.
- * Hidden below xl breakpoint.
+ * RightRail — editorial column with Today's mood poll, suggested correspondents, footer.
  */
 export default function RightRail() {
   const navigate = useNavigate();
@@ -18,6 +19,14 @@ export default function RightRail() {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [followed, setFollowed] = useState({});
+  const [poll, setPoll] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("julo_mood_poll") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const [voted, setVoted] = useState(() => localStorage.getItem("julo_mood_vote") || null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,7 +36,9 @@ export default function RightRail() {
       if (res.success) setSuggestions(res.data || []);
       setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const submit = (e) => {
@@ -46,52 +57,112 @@ export default function RightRail() {
     }
   };
 
+  const vote = (moodId) => {
+    if (voted) return;
+    const next = { ...poll, [moodId]: (poll[moodId] || 0) + 1 };
+    setPoll(next);
+    setVoted(moodId);
+    localStorage.setItem("julo_mood_poll", JSON.stringify(next));
+    localStorage.setItem("julo_mood_vote", moodId);
+  };
+
+  const totalVotes = Object.values(poll).reduce((a, b) => a + b, 0) || 0;
+
   return (
-    <aside className="hidden xl:block fixed top-0 right-0 h-screen w-[320px] p-4 overflow-y-auto z-20">
-      <form onSubmit={submit} className="relative mb-4">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <aside
+      className="hidden xl:block fixed top-0 right-0 h-screen w-[320px] p-5 overflow-y-auto z-20"
+      style={{ background: "var(--paper)", borderLeft: "2px solid var(--ink)" }}
+    >
+      <form onSubmit={submit} className="relative mb-5">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search people, posts…"
-          className="input pl-11 rounded-full"
+          placeholder="> search julo…"
+          className="brutal-input pl-11"
         />
       </form>
 
-      <div className="card p-4 mb-4 animate-fade-in-up">
-        <div className="flex items-center gap-2 mb-3">
-          <UserPlus className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Suggested for you</h3>
+      {/* Today's mood poll */}
+      <div className="brutal-card p-4 mb-4 anim-fade-in-up" style={{ background: "var(--paper)" }}>
+        <p className="eyebrow mb-1">Today · Vol 1</p>
+        <h3 className="font-display font-black text-xl leading-tight mb-3">
+          What&apos;s the <em className="not-italic" style={{ background: "var(--acid)", padding: "0 4px" }}>mood</em>?
+        </h3>
+        <div className="space-y-1.5">
+          {MOODS.map((m) => {
+            const count = poll[m.id] || 0;
+            const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
+            const isMine = voted === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => vote(m.id)}
+                disabled={!!voted}
+                className="w-full text-left relative overflow-hidden border-2 transition-all"
+                style={{
+                  borderColor: "var(--ink)",
+                  background: "var(--paper-2)",
+                  borderRadius: "var(--r-sm)",
+                  cursor: voted ? "default" : "pointer",
+                }}
+              >
+                {voted && (
+                  <span
+                    className="absolute inset-y-0 left-0"
+                    style={{ width: `${pct}%`, background: m.color, opacity: 0.55 }}
+                  />
+                )}
+                <span className="relative flex items-center justify-between px-2.5 py-1.5 font-mono text-[12px] font-bold">
+                  <span>
+                    <span className="mr-1.5">{m.emoji}</span>
+                    {m.label}
+                    {isMine && <span className="ml-1.5 text-[10px]" style={{ color: "var(--muted-2)" }}>· you</span>}
+                  </span>
+                  {voted && <span>{pct}%</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {!voted && <p className="font-mono text-[10px] mt-3 uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>Tap to cast your vote</p>}
+      </div>
+
+      {/* Correspondents */}
+      <div className="brutal-card p-4 mb-4 anim-fade-in-up" style={{ background: "var(--paper)" }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="eyebrow">New voices</p>
+          <Sticker tone="acid" rotate={-3} className="text-[9px]">FRESH</Sticker>
         </div>
         {loading ? (
           <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : suggestions.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-3">No suggestions right now</p>
+          <p className="font-mono text-[11px] text-center py-3" style={{ color: "var(--muted-2)" }}>
+            No suggestions right now
+          </p>
         ) : (
           <div className="space-y-3 stagger">
             {suggestions.filter((s) => s._id !== user?._id).map((s) => (
               <div key={s._id} className="flex items-center gap-3">
                 <Link to={ROUTES.PROFILE_USER(s._id)} className="flex items-center gap-3 flex-1 min-w-0">
-                  <Avatar src={s.profilepic} name={`${s.firstname || ""} ${s.lastname || ""}`} size={36} />
+                  <Avatar src={s.profilepic} name={`${s.firstname || ""} ${s.lastname || ""}`} size={38} />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate story-link">
+                    <p className="text-sm font-bold truncate" style={{ fontFamily: "var(--font-display)" }}>
                       {s.firstname} {s.lastname}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">{s.bio || ""}</p>
+                    <p className="font-mono text-[10px] truncate" style={{ color: "var(--muted-2)" }}>
+                      {s.bio || "—"}
+                    </p>
                   </div>
                 </Link>
                 <button
                   onClick={() => handleFollow(s._id)}
                   disabled={followed[s._id]}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${
-                    followed[s._id]
-                      ? "bg-glass-hover text-muted-foreground"
-                      : "bg-gradient-primary text-white hover:scale-105 glow-primary-soft"
-                  }`}
+                  className={`brutal-btn brutal-btn-sm ${followed[s._id] ? "" : "brutal-btn-primary"}`}
                 >
-                  {followed[s._id] ? "Following" : "Follow"}
+                  {followed[s._id] ? "✓" : "Follow"}
                 </button>
               </div>
             ))}
@@ -99,8 +170,8 @@ export default function RightRail() {
         )}
       </div>
 
-      <div className="text-[11px] text-muted-foreground-2 px-2 leading-relaxed">
-        © {new Date().getFullYear()} JULO · <span className="story-link">Privacy</span> · <span className="story-link">Terms</span> · <span className="story-link">About</span>
+      <div className="font-mono text-[10px] uppercase tracking-wider px-2 leading-relaxed" style={{ color: "var(--muted-2)" }}>
+        © {new Date().getFullYear()} JULO Press · No paywall · No ads · No drama
       </div>
     </aside>
   );

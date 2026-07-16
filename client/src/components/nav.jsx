@@ -19,15 +19,15 @@ import Logo from "./Logo.jsx";
 import Avatar from "./Avatar.jsx";
 
 const navItems = [
-  { to: ROUTES.HOME, icon: Home, label: "Home" },
-  { to: ROUTES.FEED, icon: Sparkles, label: "Feed" },
-  { to: ROUTES.EXPLORE, icon: Compass, label: "Explore" },
-  { to: ROUTES.CHAT, icon: MessageCircle, label: "Messages" },
-  { to: ROUTES.NOTIFICATIONS, icon: Bell, label: "Notifications" },
-  { to: ROUTES.PROFILE, icon: User, label: "Profile" },
+  { to: ROUTES.HOME, n: "01", icon: Home, label: "Home" },
+  { to: ROUTES.FEED, n: "02", icon: Sparkles, label: "Feed" },
+  { to: ROUTES.EXPLORE, n: "03", icon: Compass, label: "Explore" },
+  { to: ROUTES.CHAT, n: "04", icon: MessageCircle, label: "Messages" },
+  { to: ROUTES.NOTIFICATIONS, n: "05", icon: Bell, label: "Alerts" },
+  { to: ROUTES.PROFILE, n: "06", icon: User, label: "Profile" },
 ];
 
-/* ─── Desktop sidebar ──────────────────────────────────────────────────── */
+/* ─── Desktop "masthead" sidebar ───────────────────────────────────────── */
 export function Sidebar() {
   const { pathname } = useLocation();
   const dispatch = useDispatch();
@@ -35,42 +35,64 @@ export function Sidebar() {
   const { user } = useSelector((s) => s.userReducer);
   const { unreadCount } = useSelector((s) => s.notificationReducer);
 
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
   const handleLogout = () => {
     dispatch(logout());
     navigate(ROUTES.LOGIN);
   };
 
   return (
-    <aside className="hidden lg:flex fixed top-0 left-0 h-screen w-[260px] flex-col p-4 z-30 bg-glass border-r border-glass-border">
-      <Link to={ROUTES.HOME} className="px-2 py-3 mb-4 hover-scale inline-block">
-        <Logo size={32} />
+    <aside
+      className="hidden lg:flex fixed top-0 left-0 h-screen w-[260px] flex-col p-5 z-30"
+      style={{
+        background: "var(--paper)",
+        borderRight: "2px solid var(--ink)",
+      }}
+    >
+      <Link to={ROUTES.HOME} className="block mb-1">
+        <Logo size={34} />
       </Link>
+      <p className="font-mono text-[10px] uppercase tracking-widest mb-6" style={{ color: "var(--muted-2)" }}>
+        Issue · {today}
+      </p>
 
-      <nav className="flex-1 space-y-1 stagger">
-        {navItems.map(({ to, icon: Icon, label }) => {
+      <nav className="flex-1 space-y-0.5 stagger">
+        {navItems.map(({ to, n, icon: Icon, label }) => {
           const active = pathname === to || (to !== "/" && pathname.startsWith(to));
           return (
             <Link
               key={to}
               to={to}
-              className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
-                active
-                  ? "text-foreground bg-glass-hover border border-glass-border-strong"
-                  : "text-muted-foreground hover:text-foreground hover:bg-glass-hover"
-              }`}
+              className="group flex items-center gap-3 px-2 py-2.5 transition-all"
+              style={{
+                color: "var(--ink)",
+                fontWeight: active ? 800 : 500,
+              }}
             >
-              {active && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-gradient-primary glow-primary-soft" />
-              )}
-              <Icon
-                className={`w-5 h-5 transition-transform group-hover:scale-110 ${
-                  active ? "text-primary" : ""
-                }`}
-                strokeWidth={active ? 2.4 : 1.8}
-              />
-              <span>{label}</span>
-              {label === "Notifications" && unreadCount > 0 && (
-                <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-primary text-white animate-pulse-glow">
+              <span className="font-mono text-[10px] w-5" style={{ color: "var(--muted-2)" }}>{n}</span>
+              <Icon className="w-4 h-4" strokeWidth={active ? 2.6 : 2} />
+              <span
+                className={`text-[15px] ${active ? "highlight-swipe" : ""}`}
+                style={{ fontFamily: active ? "var(--font-display)" : "var(--font-sans)", letterSpacing: active ? "-0.01em" : 0 }}
+              >
+                {label}
+              </span>
+              {label === "Alerts" && unreadCount > 0 && (
+                <span
+                  className="ml-auto font-mono text-[10px] font-bold px-1.5 py-0.5"
+                  style={{
+                    background: "var(--riso-red)",
+                    color: "var(--paper)",
+                    border: "1.5px solid var(--ink)",
+                    borderRadius: "var(--r-pill)",
+                  }}
+                >
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -81,28 +103,35 @@ export function Sidebar() {
 
       <Link
         to={ROUTES.FEED}
-        className="btn btn-primary w-full mb-3 mt-2"
+        className="brutal-btn brutal-btn-primary w-full mb-3"
       >
         <PlusSquare className="w-4 h-4" />
-        Create
+        New Post
       </Link>
 
-      <div className="card p-3 flex items-center gap-3">
+      <div
+        className="brutal-card p-3 flex items-center gap-3"
+        style={{ background: "var(--paper-2)" }}
+      >
         <Link to={ROUTES.PROFILE} className="flex items-center gap-3 flex-1 min-w-0">
-          <Avatar src={user?.profilepic} name={`${user?.firstname || ""} ${user?.lastname || ""}`} size={38} />
+          <Avatar
+            src={user?.profilepic}
+            name={`${user?.firstname || ""} ${user?.lastname || ""}`}
+            size={38}
+          />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground truncate">
+            <p className="text-sm font-bold truncate" style={{ fontFamily: "var(--font-display)" }}>
               {user?.firstname} {user?.lastname}
             </p>
-            {user?.bio ? (
-              <p className="text-xs text-muted-foreground truncate">{user.bio}</p>
-            ) : null}
+            <p className="font-mono text-[10px] truncate uppercase" style={{ color: "var(--muted-2)" }}>
+              correspondent
+            </p>
           </div>
         </Link>
-        <Link to={ROUTES.SETTINGS} className="btn btn-ghost btn-icon" title="Settings">
+        <Link to={ROUTES.SETTINGS} className="brutal-btn brutal-btn-ghost brutal-btn-icon" title="Settings">
           <Settings className="w-4 h-4" />
         </Link>
-        <button onClick={handleLogout} className="btn btn-ghost btn-icon" title="Log out">
+        <button onClick={handleLogout} className="brutal-btn brutal-btn-ghost brutal-btn-icon" title="Log out">
           <LogOut className="w-4 h-4" />
         </button>
       </div>
@@ -118,28 +147,39 @@ export function MobileNav() {
     { to: ROUTES.EXPLORE, icon: Compass, label: "Explore" },
     { to: ROUTES.FEED, icon: PlusSquare, label: "Post" },
     { to: ROUTES.CHAT, icon: MessageCircle, label: "Chat" },
-    { to: ROUTES.PROFILE, icon: User, label: "Profile" },
+    { to: ROUTES.PROFILE, icon: User, label: "Me" },
   ];
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-glass-strong border-t border-glass-border">
-      <div className="flex justify-around items-center h-16 px-2 max-w-lg mx-auto">
+    <nav
+      className="lg:hidden fixed bottom-3 inset-x-3 z-40 brutal-card"
+      style={{ background: "var(--paper)" }}
+    >
+      <div className="flex justify-around items-center h-14 px-2">
         {items.map(({ to, icon: Icon, label }) => {
           const active = pathname === to || (to !== "/" && pathname.startsWith(to));
           return (
             <Link
               key={to}
               to={to}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all ${
-                active ? "text-primary" : "text-muted-foreground"
-              }`}
+              className="flex-1 flex flex-col items-center gap-0.5 py-1.5 relative"
+              style={{ color: "var(--ink)" }}
             >
               <Icon
-                className={`w-5 h-5 transition-transform ${active ? "scale-110" : ""}`}
-                strokeWidth={active ? 2.4 : 1.8}
+                className="w-5 h-5"
+                strokeWidth={active ? 2.6 : 2}
+                style={active ? { transform: "translateY(-2px)" } : undefined}
               />
-              <span className="text-[10px] font-medium">{label}</span>
+              <span
+                className="font-mono text-[9px] uppercase tracking-wider font-bold"
+                style={{ opacity: active ? 1 : 0.6 }}
+              >
+                {label}
+              </span>
               {active && (
-                <span className="absolute top-0.5 w-8 h-0.5 rounded-full bg-gradient-primary" />
+                <span
+                  className="absolute -bottom-1 w-8 h-1.5"
+                  style={{ background: "var(--acid)", border: "1.5px solid var(--ink)" }}
+                />
               )}
             </Link>
           );
@@ -149,55 +189,77 @@ export function MobileNav() {
   );
 }
 
-/* ─── Top bar (mobile + tablet) ────────────────────────────────────────── */
+/* ─── Top bar (mobile) — masthead ──────────────────────────────────────── */
 export function TopBar({ title }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef(null);
 
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+
   useEffect(() => {
-    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
   return (
-    <header className="lg:hidden sticky top-0 z-30 bg-glass-strong border-b border-glass-border">
+    <header
+      className="lg:hidden sticky top-0 z-30"
+      style={{ background: "var(--paper)", borderBottom: "2px solid var(--ink)" }}
+    >
       <div className="flex items-center justify-between px-4 h-14">
-        <Link to={ROUTES.HOME}><Logo size={26} /></Link>
-        {title && <span className="text-sm font-semibold text-foreground-soft">{title}</span>}
-        <div className="flex items-center gap-1" ref={ref}>
+        <Link to={ROUTES.HOME} className="flex items-center gap-2">
+          <Logo size={26} withText={!title} />
+          {title && (
+            <>
+              <span className="w-px h-5" style={{ background: "var(--ink)" }} />
+              <span className="font-display font-black text-base tracking-tight">{title}</span>
+            </>
+          )}
+        </Link>
+        <div className="flex items-center gap-1.5" ref={ref}>
+          <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-wider mr-1" style={{ color: "var(--muted-2)" }}>
+            {today}
+          </span>
           <button
             onClick={() => setOpen((v) => !v)}
-            className="btn btn-ghost btn-icon"
+            className="brutal-btn brutal-btn-ghost brutal-btn-icon"
             aria-label="Search"
           >
             <Search className="w-4 h-4" />
           </button>
-          <Link to={ROUTES.NOTIFICATIONS} className="btn btn-ghost btn-icon">
+          <Link to={ROUTES.NOTIFICATIONS} className="brutal-btn brutal-btn-ghost brutal-btn-icon">
             <Bell className="w-4 h-4" />
           </Link>
         </div>
       </div>
       {open && (
-        <div className="px-4 pb-3 animate-fade-in-down">
+        <div className="px-4 pb-3 anim-fade-in">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (q.trim()) navigate(`${ROUTES.EXPLORE}?q=${encodeURIComponent(q.trim())}`);
               setOpen(false);
             }}
-            className="relative"
           >
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search JULO…"
-              className="input pl-11"
-            />
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="> search julo…"
+                className="brutal-input pl-11"
+              />
+            </div>
           </form>
         </div>
       )}

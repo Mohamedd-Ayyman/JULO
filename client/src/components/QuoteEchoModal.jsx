@@ -27,16 +27,16 @@ export default function QuoteEchoModal({ post, user, onClose, onEchoed }) {
   const authorName = `${author.firstname || ""} ${author.lastname || ""}`.trim();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="card w-full max-w-lg overflow-hidden animate-scale-in flex flex-col max-h-[90vh]">
-        <header className="flex items-center justify-between p-4 border-b border-glass-border flex-shrink-0">
-          <h2 className="text-lg font-bold text-foreground">Quote Echo</h2>
-          <button onClick={onClose} className="btn btn-ghost btn-icon">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in" style={{ background: "rgba(20,17,15,0.6)" }}>
+      <div className="brutal-card w-full max-w-lg overflow-hidden animate-scale-in flex flex-col max-h-[90vh]" style={{ background: "var(--paper)" }}>
+        <header className="flex items-center justify-between p-4 border-b-2 flex-shrink-0" style={{ borderColor: "var(--line-soft)" }}>
+          <h2 className="font-display text-lg font-black" style={{ color: "var(--ink)" }}>Quote Echo</h2>
+          <button onClick={onClose} className="brutal-btn brutal-btn-ghost brutal-btn-icon">
             <X className="w-4 h-4" />
           </button>
         </header>
 
-        <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar">
+        <div className="p-4 space-y-4 overflow-y-auto">
           <div className="flex gap-3">
             <Avatar src={user?.profilepic} name={user?.firstname} size={40} />
             <textarea
@@ -44,30 +44,31 @@ export default function QuoteEchoModal({ post, user, onClose, onEchoed }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Add your thoughts..."
-              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-base py-1 min-h-[100px]"
+              className="flex-1 bg-transparent resize-none outline-none text-base py-1 min-h-[100px]"
+              style={{ color: "var(--ink)", fontFamily: "var(--font-sans)" }}
               rows={3}
             />
           </div>
 
           {/* Preview of the post being echoed */}
-          <div className="ml-13 border border-glass-border rounded-xl p-3 bg-glass-bg/50">
+          <div className="p-3" style={{ background: "var(--paper-2)", border: "2px solid var(--ink)", borderRadius: "var(--r-md)" }}>
             <div className="flex items-center gap-2 mb-2">
               <Avatar src={author.profilepic} name={authorName} size={20} />
-              <span className="text-xs font-bold text-foreground">{authorName}</span>
-              <span className="text-[10px] text-muted-foreground">· {formatTime(post.createdAt)}</span>
+              <span className="text-xs font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>{authorName}</span>
+              <span className="font-mono text-[10px]" style={{ color: "var(--muted-2)" }}>· {formatTime(post.createdAt)}</span>
             </div>
-            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{post.text}</p>
+            <p className="text-sm line-clamp-3 leading-relaxed" style={{ color: "var(--ink)" }}>{post.text}</p>
             {post.image && (
-              <img src={post.image} alt="" className="mt-2 rounded-lg max-h-40 w-full object-cover border border-glass-border" />
+              <img src={post.image} alt="" className="mt-2 max-h-40 w-full object-cover" style={{ border: "2px solid var(--ink)", borderRadius: "var(--r-sm)" }} />
             )}
           </div>
         </div>
 
-        <footer className="flex justify-end p-4 border-t border-glass-border bg-glass-hover flex-shrink-0">
+        <footer className="flex justify-end p-4 border-t-2 flex-shrink-0" style={{ borderColor: "var(--line-soft)" }}>
           <button
             onClick={handleSubmit}
             disabled={loading || !text.trim()}
-            className="btn btn-primary px-6"
+            className="brutal-btn brutal-btn-primary px-6"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Echo

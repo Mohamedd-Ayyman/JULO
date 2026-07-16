@@ -10,7 +10,6 @@ import {
   Check,
   AtSign,
   Megaphone,
-  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useDispatch } from "react-redux";
@@ -20,12 +19,12 @@ import { EmptyNotificationsState } from "../../components/EmptyStates.jsx";
 import { formatTime } from "../../components/CommonUI.jsx";
 
 const ICONS = {
-  message: { icon: MessageCircle, color: "var(--color-accent)", bg: "rgba(34,211,238,0.15)" },
-  like: { icon: Heart, color: "var(--color-like)", bg: "rgba(255,85,119,0.15)" },
-  follow: { icon: UserPlus, color: "var(--color-success)", bg: "rgba(74,222,128,0.15)" },
-  comment: { icon: MessageCircle, color: "var(--color-primary)", bg: "rgba(139,124,255,0.15)" },
-  mention: { icon: AtSign, color: "var(--color-warning)", bg: "rgba(251,191,36,0.15)" },
-  share: { icon: Megaphone, color: "var(--color-accent-2, #f472b6)", bg: "rgba(244,114,182,0.15)" },
+  message: { icon: MessageCircle, color: "var(--acid)", bg: "var(--riso-blue)" },
+  like: { icon: Heart, color: "var(--riso-red)", bg: "var(--riso-red)" },
+  follow: { icon: UserPlus, color: "var(--mood-cozy)", bg: "var(--mood-cozy)" },
+  comment: { icon: MessageCircle, color: "var(--ink)", bg: "var(--acid)" },
+  mention: { icon: AtSign, color: "var(--ink)", bg: "var(--riso-yellow)" },
+  share: { icon: Megaphone, color: "var(--paper)", bg: "var(--riso-pink)" },
 };
 
 export default function NotificationsPage() {
@@ -62,19 +61,24 @@ export default function NotificationsPage() {
       <div className="max-w-2xl mx-auto px-3 sm:px-5 py-4 sm:py-6">
         <div className="flex items-center justify-between mb-5 animate-fade-in-down">
           <div>
-            <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-              <Bell className="w-6 h-6 text-primary" />
+            <h1 className="font-display text-2xl font-black tracking-tight flex items-center gap-2" style={{ color: "var(--ink)" }}>
+              <Bell className="w-6 h-6" strokeWidth={2.5} />
               Notifications
               {unread > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gradient-primary text-white">
+                <span
+                  className="font-mono text-[11px] font-bold px-2 py-0.5"
+                  style={{ background: "var(--riso-red)", color: "var(--paper)", border: "2px solid var(--ink)" }}
+                >
                   {unread}
                 </span>
               )}
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Stay in the loop</p>
+            <p className="font-mono text-[11px] uppercase tracking-widest mt-0.5" style={{ color: "var(--muted-2)" }}>
+              Stay in the loop
+            </p>
           </div>
           {unread > 0 && (
-            <button onClick={handleMarkAllRead} className="btn btn-glass">
+            <button onClick={handleMarkAllRead} className="brutal-btn brutal-btn-sm">
               <Check className="w-3.5 h-3.5" />
               Mark all read
             </button>
@@ -95,11 +99,13 @@ export default function NotificationsPage() {
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
-              className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
-                filter === f.id
-                  ? "bg-gradient-primary text-white glow-primary-soft"
-                  : "bg-glass text-muted-foreground hover:text-foreground"
-              }`}
+              className="flex-shrink-0 font-mono text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 border-2 transition-all"
+              style={{
+                background: filter === f.id ? "var(--ink)" : "var(--paper)",
+                color: filter === f.id ? "var(--paper)" : "var(--ink)",
+                borderColor: "var(--ink)",
+                borderRadius: "var(--r-pill)",
+              }}
             >
               {f.label}
             </button>
@@ -120,25 +126,27 @@ export default function NotificationsPage() {
               return (
                 <div
                   key={n._id}
-                  className={`card p-3.5 flex items-start gap-3 transition-all hover-lift ${
-                    n.read ? "opacity-75" : "border-glass-border-strong"
-                  }`}
+                  className={`brutal-card p-3.5 flex items-start gap-3 transition-all ${n.read ? "opacity-60" : ""}`}
                 >
                   <div className="relative flex-shrink-0">
                     <Avatar src={n.actor?.profilepic} name={n.actor?.firstname || n.title || "·"} size={42} />
                     <div
-                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full grid place-items-center border-2 border-background"
-                      style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full grid place-items-center border-2 border-ink"
+                      style={{ backgroundColor: cfg.bg }}
                     >
-                      <Icon className="w-2.5 h-2.5" style={{ color: cfg.color }} fill={n.type === "like" ? "currentColor" : "none"} />
+                      <Icon className="w-2.5 h-2.5" style={{ color: cfg.color }} strokeWidth={2.5} />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground leading-snug">{n.content || n.message}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{formatTime(n.createdAt)}</p>
+                    <p className="text-sm leading-snug font-display font-bold" style={{ color: "var(--ink)" }}>
+                      {n.content || n.message}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-wider mt-0.5" style={{ color: "var(--muted-2)" }}>
+                      {formatTime(n.createdAt)}
+                    </p>
                   </div>
                   {!n.read && (
-                    <span className="w-2 h-2 rounded-full bg-primary mt-2 glow-primary-soft flex-shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0" style={{ background: "var(--riso-red)" }} />
                   )}
                 </div>
               );

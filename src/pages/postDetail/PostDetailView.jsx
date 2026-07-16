@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getPost, getComments, addComment, likePost, sharePost, unsharePost, getFeed } from "../../apiCalls/post.js";
-import { Heart, MessageCircle, Megaphone, Send, X, Loader2, Quote } from "lucide-react";
+import { Heart, MessageCircle, Megaphone, Send, X, Quote } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
 import Avatar from "../../components/Avatar.jsx";
@@ -137,7 +137,7 @@ export default function PostDetailView({ postId, onClose }) {
     return (
       <Wrapper onClose={onClose}>
         <div className="flex justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="spinner" style={{ width: 32, height: 32 }} />
         </div>
       </Wrapper>
     );
@@ -146,7 +146,7 @@ export default function PostDetailView({ postId, onClose }) {
   if (!post) {
     return (
       <Wrapper onClose={onClose}>
-        <p className="text-muted-foreground py-12 text-center">Post not found.</p>
+        <p className="py-12 text-center" style={{ color: "var(--muted-2)" }}>Post not found.</p>
       </Wrapper>
     );
   }
@@ -179,7 +179,7 @@ export default function PostDetailView({ postId, onClose }) {
         
         {/* Repost banner */}
         {isRepost && !isQuote && sharer && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 px-1">
+          <div className="flex items-center gap-1.5 text-xs mb-3 px-1" style={{ color: "var(--muted-2)" }}>
             <Megaphone className="w-3.5 h-3.5" />
             <span>{sharerIsMe ? "You" : sharerName || "Someone"} echoed</span>
           </div>
@@ -189,63 +189,85 @@ export default function PostDetailView({ postId, onClose }) {
         <div className="flex items-center gap-3 mb-4 animate-fade-in">
           <Avatar src={author.profilepic} name={authorName} size={44} ring />
           <div>
-            <p className="text-sm font-bold text-foreground">{authorName || "Unknown"}</p>
-            <p className="text-xs text-muted-foreground">{formatTime(isQuote ? post?.createdAt : (display?.createdAt || post?.createdAt))}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{authorName || "Unknown"}</p>
+            <p className="text-xs" style={{ color: "var(--muted-2)" }}>{formatTime(isQuote ? post?.createdAt : (display?.createdAt || post?.createdAt))}</p>
           </div>
         </div>
 
         {/* Content */}
         {isQuote ? (
           <div className="space-y-4 mb-4">
-            <p className="text-foreground text-[16px] leading-relaxed whitespace-pre-wrap">{post.text}</p>
-            <div className="ml-13 border border-glass-border rounded-xl p-4 bg-glass-bg/50">
+            <p className="text-[16px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink)" }}>{post.text}</p>
+            <div
+              className="ml-13 border rounded-xl p-4"
+              style={{ background: "rgba(20,17,15,0.08)", borderColor: "var(--line-soft)" }}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Avatar src={originalAuthor?.profilepic} name={`${originalAuthor?.firstname || ""}`} size={24} />
-                <span className="text-sm font-bold text-foreground">{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
-                <span className="text-xs text-muted-foreground">· {formatTime(originalPost.createdAt)}</span>
+                <span className="text-sm font-bold" style={{ color: "var(--ink)" }}>{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
+                <span className="text-xs" style={{ color: "var(--muted-2)" }}>· {formatTime(originalPost.createdAt)}</span>
               </div>
-              <p className="text-sm text-foreground-soft leading-relaxed">{originalPost.text}</p>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--ink-soft)" }}>{originalPost.text}</p>
               {originalPost.image && (
-                <img src={originalPost.image} alt="" className="mt-3 rounded-lg max-h-60 w-full object-cover border border-glass-border" />
+                <img
+                  src={originalPost.image}
+                  alt=""
+                  className="mt-3 rounded-lg max-h-60 w-full object-cover border"
+                  style={{ borderColor: "var(--line-soft)" }}
+                />
               )}
             </div>
           </div>
         ) : (
           <>
-            {display?.text && <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap mb-4">{display.text}</p>}
+            {display?.text && (
+              <p className="text-[15px] leading-relaxed whitespace-pre-wrap mb-4" style={{ color: "var(--ink)" }}>
+                {display.text}
+              </p>
+            )}
             {display?.image && (
-              <img src={display.image} alt="" className="rounded-xl border border-glass-border w-full max-h-[60vh] object-cover mb-4" />
+              <img
+                src={display.image}
+                alt=""
+                className="rounded-xl border w-full max-h-[60vh] object-cover mb-4"
+                style={{ borderColor: "var(--line-soft)" }}
+              />
             )}
           </>
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-6 py-3 border-y border-glass-border mb-4">
+        <div className="flex items-center gap-6 py-3 border-y mb-4" style={{ borderColor: "var(--line-soft)" }}>
           <button
             onClick={handleLike}
             className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
-            style={{ color: liked ? "var(--color-like)" : "var(--color-muted-foreground)" }}
+            style={{ color: liked ? "var(--color-like)" : "var(--muted-2)" }}
           >
             <Heart className={`w-5 h-5 ${liked ? "fill-current heart-pop" : ""}`} />
             {display?.likeCount || 0}
           </button>
           
-          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--muted-2)" }}>
             <MessageCircle className="w-5 h-5" />
             {display?.commentCount || 0}
           </div>
 
           <button
             onClick={handleQuickEcho}
-            className={`flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105 ${userQuickEchoes.some((id) => String(id) === String(display?._id)) ? "text-primary" : "text-muted-foreground"}`}
+            className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
+            style={{ color: userQuickEchoes.some((id) => String(id) === String(display?._id)) ? "var(--ink)" : "var(--muted-2)" }}
           >
-            <Megaphone className={`w-5 h-5 transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
+            <Megaphone
+              className="w-5 h-5 transition-all"
+              style={echoRipple ? { color: "var(--ink)" } : undefined}
+            />
             {display?.shareCount || 0}
           </button>
 
           <button
             onClick={handleQuoteEcho}
-            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-transform hover:scale-105"
+            className="flex items-center gap-2 text-sm font-semibold transition-transform hover:scale-105"
+            style={{ color: "var(--muted-2)" }}
           >
             <Quote className="w-5 h-5" />
             Quote
@@ -267,12 +289,12 @@ export default function PostDetailView({ postId, onClose }) {
             onChange={(e) => setComment(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submitComment()}
             placeholder="Add a comment…"
-            className="input rounded-full pr-11 text-sm h-10 py-0"
+            className="brutal-input rounded-full pr-11 text-sm h-10 py-0"
           />
           <button
             onClick={submitComment}
             disabled={!comment.trim()}
-            className="absolute right-1 top-1/2 -translate-y-1/2 btn btn-primary btn-icon disabled:opacity-40 flex items-center justify-center"
+            className="absolute right-1 top-1/2 -translate-y-1/2 brutal-btn brutal-btn-primary brutal-btn-icon disabled:opacity-40 flex items-center justify-center"
             style={{ width: 32, height: 32 }}
           >
             <Send className="w-3.5 h-3.5" />
@@ -283,23 +305,31 @@ export default function PostDetailView({ postId, onClose }) {
       {/* Comments */}
       <div className="space-y-3 stagger">
         {comments.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Start the conversation.</p>
+          <p className="text-sm text-center py-4" style={{ color: "var(--muted-2)" }}>No comments yet. Start the conversation.</p>
         )}
         {comments.map((c) => (
           <div key={c._id} className="flex gap-2.5">
             <Avatar src={c.author?.profilepic} name={c.author?.firstname || ""} size={34} />
             <div className="flex-1">
-              <div className="bg-glass-hover rounded-2xl rounded-tl-sm px-3.5 py-2">
-                <p className="text-xs font-bold text-foreground">{c.author?.firstname} {c.author?.lastname}</p>
-                <p className="text-sm text-foreground">{c.text}</p>
+              <div
+                className="rounded-2xl rounded-tl-sm px-3.5 py-2"
+                style={{ background: "var(--paper-2)" }}
+              >
+                <p className="text-xs font-bold" style={{ color: "var(--ink)" }}>{c.author?.firstname} {c.author?.lastname}</p>
+                <p className="text-sm" style={{ color: "var(--ink)" }}>{c.text}</p>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1 ml-3">{formatTime(c.createdAt)}</p>
+              <p className="text-[10px] mt-1 ml-3" style={{ color: "var(--muted-2)" }}>{formatTime(c.createdAt)}</p>
             </div>
           </div>
         ))}
         {hasMore && comments.length > 0 && (
           <div className="pt-1 text-center">
-            <button onClick={loadMore} disabled={loadingMore} className="text-xs text-primary font-semibold story-link">
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="text-xs font-semibold story-link"
+              style={{ color: "var(--ink)" }}
+            >
               {loadingMore ? "Loading…" : "Load more comments"}
             </button>
           </div>
@@ -313,9 +343,9 @@ function Wrapper({ children, onClose }) {
   return (
     <div className="p-5 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-foreground">Post</h2>
+        <h2 className="text-lg font-bold" style={{ color: "var(--ink)" }}>Post</h2>
         {onClose && (
-          <button onClick={onClose} className="btn btn-ghost btn-icon">
+          <button onClick={onClose} className="brutal-btn brutal-btn-ghost brutal-btn-icon">
             <X className="w-4 h-4" />
           </button>
         )}

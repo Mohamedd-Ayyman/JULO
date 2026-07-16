@@ -37,53 +37,54 @@ export default function SignUp() {
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
           <div className="relative">
-            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="input pl-11" required />
+            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
+            <input value={form.firstname} onChange={update("firstname")} placeholder="First name" className="brutal-input pl-11" required />
           </div>
           <div className="relative">
-            <input value={form.lastname} onChange={update("lastname")} placeholder="Last name" className="input" required />
+            <input value={form.lastname} onChange={update("lastname")} placeholder="Last name" className="brutal-input" required />
           </div>
         </div>
         <div className="relative">
-          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className="input pl-11" required />
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
+          <input type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className="brutal-input pl-11" required />
         </div>
         <div className="relative">
-          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
           <input
             type={showPw ? "text" : "password"}
             value={form.password}
             onChange={update("password")}
             placeholder="Password (min 8 chars)"
-            className="input pl-11 pr-10"
+            className="brutal-input pl-11 pr-10"
             minLength={8}
             required
           />
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs"
+            style={{ color: "var(--muted-2)" }}
           >
             {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
 
-        <p className="text-xs text-muted-foreground leading-relaxed">
+        <p className="font-mono text-[11px] leading-relaxed" style={{ color: "var(--muted-2)" }}>
           By signing up, you agree to our{" "}
-          <span className="text-primary story-link">Terms</span> and{" "}
-          <span className="text-primary story-link">Privacy Policy</span>.
+          <span className="font-bold story-link">Terms</span> and{" "}
+          <span className="font-bold story-link">Privacy Policy</span>.
         </p>
 
-        <button type="submit" disabled={loading} className="btn btn-primary w-full py-3 text-base">
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+        <button type="submit" disabled={loading} className="brutal-btn brutal-btn-primary w-full py-3" style={{ fontSize: 15 }}>
+          {loading ? <div className="spinner" /> : (
             <>Create account <ArrowRight className="w-4 h-4" /></>
           )}
         </button>
       </form>
 
-      <p className="text-center text-sm text-muted-foreground mt-8">
+      <p className="text-center font-mono text-[11px] mt-8" style={{ color: "var(--muted-2)" }}>
         Already have an account?{" "}
-        <Link to="/login" className="text-primary font-semibold story-link">Sign in</Link>
+        <Link to="/login" className="font-bold story-link">Sign in</Link>
       </p>
     </AuthShell>
   );

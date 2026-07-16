@@ -15,17 +15,19 @@ export default function MobileNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-glass border-t border-glass-border flex justify-around py-2 z-40">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t-2 flex justify-around py-2 z-40 pb-safe" style={{ background: "var(--paper)", borderColor: "var(--ink)" }}>
       {navItems.map(({ to, icon: Icon, label }) => (
         <Link
           key={to}
           to={to}
-          className={`flex flex-col items-center space-y-0.5 px-3 py-1 rounded-lg transition-colors ${
-            pathname === to ? "text-primary" : "text-muted-foreground"
-          }`}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-md transition-colors relative"
+          style={{ color: pathname === to ? "var(--ink)" : "var(--muted-2)" }}
         >
-          <Icon className="w-5 h-5" />
-          <span className="text-[10px]">{label}</span>
+          {pathname === to && (
+            <span className="absolute -top-px left-1/2 -translate-x-1/2 w-6 h-0.5 bg-acid" />
+          )}
+          <Icon className="w-5 h-5" strokeWidth={pathname === to ? 2.5 : 1.8} />
+          <span className="font-mono text-[10px] uppercase tracking-widest">{label}</span>
         </Link>
       ))}
     </nav>

@@ -1,391 +1,344 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Foundry — Studio for ambitious brands" },
+      { title: "Julo — Your Mood Feed" },
       {
         name: "description",
-        content:
-          "Foundry is an independent studio crafting identity, product and motion for brands that refuse to blend in.",
-      },
-      { property: "og:title", content: "Foundry — Studio for ambitious brands" },
-      {
-        property: "og:description",
-        content: "Identity, product and motion for brands that refuse to blend in.",
-      },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap",
+        content: "Your mood, your feed. Authentic sharing without the noise.",
       },
     ],
   }),
-  component: Landing,
+  component: FeedPage,
 });
 
-function Landing() {
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+
+const MOODS = [
+  { id: "all", label: "All", icon: "◎", color: "var(--ink)" },
+  { id: "hyped", label: "Hyped", icon: "⚡", color: "var(--mood-hyped)" },
+  { id: "cozy", label: "Cozy", icon: "☕", color: "var(--mood-cozy)" },
+  { id: "salty", label: "Salty", icon: "🌊", color: "var(--mood-salty)" },
+  { id: "curious", label: "Curious", icon: "🔮", color: "var(--mood-curious)" },
+  { id: "hottake", label: "Hot Take", icon: "🔥", color: "var(--mood-hottake)" },
+  { id: "soft", label: "Soft", icon: "🌸", color: "var(--mood-soft)" },
+];
+
+const POSTS = [
+  {
+    id: "1",
+    author: "Priya Nair",
+    handle: "@priya.n",
+    mood: "hyped",
+    time: "2m",
+    content: "Just found out my side project hit 500 users overnight. Zero marketing. Pure word of mouth. This is the dopamine I've been chasing for months. 🍿",
+    replies: 12,
+    likes: 47,
+    reposts: 3,
+    avatar: "PN",
+    moodColor: "var(--mood-hyped)",
+  },
+  {
+    id: "2",
+    author: "Marcus Webb",
+    handle: "@m_webb",
+    mood: "cozy",
+    time: "15m",
+    content: "Rainy Sunday. French press full. A dog asleep on my feet. The world owes me nothing today, and I'm grateful for that.",
+    replies: 4,
+    likes: 31,
+    reposts: 1,
+    avatar: "MW",
+    moodColor: "var(--mood-cozy)",
+  },
+  {
+    id: "3",
+    author: "Sofia Reyes",
+    handle: "@sofia_r",
+    mood: "salty",
+    time: "34m",
+    content: "Hot take: Most productivity advice is just anxiety dressed up in a notepad. You don't need another system. You need to do the thing.",
+    replies: 28,
+    likes: 94,
+    reposts: 19,
+    avatar: "SR",
+    moodColor: "var(--mood-salty)",
+  },
+  {
+    id: "4",
+    author: "Jamie Chen",
+    handle: "@jamie.c",
+    mood: "curious",
+    time: "1h",
+    content: "Reading about how octopuses have distributed intelligence across their arms. Each arm can \"think\" independently. We really share a planet with beings that make us look so... linear.",
+    replies: 7,
+    likes: 55,
+    reposts: 4,
+    avatar: "JC",
+    moodColor: "var(--mood-curious)",
+  },
+  {
+    id: "5",
+    author: "Devon Blake",
+    handle: "@devon.blake",
+    mood: "hottake",
+    time: "2h",
+    content: "Unpopular opinion: the best relationships I've had started as arguments. Real friction surfaces what's actually there.",
+    replies: 41,
+    likes: 128,
+    reposts: 22,
+    avatar: "DB",
+    moodColor: "var(--mood-hottake)",
+  },
+  {
+    id: "6",
+    author: "Aisha Okonkwo",
+    handle: "@aishaok",
+    mood: "soft",
+    time: "3h",
+    content: "My grandmother learned to use text messages last month. Sent me her first one today: \"Thinking of you, darling.\" That's the whole thing. Just love in 20 characters.",
+    replies: 19,
+    likes: 203,
+    reposts: 41,
+    avatar: "AO",
+    moodColor: "var(--mood-soft)",
+  },
+];
+
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+
+function MoodChip({ mood, active, onClick }: { mood: typeof MOODS[0]; active: boolean; onClick: () => void }) {
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
-      <Nav />
-      <Hero />
-      <Marquee />
-      <Work />
-      <Manifesto />
-      <Services />
-      <CTA />
-      <Footer />
-    </main>
+    <button
+      onClick={onClick}
+      className={`sticker flex-shrink-0 text-[11px] transition-transform ${active ? "" : "opacity-60 hover:opacity-80"}`}
+      style={{
+        background: active ? mood.color : "var(--paper)",
+        color: active ? "var(--paper)" : "var(--ink)",
+        transform: active ? "rotate(0deg)" : `rotate(${-2 + Math.random() * 4 - 2}deg)`,
+      }}
+    >
+      <span>{mood.icon}</span>
+      {mood.label}
+    </button>
   );
 }
 
-function Nav() {
+function PostCard({ post }: { post: typeof POSTS[0] }) {
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(post.likes);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-foreground/15 bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <a href="/" className="flex items-center gap-2 font-display text-2xl font-black tracking-tight">
-          <span className="inline-block h-3 w-3 rotate-45 bg-foreground" />
-          Foundry<span className="text-acid">.</span>
-        </a>
-        <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-widest md:flex">
-          <a href="#work" className="hover:text-foreground/60">Work</a>
-          <a href="#services" className="hover:text-foreground/60">Services</a>
-          <a href="#manifesto" className="hover:text-foreground/60">Manifesto</a>
-          <a href="#contact" className="hover:text-foreground/60">Contact</a>
-        </nav>
-        <a
-          href="#contact"
-          className="group inline-flex items-center gap-2 rounded-full border border-foreground bg-foreground px-4 py-2 font-mono text-xs uppercase tracking-wider text-background transition hover:bg-acid hover:text-acid-foreground"
+    <article className="brutal-card p-5 animate-fade-in-up">
+      <div className="flex items-start gap-3">
+        <div
+          className="brutal-avatar flex h-12 w-12 flex-shrink-0 items-center justify-center text-base"
+          style={{ fontSize: "13px" }}
         >
-          Start a project
-          <span className="transition group-hover:translate-x-0.5">→</span>
-        </a>
+          {post.avatar}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-display text-base font-bold tracking-tight">{post.author}</span>
+            <span className="font-mono text-[11px]" style={{ color: "var(--muted-2)" }}>{post.handle}</span>
+            <span className="font-mono text-[11px]" style={{ color: "var(--muted-2)" }}>·</span>
+            <span className="font-mono text-[11px]" style={{ color: "var(--muted-2)" }}>{post.time}</span>
+          </div>
+          <div
+            className="sticker mt-1 inline-flex text-[10px]"
+            style={{ background: post.moodColor, color: "var(--paper)", fontSize: "10px", padding: "2px 8px" }}
+          >
+            {MOODS.find((m) => m.id === post.mood)?.icon} {MOODS.find((m) => m.id === post.mood)?.label}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-3 font-sans text-[15px] leading-relaxed" style={{ color: "var(--ink)" }}>{post.content}</p>
+
+      <div className="mt-4 flex items-center gap-6 border-t border-foreground/15 pt-3">
+        <button className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors" style={{ color: "var(--muted-2)" }}>
+          <span className="text-base">↑</span>
+          <span>{post.replies}</span>
+        </button>
+        <button
+          onClick={() => { setLiked(!liked); setLikeCount(liked ? likeCount - 1 : likeCount + 1); }}
+          className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors"
+          style={{ color: liked ? "var(--riso-red)" : "var(--muted-2)" }}
+        >
+          <span className="text-base" style={{ color: liked ? "var(--riso-red)" : "inherit" }}>♥</span>
+          <span>{likeCount}</span>
+        </button>
+        <button className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors" style={{ color: "var(--muted-2)" }}>
+          <span className="text-base">↺</span>
+          <span>{post.reposts}</span>
+        </button>
+        <button className="ml-auto font-mono text-[11px] uppercase tracking-widest transition-colors" style={{ color: "var(--muted-2)" }}>
+          <span>···</span>
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ComposeBox() {
+  const [text, setText] = useState("");
+  const [mood, setMood] = useState("all");
+  const [open, setOpen] = useState(false);
+  const charCount = text.length;
+  const MAX = 280;
+
+  return (
+    <div className="brutal-card p-4 animate-fade-in">
+      <div className="flex gap-3">
+        <div className="brutal-avatar flex h-10 w-10 flex-shrink-0 items-center justify-center text-sm">ME</div>
+        <div className="min-w-0 flex-1">
+          <textarea
+            className="brutal-input w-full resize-none text-[15px]"
+            placeholder="What's your mood?"
+            rows={2}
+            value={text}
+            onChange={(e) => setText(e.target.value.slice(0, MAX))}
+            onFocus={() => setOpen(true)}
+          />
+          {open && (
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <div className="flex flex-wrap gap-2">
+                {MOODS.slice(1).map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setMood(mood === m.id ? "all" : m.id)}
+                    className={`sticker text-[10px] transition-all ${mood === m.id ? "" : "opacity-50"}`}
+                    style={{
+                      background: mood === m.id ? m.color : "var(--paper-2)",
+                      color: mood === m.id ? "var(--paper)" : "var(--ink)",
+                    }}
+                  >
+                    {m.icon} {m.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`char-counter font-mono text-[11px] ${charCount > MAX * 0.9 ? "over" : charCount > MAX * 0.75 ? "near" : "ok"}`}>
+                  {MAX - charCount}
+                </span>
+                <button
+                  className="brutal-btn brutal-btn-primary brutal-btn-sm"
+                  disabled={!text.trim()}
+                >
+                  Post
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Header() {
+  const [activeTab, setActiveTab] = useState<"feed" | "following">("feed");
+
+  return (
+    <header className="sticky top-0 z-30 border-b-2 border-foreground" style={{ background: "var(--paper)" }}>
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="font-display text-2xl font-black tracking-tight">
+            ju<span className="text-acid">l</span>o
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="brutal-btn brutal-btn-ghost brutal-btn-icon">
+            <span className="font-mono text-base">⌕</span>
+          </button>
+          <button className="brutal-btn brutal-btn-ghost brutal-btn-icon">
+            <span className="font-mono text-base">⚙</span>
+          </button>
+        </div>
+      </div>
+      <div className="flex border-t" style={{ borderColor: "var(--line-soft)" }}>
+        <button
+          onClick={() => setActiveTab("feed")}
+          className="flex-1 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors"
+          style={activeTab === "feed"
+            ? { background: "var(--ink)", color: "var(--paper)" }
+            : { color: "var(--muted-2)" }
+          }
+        >
+          Feed
+        </button>
+        <button
+          onClick={() => setActiveTab("following")}
+          className="flex-1 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors"
+          style={activeTab === "following"
+            ? { background: "var(--ink)", color: "var(--paper)" }
+            : { color: "var(--muted-2)" }
+          }
+        >
+          Following
+        </button>
       </div>
     </header>
   );
 }
 
-function Hero() {
+function BottomNav() {
   return (
-    <section className="relative overflow-hidden">
-      <div className="absolute inset-0 grid-bg opacity-60" />
-      <div className="noise relative mx-auto max-w-7xl px-6 pb-24 pt-20 md:pt-32">
-        <div className="mb-10 flex items-center gap-3 font-mono text-xs uppercase tracking-widest text-foreground/60">
-          <span className="h-px w-10 bg-foreground/40" />
-          Est. 2018 · Lisbon / NYC
-        </div>
-
-        <h1 className="font-display text-[15vw] font-light leading-[0.85] tracking-[-0.04em] text-balance md:text-[10rem]">
-          Brands<br />
-          <span className="italic">that refuse</span><br />
-          to <span className="relative inline-block">
-            <span className="relative z-10">blend in.</span>
-            <span className="absolute inset-x-0 bottom-2 -z-0 h-5 bg-acid md:bottom-4 md:h-8" />
-          </span>
-        </h1>
-
-        <div className="mt-14 grid gap-10 md:grid-cols-3 md:gap-12">
-          <div className="md:col-span-1" />
-          <p className="md:col-span-2 max-w-xl text-lg leading-relaxed text-foreground/75">
-            We're an independent studio of seventeen designers, engineers and writers. We make
-            identity systems, products and films for founders who'd rather be misunderstood than
-            forgotten.
-          </p>
-        </div>
-
-        <div className="mt-12 flex flex-wrap items-center gap-4">
-          <a
-            href="#work"
-            className="inline-flex items-center gap-3 rounded-full bg-foreground px-6 py-4 font-mono text-xs uppercase tracking-wider text-background transition hover:bg-acid hover:text-acid-foreground"
-          >
-            See selected work →
-          </a>
-          <a
-            href="#manifesto"
-            className="inline-flex items-center gap-3 rounded-full border border-foreground/30 px-6 py-4 font-mono text-xs uppercase tracking-wider hover:border-foreground"
-          >
-            Read the manifesto
-          </a>
-        </div>
-
-        <div className="mt-24 grid grid-cols-2 gap-8 border-t border-foreground/15 pt-8 md:grid-cols-4">
-          {[
-            ["120+", "Brands launched"],
-            ["17", "Senior makers"],
-            ["4", "D&AD pencils"],
-            ["98%", "Retention rate"],
-          ].map(([k, v]) => (
-            <div key={v}>
-              <div className="font-display text-5xl font-light tracking-tight">{k}</div>
-              <div className="mt-2 font-mono text-[11px] uppercase tracking-widest text-foreground/60">
-                {v}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Marquee() {
-  const items = [
-    "Identity",
-    "★",
-    "Product Design",
-    "★",
-    "Motion",
-    "★",
-    "Editorial",
-    "★",
-    "Strategy",
-    "★",
-    "Web",
-    "★",
-    "Packaging",
-    "★",
-  ];
-  const row = [...items, ...items];
-  return (
-    <section className="border-y border-foreground bg-foreground py-6 text-background">
-      <div className="overflow-hidden">
-        <div className="marquee flex w-max gap-12 whitespace-nowrap font-display text-5xl italic">
-          {row.map((t, i) => (
-            <span key={i} className={t === "★" ? "text-acid not-italic" : ""}>
-              {t}
-            </span>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Work() {
-  const projects = [
-    {
-      n: "01",
-      tag: "Identity · Web",
-      title: "Halcyon Coffee",
-      blurb: "A wholesale roaster reborn as a cult retail brand across 14 cities.",
-      tone: "bg-[oklch(0.78_0.15_55)]",
-    },
-    {
-      n: "02",
-      tag: "Product · Motion",
-      title: "Field Notes OS",
-      blurb: "Operating system and identity for a writing tool used by 80k creators.",
-      tone: "bg-[oklch(0.55_0.18_265)] text-background",
-    },
-    {
-      n: "03",
-      tag: "Editorial",
-      title: "After Hours Quarterly",
-      blurb: "A 240-page print magazine on the future of nightlife and culture.",
-      tone: "bg-acid",
-    },
-    {
-      n: "04",
-      tag: "Strategy · Identity",
-      title: "Mara Biosciences",
-      blurb: "Repositioning a longevity startup ahead of Series B announcement.",
-      tone: "bg-[oklch(0.25_0.04_30)] text-background",
-    },
-  ];
-  return (
-    <section id="work" className="mx-auto max-w-7xl px-6 py-28">
-      <div className="mb-16 flex items-end justify-between gap-8">
-        <div>
-          <div className="font-mono text-xs uppercase tracking-widest text-foreground/60">
-            ⟢ Selected work — 2024 / 2025
-          </div>
-          <h2 className="mt-4 font-display text-6xl font-light tracking-tight md:text-7xl">
-            Recent <span className="italic">obsessions</span>.
-          </h2>
-        </div>
-        <a
-          href="#"
-          className="hidden font-mono text-xs uppercase tracking-widest underline underline-offset-4 md:inline"
-        >
-          Full archive →
-        </a>
-      </div>
-
-      <div className="grid gap-8 md:grid-cols-2">
-        {projects.map((p) => (
-          <article
-            key={p.n}
-            className="group cursor-pointer border border-foreground bg-background transition hover:-translate-y-1 hover:shadow-[var(--shadow-brutal-lg)]"
-          >
-            <div className={`relative aspect-[4/3] overflow-hidden ${p.tone}`}>
-              <div className="absolute left-5 top-5 font-mono text-xs uppercase tracking-widest opacity-80">
-                {p.n} / {p.tag}
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-display text-[8rem] font-light italic leading-none opacity-20 transition group-hover:opacity-40">
-                  {p.title.split(" ")[0]}
-                </span>
-              </div>
-              <div className="absolute bottom-5 right-5 rounded-full border border-current px-3 py-1 font-mono text-[10px] uppercase tracking-widest opacity-80">
-                Case study →
-              </div>
-            </div>
-            <div className="flex items-baseline justify-between gap-6 border-t border-foreground p-6">
-              <h3 className="font-display text-3xl font-light tracking-tight">{p.title}</h3>
-              <p className="hidden max-w-xs text-right text-sm text-foreground/70 md:block">
-                {p.blurb}
-              </p>
-            </div>
-          </article>
+    <nav className="fixed bottom-0 inset-x-0 z-30 border-t-2 border-foreground" style={{ background: "var(--paper)" }}>
+      <div className="grid grid-cols-4 py-2">
+        {[
+          { icon: "⌂", label: "Home" },
+          { icon: "⌕", label: "Search" },
+          { icon: "✎", label: "Compose" },
+          { icon: "☺", label: "Profile" },
+        ].map(({ icon, label }) => (
+          <button key={label} className="flex flex-col items-center gap-0.5 py-1 transition-colors" style={{ color: "var(--muted-2)" }}>
+            <span className="font-mono text-xl">{icon}</span>
+            <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>{label}</span>
+          </button>
         ))}
       </div>
-    </section>
+    </nav>
   );
 }
 
-function Manifesto() {
-  return (
-    <section id="manifesto" className="relative border-y border-foreground bg-foreground text-background">
-      <div className="mx-auto max-w-5xl px-6 py-32 text-center">
-        <div className="mb-8 font-mono text-xs uppercase tracking-widest text-background/60">
-          ¶ Manifesto
-        </div>
-        <p className="font-display text-3xl font-light leading-tight text-balance md:text-5xl">
-          We believe the safest brand is the riskiest investment.
-          <br />
-          <span className="italic text-acid">Average is invisible.</span> The future belongs to
-          companies brave enough to have a point of view — and stubborn enough to defend it for
-          a decade.
-        </p>
-        <div className="mt-12 font-mono text-xs uppercase tracking-widest text-background/60">
-          — The Foundry, on a Tuesday
-        </div>
-      </div>
-    </section>
-  );
-}
+// ─── PAGE ─────────────────────────────────────────────────────────────────────
 
-function Services() {
-  const services = [
-    {
-      n: "S/01",
-      title: "Brand Identity",
-      points: ["Naming & verbal", "Logo & systems", "Guidelines"],
-    },
-    {
-      n: "S/02",
-      title: "Digital Product",
-      points: ["UX & UI", "Design systems", "Front-end build"],
-    },
-    {
-      n: "S/03",
-      title: "Motion & Film",
-      points: ["Brand films", "Launch campaigns", "3D & CGI"],
-    },
-    {
-      n: "S/04",
-      title: "Strategy",
-      points: ["Positioning", "Messaging", "Naming workshops"],
-    },
-  ];
-  return (
-    <section id="services" className="mx-auto max-w-7xl px-6 py-28">
-      <div className="grid gap-12 md:grid-cols-12">
-        <div className="md:col-span-4">
-          <div className="font-mono text-xs uppercase tracking-widest text-foreground/60">
-            ⟢ What we do
-          </div>
-          <h2 className="mt-4 font-display text-5xl font-light tracking-tight md:text-6xl">
-            Four lanes.<br />
-            <span className="italic">Zero filler.</span>
-          </h2>
-          <p className="mt-6 max-w-sm text-foreground/70">
-            We work in tight, senior teams. No account managers, no decks for the sake of decks
-            — just makers in a room with you.
-          </p>
-        </div>
-        <div className="md:col-span-8">
-          <ul className="divide-y divide-foreground/20 border-y border-foreground/20">
-            {services.map((s) => (
-              <li
-                key={s.n}
-                className="group grid grid-cols-12 items-center gap-4 py-8 transition hover:bg-acid/30"
-              >
-                <span className="col-span-2 font-mono text-xs uppercase tracking-widest text-foreground/50">
-                  {s.n}
-                </span>
-                <h3 className="col-span-5 font-display text-3xl font-light tracking-tight md:text-4xl">
-                  {s.title}
-                </h3>
-                <ul className="col-span-4 hidden text-sm text-foreground/70 md:block">
-                  {s.points.map((p) => (
-                    <li key={p}>— {p}</li>
-                  ))}
-                </ul>
-                <span className="col-span-1 text-right font-mono text-xl transition group-hover:translate-x-1">
-                  →
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
+function FeedPage() {
+  const [activeMood, setActiveMood] = useState("all");
 
-function CTA() {
-  return (
-    <section id="contact" className="mx-auto max-w-7xl px-6 pb-32">
-      <div className="relative overflow-hidden rounded-3xl border border-foreground bg-acid p-10 md:p-20">
-        <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full border border-foreground/20" />
-        <div className="absolute -bottom-32 -left-10 h-72 w-72 rounded-full border border-foreground/20" />
-        <div className="relative grid gap-10 md:grid-cols-2 md:items-end">
-          <div>
-            <div className="font-mono text-xs uppercase tracking-widest">⟢ Let's make something</div>
-            <h2 className="mt-4 font-display text-6xl font-light leading-[0.9] tracking-tight md:text-8xl">
-              Got a brand worth fighting for?
-            </h2>
-          </div>
-          <div className="space-y-6">
-            <p className="text-lg text-foreground/80">
-              We take on six new projects a year. Tell us what you're building — we read every
-              note within 48 hours.
-            </p>
-            <a
-              href="mailto:hello@foundry.studio"
-              className="group inline-flex items-center gap-3 rounded-full bg-foreground px-8 py-5 font-mono text-sm uppercase tracking-wider text-background transition hover:gap-5"
-            >
-              hello@foundry.studio
-              <span>→</span>
-            </a>
-            <div className="font-mono text-xs uppercase tracking-widest text-foreground/70">
-              Or DM @foundry.studio
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+  const filtered = activeMood === "all" ? POSTS : POSTS.filter((p) => p.mood === activeMood);
 
-function Footer() {
   return (
-    <footer className="border-t border-foreground/20">
-      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 py-10 font-mono text-xs uppercase tracking-widest text-foreground/60 md:flex-row md:items-center">
-        <div className="flex items-center gap-2 text-foreground">
-          <span className="inline-block h-2 w-2 rotate-45 bg-foreground" />
-          Foundry Studio © 2026
+    <div className="relative min-h-screen pb-20">
+      <Header />
+
+      <div className="overflow-x-auto border-b border-foreground/15">
+        <div className="flex gap-2 px-4 py-3">
+          {MOODS.map((mood) => (
+            <MoodChip
+              key={mood.id}
+              mood={mood}
+              active={activeMood === mood.id}
+              onClick={() => setActiveMood(mood.id)}
+            />
+          ))}
         </div>
-        <div className="flex flex-wrap gap-6">
-          <a href="#" className="hover:text-foreground">Instagram</a>
-          <a href="#" className="hover:text-foreground">Are.na</a>
-          <a href="#" className="hover:text-foreground">LinkedIn</a>
-          <a href="#" className="hover:text-foreground">Read.cv</a>
-        </div>
-        <div>Lisbon · 38.7°N / NYC · 40.7°N</div>
       </div>
-    </footer>
+
+      <div className="px-4 pt-4">
+        <ComposeBox />
+      </div>
+
+      <div className="mt-4 space-y-3 px-4">
+        {filtered.map((post) => (
+          <PostCard key={post.id} post={post} />
+        ))}
+      </div>
+
+      <BottomNav />
+    </div>
   );
 }

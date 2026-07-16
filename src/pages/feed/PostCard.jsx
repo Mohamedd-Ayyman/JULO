@@ -163,13 +163,13 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
         />
       )}
 
-      <article
-        className={`card p-4 sm:p-5 animate-fade-in-up hover-lift relative overflow-hidden ${echoRipple ? "echo-ripple-active" : ""}`}
-        style={{ animationDelay: `${index * 50}ms` }}
-      >
+        <article
+          className={`brutal-card p-4 sm:p-5 animate-fade-in-up hover-lift relative overflow-hidden ${echoRipple ? "echo-ripple-active" : ""}`}
+          style={{ animationDelay: `${index * 50}ms` }}
+        >
         {/* Echo banner */}
         {isQuickEchoPost && sharer && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+          <div className="flex items-center gap-1.5 text-xs mb-3" style={{ color: "var(--muted-2)" }}>
             <Megaphone className="w-3.5 h-3.5" />
             <span>{sharerIsMe ? "You" : sharerName || "Someone"} echoed</span>
           </div>
@@ -184,16 +184,17 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
             <div className="min-w-0">
               <Link
                 to={ROUTES.PROFILE_USER(author._id)}
-                className="text-sm font-bold text-foreground truncate story-link"
+                className="text-sm font-bold truncate story-link"
+                style={{ color: "var(--ink)" }}
               >
                 {authorName || "Unknown"}
               </Link>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs" style={{ color: "var(--muted-2)" }}>
                 {formatTime(displayCreatedAt)}
               </p>
             </div>
           </div>
-          <button className="btn btn-ghost btn-icon">
+          <button className="brutal-btn brutal-btn-ghost brutal-btn-icon">
             <MoreHorizontal className="w-4 h-4" />
           </button>
         </header>
@@ -201,21 +202,27 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
         {/* Body */}
         {isQuote ? (
           <div className="space-y-3">
-            <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+            <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: "var(--ink)" }}>
               {post.text}
             </p>
             <div 
               onClick={openDetail}
-              className="ml-13 border border-glass-border rounded-xl p-3 hover:bg-glass-hover transition-colors cursor-pointer bg-glass-bg/30"
+              className="ml-13 border rounded-xl p-3 transition-colors cursor-pointer"
+              style={{ background: "rgba(20,17,15,0.08)", borderColor: "var(--line-soft)" }}
             >
               <div className="flex items-center gap-2 mb-2">
                 <Avatar src={originalAuthor?.profilepic} name={`${originalAuthor?.firstname || ""}`} size={20} />
-                <span className="text-xs font-bold text-foreground">{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
-                <span className="text-[10px] text-muted-foreground">· {formatTime(originalPost.createdAt)}</span>
+                <span className="text-xs font-bold" style={{ color: "var(--ink)" }}>{originalAuthor?.firstname} {originalAuthor?.lastname}</span>
+                <span className="text-[10px]" style={{ color: "var(--muted-2)" }}>· {formatTime(originalPost.createdAt)}</span>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{originalPost.text}</p>
+              <p className="text-sm line-clamp-3 leading-relaxed" style={{ color: "var(--muted-2)" }}>{originalPost.text}</p>
               {originalPost.image && (
-                <img src={originalPost.image} alt="" className="mt-2 rounded-lg max-h-40 w-full object-cover border border-glass-border" />
+                <img
+                  src={originalPost.image}
+                  alt=""
+                  className="mt-2 rounded-lg max-h-40 w-full object-cover border"
+                  style={{ borderColor: "var(--line-soft)" }}
+                />
               )}
             </div>
           </div>
@@ -223,14 +230,14 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
           <>
             {display.text && (
               <button onClick={openDetail} className="text-left w-full">
-                <p className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: "var(--ink)" }}>
                   {display.text}
                 </p>
               </button>
             )}
             {display.image && (
               <button onClick={openDetail} className="block w-full mt-3 group">
-                <div className="overflow-hidden rounded-xl border border-glass-border">
+                <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--line-soft)" }}>
                   <img
                     src={display.image}
                     alt=""
@@ -244,14 +251,14 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
         )}
 
         {/* Stats line */}
-        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 mt-3 text-xs" style={{ color: "var(--muted-2)" }}>
           <span>{likesCount} {likesCount === 1 ? "like" : "likes"}</span>
           <span>{commentCount} comments</span>
           <span>{shareCount} echoes</span>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-glass-border">
+        <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: "var(--line-soft)" }}>
           <ActionButton
             onClick={handleLike}
             active={liked}
@@ -266,20 +273,23 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
             <MessageCircle className="w-[18px] h-[18px]" />
           </ActionButton>
 
-          <ActionButton
-            onClick={handleQuickEcho}
-            active={hasQuickEchoed}
-            activeColor="var(--color-primary)"
-            label="Echo"
-          >
-            <Megaphone className={`w-[18px] h-[18px] transition-all ${echoRipple ? "text-primary echo-icon-ping" : ""}`} />
-          </ActionButton>
+           <ActionButton
+             onClick={handleQuickEcho}
+             active={hasQuickEchoed}
+             activeColor="var(--ink)"
+             label="Echo"
+           >
+             <Megaphone
+               className="w-[18px] h-[18px] transition-all"
+               style={echoRipple ? { color: "var(--ink)" } : undefined}
+             />
+           </ActionButton>
 
           <ActionButton onClick={handleQuoteEcho} label="Quote">
             <Quote className="w-[18px] h-[18px]" />
           </ActionButton>
 
-          <ActionButton onClick={handleBookmark} active={bookmarked} activeColor="var(--color-primary)" label="Save">
+           <ActionButton onClick={handleBookmark} active={bookmarked} activeColor="var(--ink)" label="Save">
             <Bookmark className={`w-[18px] h-[18px] ${bookmarked ? "fill-current" : ""}`} />
           </ActionButton>
         </div>
@@ -295,12 +305,12 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
               onChange={(e) => setComment(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleComment()}
               placeholder="Write a comment…"
-              className="input rounded-full pr-11 text-sm h-10 py-0"
+              className="brutal-input rounded-full pr-11 text-sm h-10 py-0"
             />
             <button
               onClick={handleComment}
               disabled={!comment.trim()}
-              className="absolute right-1 top-1/2 -translate-y-1/2 btn btn-icon btn-primary disabled:opacity-40 flex items-center justify-center"
+              className="absolute right-1 top-1/2 -translate-y-1/2 brutal-btn brutal-btn-primary brutal-btn-icon disabled:opacity-40 flex items-center justify-center"
               style={{ width: 32, height: 32 }}
             >
               <Send className="w-3.5 h-3.5" />
@@ -312,19 +322,22 @@ export default function PostCard({ post, currentUserId, onShare, onUnshare, inde
         {showComments && (
           <div className="mt-4 space-y-3 animate-fade-in">
             {comments.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-2">Be the first to echo back</p>
+              <p className="text-xs text-center py-2" style={{ color: "var(--muted-2)" }}>Be the first to echo back</p>
             ) : (
               comments.map((c) => (
                 <div key={c._id} className="flex gap-2.5">
                   <Avatar src={c.author?.profilepic} name={c.author?.firstname || ""} size={32} />
                   <div className="flex-1">
-                    <div className="bg-glass-hover rounded-2xl rounded-tl-sm px-3.5 py-2">
-                      <p className="text-xs font-bold text-foreground">
+                    <div
+                      className="rounded-2xl rounded-tl-sm px-3.5 py-2"
+                      style={{ background: "var(--paper-2)" }}
+                    >
+                      <p className="text-xs font-bold" style={{ color: "var(--ink)" }}>
                         {c.author?.firstname} {c.author?.lastname}
                       </p>
-                      <p className="text-sm text-foreground">{c.text}</p>
+                      <p className="text-sm" style={{ color: "var(--ink)" }}>{c.text}</p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1 ml-3">{formatTime(c.createdAt)}</p>
+                    <p className="text-[10px] mt-1 ml-3" style={{ color: "var(--muted-2)" }}>{formatTime(c.createdAt)}</p>
                   </div>
                 </div>
               ))
@@ -343,8 +356,12 @@ function ActionButton({ children, onClick, active, activeColor, label }) {
   return (
     <button
       onClick={onClick}
-      className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-glass-hover hover:text-foreground transition-all hover:scale-[1.03]"
-      style={active ? { color: activeColor } : undefined}
+      className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.03]"
+      style={{
+        color: active ? activeColor : "var(--muted-2)",
+        background: "var(--paper-2)",
+        border: "1px solid var(--line-soft)",
+      }}
       aria-label={label}
     >
       {children}

@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   Send,
   Search,
-  Loader2,
   ArrowLeft,
   Smile,
   Paperclip,
@@ -153,17 +152,21 @@ export default function ChatPage() {
       <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex">
         {/* Chat list */}
         <aside
-          className={`${activeChat?._id ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] flex-shrink-0 border-r border-glass-border bg-glass`}
+          className={`${activeChat?._id ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] flex-shrink-0 border-r`}
+          style={{ background: "var(--paper-2)", borderColor: "var(--line-soft)" }}
         >
-          <div className="p-4 border-b border-glass-border">
-            <h1 className="text-xl font-extrabold text-foreground mb-3">Messages</h1>
+          <div className="p-4 border-b" style={{ borderColor: "var(--line-soft)" }}>
+            <h1 className="text-xl font-extrabold mb-3" style={{ color: "var(--ink)" }}>Messages</h1>
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                style={{ color: "var(--muted-2)" }}
+              />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search conversations…"
-                className="input pl-11 rounded-full text-sm py-2"
+                className="brutal-input pl-11 rounded-full text-sm py-2"
               />
             </div>
           </div>
@@ -182,26 +185,31 @@ export default function ChatPage() {
                     <button
                       key={c._id}
                       onClick={() => navigate(ROUTES.CHAT_ID(c._id))}
-                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all ${
-                        active ? "bg-glass-hover border border-glass-border-strong" : "hover:bg-glass-hover"
-                      }`}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all border hover-lift"
+                      style={active
+                        ? { background: "var(--paper-3)", borderColor: "var(--ink)" }
+                        : { background: "var(--paper-2)", borderColor: "var(--line-soft)" }
+                      }
                     >
                       <Avatar src={other?.profilepic} name={name} size={44} online={other?.isOnline} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-foreground truncate">{name || "Unknown"}</p>
+                          <p className="text-sm font-semibold truncate" style={{ color: "var(--ink)" }}>{name || "Unknown"}</p>
                           {c.lastMessage?.createdAt && (
-                            <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                            <span className="text-[10px] flex-shrink-0" style={{ color: "var(--muted-2)" }}>
                               {formatTime(c.lastMessage.createdAt)}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-xs truncate" style={{ color: "var(--muted-2)" }}>
                           {c.lastMessage?.text || "Say hi 👋"}
                         </p>
                       </div>
                       {c.unreadCount > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-primary text-white">
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{ background: "var(--acid)", color: "var(--ink)" }}
+                        >
                           {c.unreadCount}
                         </span>
                       )}
@@ -216,49 +224,55 @@ export default function ChatPage() {
         {/* Thread */}
         <section className={`${activeChat?._id ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
           {!activeChat?._id ? (
-            <div className="flex-1 grid place-items-center text-center p-8">
-              <div className="animate-fade-in-up">
-                <div className="w-20 h-20 rounded-full bg-gradient-primary glow-primary mx-auto mb-4 grid place-items-center animate-float">
-                  <Send className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-xl font-bold text-foreground mb-1">Your messages</h2>
-                <p className="text-sm text-muted-foreground">Pick a conversation to start chatting.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Thread header */}
-              <header className="flex items-center justify-between p-3 border-b border-glass-border bg-glass">
-                <div className="flex items-center gap-3 min-w-0">
-                  <button
-                    onClick={() => navigate(ROUTES.CHAT)}
-                    className="md:hidden btn btn-ghost btn-icon"
+              <div className="flex-1 grid place-items-center text-center p-8">
+                <div className="animate-fade-in-up">
+                  <div
+                    className="w-20 h-20 rounded-full mx-auto mb-4 grid place-items-center animate-float"
+                    style={{ background: "var(--acid)" }}
                   >
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                  <Avatar src={otherMember?.profilepic} name={`${otherMember?.firstname || ""} ${otherMember?.lastname || ""}`} size={40} online={otherMember?.isOnline} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate">
-                      {otherMember?.firstname} {otherMember?.lastname}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {otherMember?.isOnline ? "Active now" : "Offline"}
-                    </p>
+                    <Send className="w-8 h-8" style={{ color: "var(--ink)" }} />
                   </div>
+                  <h2 className="text-xl font-bold mb-1" style={{ color: "var(--ink)" }}>Your messages</h2>
+                  <p className="text-sm" style={{ color: "var(--muted-2)" }}>Pick a conversation to start chatting.</p>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button className="btn btn-ghost btn-icon"><Phone className="w-4 h-4" /></button>
-                  <button className="btn btn-ghost btn-icon"><Video className="w-4 h-4" /></button>
-                  <button className="btn btn-ghost btn-icon"><MoreHorizontal className="w-4 h-4" /></button>
-                </div>
-              </header>
+              </div>
+            ) : (
+              <>
+                {/* Thread header */}
+                <header
+                  className="flex items-center justify-between p-3 border-b"
+                  style={{ background: "var(--paper-2)", borderColor: "var(--line-soft)" }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      onClick={() => navigate(ROUTES.CHAT)}
+                      className="md:hidden brutal-btn brutal-btn-ghost brutal-btn-icon"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <Avatar src={otherMember?.profilepic} name={`${otherMember?.firstname || ""} ${otherMember?.lastname || ""}`} size={40} online={otherMember?.isOnline} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>
+                        {otherMember?.firstname} {otherMember?.lastname}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--muted-2)" }}>
+                        {otherMember?.isOnline ? "Active now" : "Offline"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Phone className="w-4 h-4" /></button>
+                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Video className="w-4 h-4" /></button>
+                    <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><MoreHorizontal className="w-4 h-4" /></button>
+                  </div>
+                </header>
 
               {/* Messages */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
                 {loadingMsgs ? (
-                  <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                  <div className="flex justify-center py-8"><div className="spinner" style={{ width: 24, height: 24 }} /></div>
                 ) : (activeChat.messages || []).length === 0 ? (
-                  <p className="text-center text-muted-foreground text-sm py-12">No messages yet. Send the first one!</p>
+                  <p className="text-center text-sm py-12" style={{ color: "var(--muted-2)" }}>No messages yet. Send the first one!</p>
                 ) : (
                   (activeChat.messages || []).map((m, i) => {
                     const mine = m.sender?._id === user?._id || m.sender === user?._id;
@@ -273,9 +287,13 @@ export default function ChatPage() {
                         <div
                           className={`max-w-[75%] sm:max-w-[60%] px-4 py-2 rounded-2xl text-sm leading-relaxed animate-fade-in ${
                             mine
-                              ? `bg-gradient-primary text-white rounded-br-sm ${m.pending ? "opacity-70" : ""} glow-primary-soft`
-                              : "bg-glass-strong text-foreground rounded-bl-sm border border-glass-border"
+                              ? `rounded-br-sm ${m.pending ? "opacity-70" : ""}`
+                              : "rounded-bl-sm border"
                           }`}
+                          style={mine
+                            ? { background: "var(--acid)", color: "var(--ink)" }
+                            : { background: "var(--paper-3)", color: "var(--ink)", borderColor: "var(--line-soft)" }
+                          }
                         >
                           {m.text}
                         </div>
@@ -286,7 +304,10 @@ export default function ChatPage() {
                 {Object.keys(typingUsers).length > 0 && (
                   <div className="flex justify-start mt-2">
                     <span className="w-7 mr-2 flex-shrink-0" />
-                    <div className="bg-glass-strong border border-glass-border rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1">
+                    <div
+                      className="border rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-1"
+                      style={{ background: "var(--paper-3)", borderColor: "var(--line-soft)" }}
+                    >
                       <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
                     </div>
                   </div>
@@ -294,21 +315,21 @@ export default function ChatPage() {
               </div>
 
               {/* Composer */}
-              <div className="p-3 border-t border-glass-border bg-glass">
+              <div className="p-3 border-t" style={{ background: "var(--paper-2)", borderColor: "var(--line-soft)" }}>
                 <div className="flex items-center gap-2">
-                  <button className="btn btn-ghost btn-icon"><Paperclip className="w-4 h-4" /></button>
-                  <button className="btn btn-ghost btn-icon"><Smile className="w-4 h-4" /></button>
+                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Paperclip className="w-4 h-4" /></button>
+                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Smile className="w-4 h-4" /></button>
                   <input
                     value={draft}
                     onChange={(e) => { setDraft(e.target.value); handleTyping(); }}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
                     placeholder="Write a message…"
-                    className="input rounded-full flex-1 text-sm py-2.5"
+                    className="brutal-input rounded-full flex-1 text-sm py-2.5"
                   />
                   <button
                     onClick={handleSend}
                     disabled={!draft.trim()}
-                    className="btn btn-primary btn-icon"
+                    className="brutal-btn brutal-btn-primary brutal-btn-icon"
                   >
                     <Send className="w-4 h-4" />
                   </button>

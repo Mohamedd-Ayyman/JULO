@@ -15,7 +15,6 @@ import {
   LogOut,
   Camera,
   Save,
-  Loader2,
   ChevronRight,
   Globe,
   Trash2,
@@ -42,22 +41,22 @@ export default function SettingsPage() {
     <AppLayout title="Settings">
       <div className="max-w-3xl mx-auto px-3 sm:px-5 py-4 sm:py-6">
         <div className="hidden lg:block mb-5 animate-fade-in-down">
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage your account and preferences</p>
+          <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--ink)" }}>Settings</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted-2)" }}>Manage your account and preferences</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-4">
           {/* Side nav */}
-          <nav className="card p-2 h-fit sticky top-20 hidden sm:block">
+          <nav className="brutal-card p-2 h-fit sticky top-20 hidden sm:block">
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  section === s.id
-                    ? "bg-glass-hover text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-glass-hover"
-                }`}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
+                style={section === s.id
+                  ? { background: "var(--paper-3)", color: "var(--ink)" }
+                  : { color: "var(--muted-2)" }
+                }
               >
                 <s.icon className="w-4 h-4" />
                 {s.label}
@@ -71,11 +70,11 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
-                className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition ${
-                  section === s.id
-                    ? "bg-gradient-primary text-white"
-                    : "bg-glass text-muted-foreground"
-                }`}
+                className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition"
+                style={section === s.id
+                  ? { background: "var(--acid)", color: "var(--ink)" }
+                  : { background: "var(--paper-2)", color: "var(--muted-2)", border: "1px solid var(--line-soft)" }
+                }
               >
                 {s.label}
               </button>
@@ -101,10 +100,10 @@ export default function SettingsPage() {
 
 function Card({ title, desc, children }) {
   return (
-    <div className="card p-5">
+    <div className="brutal-card p-5">
       <div className="mb-4">
-        <h2 className="text-base font-bold text-foreground">{title}</h2>
-        {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
+        <h2 className="text-base font-bold" style={{ color: "var(--ink)" }}>{title}</h2>
+        {desc && <p className="text-xs mt-0.5" style={{ color: "var(--muted-2)" }}>{desc}</p>}
       </div>
       {children}
     </div>
@@ -155,15 +154,16 @@ function ProfileSection({ user, dispatch }) {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="absolute bottom-0 right-0 w-9 h-9 grid place-items-center rounded-full bg-gradient-primary glow-primary-soft border-2 border-background hover:scale-110 transition-transform"
+            className="absolute bottom-0 right-0 w-9 h-9 grid place-items-center rounded-full hover:scale-110 transition-transform"
+            style={{ background: "var(--acid)", border: "2px solid var(--ink)", boxShadow: "var(--sh-1)" }}
           >
-            <Camera className="w-4 h-4 text-white" />
+            <Camera className="w-4 h-4" style={{ color: "var(--ink)" }} />
           </button>
           <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
         </div>
         <div>
-          <p className="text-sm font-bold text-foreground">Profile picture</p>
-          <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Profile picture</p>
+          <p className="text-xs" style={{ color: "var(--muted-2)" }}>PNG, JPG up to 5MB</p>
         </div>
       </div>
 
@@ -177,8 +177,8 @@ function ProfileSection({ user, dispatch }) {
         <Field label="Website" value={profile.website} onChange={(v) => setProfile({ ...profile, website: v })} />
       </div>
 
-      <button onClick={save} disabled={saving} className="btn btn-primary mt-5">
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+      <button onClick={save} disabled={saving} className="brutal-btn brutal-btn-primary mt-5">
+        {saving ? <div className="spinner" /> : <Save className="w-4 h-4" />}
         Save changes
       </button>
     </Card>
@@ -217,8 +217,8 @@ function PasswordSection() {
         <Field type="password" label="New password" value={form.newPassword} onChange={(v) => setForm({ ...form, newPassword: v })} />
         <Field type="password" label="Confirm new password" value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} />
       </div>
-      <button onClick={submit} disabled={loading} className="btn btn-primary mt-5">
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+      <button onClick={submit} disabled={loading} className="brutal-btn brutal-btn-primary mt-5">
+        {loading ? <div className="spinner" /> : <Lock className="w-4 h-4" />}
         Update password
       </button>
     </Card>
@@ -237,7 +237,7 @@ function NotificationsSection() {
 
   return (
     <Card title="Notifications" desc="Choose what you want to be notified about">
-      <div className="divide-y divide-glass-border">
+      <div className="divide-y" style={{ borderColor: "var(--line-soft)" }}>
         {Object.keys(prefs).map((k) => (
           <Toggle
             key={k}
@@ -268,7 +268,8 @@ function AppearanceSection() {
         {["Dark", "Midnight", "Aurora"].map((t, i) => (
           <button
             key={t}
-            className={`card p-4 text-center transition-all ${i === 0 ? "border-glass-border-strong glow-primary-soft" : "hover-lift"}`}
+            className="brutal-card p-4 text-center transition-all"
+            style={i === 0 ? { borderColor: "var(--ink)" } : undefined}
           >
             <div
               className="h-16 rounded-lg mb-2"
@@ -280,7 +281,7 @@ function AppearanceSection() {
                   : "linear-gradient(135deg, #22d3ee, #f472b6)",
               }}
             />
-            <p className="text-xs font-semibold text-foreground">{t}</p>
+            <p className="text-xs font-semibold" style={{ color: "var(--ink)" }}>{t}</p>
           </button>
         ))}
       </div>
@@ -292,7 +293,7 @@ function AppearanceSection() {
 function PrivacySection() {
   return (
     <Card title="Privacy" desc="Control who can see and contact you">
-      <div className="divide-y divide-glass-border">
+      <div className="divide-y" style={{ borderColor: "var(--line-soft)" }}>
         <Toggle label="Private account" desc="Only approved followers can see your posts" checked={false} onChange={() => {}} />
         <Toggle label="Show online status" desc="Let others see when you're active" checked={true} onChange={() => {}} />
         <Toggle label="Allow message requests" desc="Receive messages from users you don't follow" checked={true} onChange={() => {}} />
@@ -313,17 +314,27 @@ function AccountSection({ navigate, dispatch }) {
     <>
       <Card title="Language & region">
         <button className="w-full flex items-center justify-between py-3 px-1 text-sm">
-          <span className="flex items-center gap-2 text-foreground"><Globe className="w-4 h-4 text-muted-foreground" /> English (US)</span>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <span className="flex items-center gap-2" style={{ color: "var(--ink)" }}>
+            <Globe className="w-4 h-4" style={{ color: "var(--muted-2)" }} /> English (US)
+          </span>
+          <ChevronRight className="w-4 h-4" style={{ color: "var(--muted-2)" }} />
         </button>
       </Card>
 
       <Card title="Account actions" desc="Sign out or delete your account">
         <div className="space-y-3">
-          <button onClick={handleLogout} className="btn btn-glass w-full justify-start">
+          <button onClick={handleLogout} className="brutal-btn brutal-btn-ghost w-full justify-start">
             <LogOut className="w-4 h-4" /> Sign out
           </button>
-          <button className="btn w-full justify-start text-error" style={{ color: "var(--color-error)", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)" }}>
+          <button
+            className="brutal-btn w-full justify-start"
+            style={{
+              color: "var(--paper)",
+              background: "var(--riso-red)",
+              border: "2px solid var(--ink)",
+              boxShadow: "3px 3px 0 0 var(--ink)",
+            }}
+          >
             <Trash2 className="w-4 h-4" /> Delete account
           </button>
         </div>
@@ -337,11 +348,11 @@ function AccountSection({ navigate, dispatch }) {
 function Field({ label, value, onChange, type = "text", multiline, className = "" }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-xs font-semibold text-muted-foreground mb-1.5 block">{label}</span>
+      <span className="text-xs font-semibold mb-1.5 block" style={{ color: "var(--muted-2)" }}>{label}</span>
       {multiline ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} className="textarea" rows={3} />
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} className="brutal-input" rows={3} />
       ) : (
-        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="input" />
+        <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="brutal-input" />
       )}
     </label>
   );
@@ -351,22 +362,25 @@ function Toggle({ label, desc, checked, onChange, className = "" }) {
   return (
     <div className={`flex items-center justify-between py-3 ${className}`}>
       <div className="pr-4">
-        <p className="text-sm font-semibold text-foreground">{label}</p>
-        {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
+        <p className="text-sm font-semibold" style={{ color: "var(--ink)" }}>{label}</p>
+        {desc && <p className="text-xs mt-0.5" style={{ color: "var(--muted-2)" }}>{desc}</p>}
       </div>
       <button
         type="button"
         onClick={() => onChange(!checked)}
         role="switch"
         aria-checked={checked}
-        className={`relative w-11 h-6 rounded-full transition-all flex-shrink-0 ${
-          checked ? "bg-gradient-primary glow-primary-soft" : "bg-glass-hover border border-glass-border"
-        }`}
+        className="relative w-11 h-6 rounded-full transition-all flex-shrink-0"
+        style={checked
+          ? { background: "var(--acid)", boxShadow: "var(--sh-1)", border: "2px solid var(--ink)" }
+          : { background: "var(--paper-2)", border: "2px solid var(--line)" }
+        }
       >
         <span
-          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+          className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${
             checked ? "left-[22px]" : "left-0.5"
           }`}
+          style={{ background: "var(--paper)", border: "2px solid var(--ink)" }}
         />
       </button>
     </div>

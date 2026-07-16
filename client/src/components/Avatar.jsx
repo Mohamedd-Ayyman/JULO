@@ -1,15 +1,17 @@
 import React from "react";
 
 /**
- * Avatar — gradient avatar with initial fallback, optional online dot, optional ring.
+ * Avatar — square, ink-bordered. Used everywhere in JULO.
+ * `shape="square"` (default) | `"circle"` | `"squircle"` (slight radius).
  */
 export default function Avatar({
   src,
   name = "",
-  size = 36,
-  ring = false,
+  size = 40,
+  shape = "squircle",
   online = false,
   className = "",
+  style = {},
 }) {
   const initials = name
     .split(" ")
@@ -19,17 +21,26 @@ export default function Avatar({
     .join("")
     .toUpperCase();
 
-  const dim = { width: size, height: size, fontSize: Math.max(11, size * 0.36) };
+  const radius =
+    shape === "circle" ? "50%" : shape === "square" ? "0" : "6px";
 
-  const inner = (
-    <span className="avatar" style={dim}>
-      {src ? <img src={src} alt={name || "avatar"} /> : <span>{initials || "·"}</span>}
-      {online && <span className="online-dot" />}
+  return (
+    <span
+      className={`brutal-avatar ${className}`}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(11, size * 0.36),
+        borderRadius: radius,
+        ...style,
+      }}
+    >
+      {src ? (
+        <img src={src} alt={name || "avatar"} loading="lazy" />
+      ) : (
+        <span>{initials || "·"}</span>
+      )}
+      {online && <span className="brutal-avatar-online" />}
     </span>
   );
-
-  if (ring) {
-    return <span className={`avatar-ring ${className}`}>{inner}</span>;
-  }
-  return <span className={`relative inline-block ${className}`}>{inner}</span>;
 }
