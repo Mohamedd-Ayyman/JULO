@@ -27,11 +27,13 @@ import DateSeparator from "../../components/chat/DateSeparator.jsx";
 import ScrollToBottom from "../../components/chat/ScrollToBottom.jsx";
 import EmojiPicker from "../../components/chat/EmojiPicker.jsx";
 import AttachmentsPreview from "../../components/chat/AttachmentsPreview.jsx";
+import ReplyPreview from "../../components/chat/ReplyPreview.jsx";
+import ThreadPanel from "../../components/chat/ThreadPanel.jsx";
 import useAudioRecorder from "../../hooks/useAudioRecorder.js";
 import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import useLinkPreview from "../../hooks/useLinkPreview.js";
-import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage } from "../../apiCalls/message.js";
+import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage, editMessage, sendReply } from "../../apiCalls/message.js";
 import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
@@ -62,6 +64,8 @@ export default function ChatPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [activeThread, setActiveThread] = useState(null);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const recorder = useAudioRecorder();
@@ -73,7 +77,6 @@ export default function ChatPage() {
     if (wasOffline) toast.success("You're back online");
   }, [wasOffline]);
 
-  /* Load chats once */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -94,20 +97,22 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [dispatch]);
 
-  /* Pick active chat from URL */
   useEffect(() => {
     if (!chatId) {
       dispatch(setActiveChat(null));
+      setReplyToMessage(null);
+      setActiveThread(null);
       return;
     }
     setCurrentPage(1);
     setHasMore(true);
     setLoadingOlder(false);
+    setReplyToMessage(null);
+    setActiveThread(null);
     const found = chats.find((c) => c._id === chatId);
     if (found) dispatch(setActiveChat({ ...found, messages: [] }));
   }, [chatId, chats, dispatch]);
 
-  /* Load messages for active chat */
   useEffect(() => {
     if (!activeChat?._id || activeChat.messages?.length) return;
     let cancelled = false;
@@ -135,7 +140,6 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChat?._id]);
 
-  /* Socket listeners */
   useEffect(() => {
     if (!socket) return;
     const onReceive = (m) => dispatch(addMessage(m));
@@ -149,19 +153,44 @@ export default function ChatPage() {
         setTypingUsers((p) => { const n = { ...p }; delete n[userId]; return n; });
       }
     };
+    const onMessageEdited = ({ messageId, text, edited, editedAt }) => {
+      dispatch(addMessage({
+        _id: messageId,
+        chatId: activeChat?._id,
+        text,
+        edited,
+        updatedAt: editedAt,
+        _replace: messageId,
+      }));
+    };
+    const onMessageDeleted = ({ messageId, chatId: cId }) => {
+      if (cId === activeChat?._id) {
+        dispatch(addMessage({ _id: messageId, chatId: cId, deleted: true, _replace: messageId }));
+      }
+    };
+    const onReactionUpdated = ({ messageId, reactions, chatId: cId }) => {
+      if (cId === activeChat?._id) {
+        dispatch(addMessage({ _id: messageId, chatId: cId, reactions, _replace: messageId }));
+      }
+    };
     socket.on(SOCKET_EVENTS.RECEIVE_MESSAGE, onReceive);
     socket.on(SOCKET_EVENTS.USER_TYPING, onTypingStart);
     socket.on(SOCKET_EVENTS.USER_STOPPED_TYPING, onTypingStop);
+    socket.on(SOCKET_EVENTS.MESSAGE_EDITED, onMessageEdited);
+    socket.on(SOCKET_EVENTS.MESSAGE_DELETED, onMessageDeleted);
+    socket.on(SOCKET_EVENTS.REACTION_UPDATED, onReactionUpdated);
     if (activeChat?._id) socket.emit(SOCKET_EVENTS.JOIN_CHAT, activeChat._id);
     return () => {
       socket.off(SOCKET_EVENTS.RECEIVE_MESSAGE, onReceive);
       socket.off(SOCKET_EVENTS.USER_TYPING, onTypingStart);
       socket.off(SOCKET_EVENTS.USER_STOPPED_TYPING, onTypingStop);
+      socket.off(SOCKET_EVENTS.MESSAGE_EDITED, onMessageEdited);
+      socket.off(SOCKET_EVENTS.MESSAGE_DELETED, onMessageDeleted);
+      socket.off(SOCKET_EVENTS.REACTION_UPDATED, onReactionUpdated);
       if (activeChat?._id) socket.emit(SOCKET_EVENTS.LEAVE_CHAT, activeChat._id);
     };
   }, [socket, activeChat?._id, user?._id, dispatch]);
 
-  /* Auto-scroll to bottom on new messages */
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -286,6 +315,37 @@ export default function ChatPage() {
     }
   };
 
+  const handleReplyTo = (message) => {
+    setReplyToMessage(message);
+    setActiveThread(null);
+  };
+
+  const handleCancelReply = () => setReplyToMessage(null);
+
+  const handleSaveEdit = async (message, newText) => {
+    const res = await editMessage(message._id, newText);
+    if (res.success) {
+      dispatch(addMessage({
+        _id: message._id,
+        chatId: activeChat._id,
+        text: newText,
+        edited: true,
+        updatedAt: new Date().toISOString(),
+        _replace: message._id,
+      }));
+      toast.success("Message edited");
+    } else {
+      toast.error("Failed to edit message");
+    }
+  };
+
+  const handleOpenThread = (message) => {
+    setActiveThread(message);
+    setReplyToMessage(null);
+  };
+
+  const handleCloseThread = () => setActiveThread(null);
+
   const isImageFile = (file) => file.type?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
 
   const handleFileSelect = (e) => {
@@ -323,9 +383,12 @@ export default function ChatPage() {
 
     if (!hasAttachments && !hasText) return;
 
+    const currentReplyTo = replyToMessage?._id || null;
+
     if (hasAttachments) {
       setUploadingFiles(true);
       setDraft("");
+      setReplyToMessage(null);
       for (const att of attachments) {
         const tempId = `temp-media-${Date.now()}-${Math.random()}`;
         const tempMsg = {
@@ -335,6 +398,7 @@ export default function ChatPage() {
           text: "",
           createdAt: new Date().toISOString(),
           pending: true,
+          ...(currentReplyTo ? { replyTo: replyToMessage } : {}),
           ...(att.type === "image" ? { imageUrl: att.preview } : { fileUrl: att.preview, fileName: att.file.name, fileSize: att.file.size, mimeType: att.file.type }),
         };
         dispatch(addMessage(tempMsg));
@@ -343,7 +407,12 @@ export default function ChatPage() {
         if (uploadRes.success) {
           let res;
           if (att.type === "image") {
-            res = await sendImageMessage(activeChat._id, uploadRes.url, "", other?._id, linkPreview);
+            if (currentReplyTo) {
+              const { sendReply: sendReplyFn } = await import("../../apiCalls/message.js");
+              res = await sendReplyFn(activeChat._id, currentReplyTo, "", other?._id);
+            } else {
+              res = await sendImageMessage(activeChat._id, uploadRes.url, "", other?._id, linkPreview);
+            }
           } else {
             res = await sendFileMessage(activeChat._id, uploadRes.url, uploadRes.fileName || att.file.name, uploadRes.fileSize || att.file.size, uploadRes.mimeType || att.file.type, "", other?._id);
           }
@@ -362,6 +431,7 @@ export default function ChatPage() {
       clearLinkPreview();
     } else if (hasText) {
       setDraft("");
+      setReplyToMessage(null);
       clearLinkPreview();
       const tempId = `temp-${Date.now()}`;
       const tempMsg = {
@@ -371,11 +441,18 @@ export default function ChatPage() {
         text,
         createdAt: new Date().toISOString(),
         pending: true,
+        ...(currentReplyTo ? { replyTo: replyToMessage } : {}),
       };
       dispatch(addMessage(tempMsg));
-      const msgPayload = { chatId: activeChat._id, text, receiverId: other?._id };
-      if (linkPreview) msgPayload.linkPreview = linkPreview;
-      const res = await sendMessage(activeChat._id, text, other?._id);
+
+      let res;
+      if (currentReplyTo) {
+        res = await sendReply(activeChat._id, currentReplyTo, text, other?._id);
+      } else {
+        const msgPayload = { chatId: activeChat._id, text, receiverId: other?._id };
+        if (linkPreview) msgPayload.linkPreview = linkPreview;
+        res = await sendMessage(activeChat._id, text, other?._id);
+      }
       if (res.success && socket) {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
         dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
@@ -430,7 +507,6 @@ export default function ChatPage() {
   return (
     <AppLayout title="Messages" hideRightRail fullWidth>
       <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex">
-        {/* Chat list */}
         <aside
           className={`${activeChat?._id ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] flex-shrink-0 border-r z-10`}
           style={{ borderColor: "var(--line-soft)", background: "var(--paper-2)" }}
@@ -486,7 +562,6 @@ export default function ChatPage() {
           </div>
         </aside>
 
-        {/* Thread */}
         <section className={`${activeChat?._id ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
           {!activeChat?._id ? (
             <div className="flex-1 grid place-items-center text-center p-8">
@@ -500,7 +575,6 @@ export default function ChatPage() {
             </div>
           ) : (
             <>
-              {/* Thread header */}
               <header className="flex items-center justify-between p-3" style={{ borderBottom: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
                 <div className="flex items-center gap-3 min-w-0">
                   <button
@@ -528,83 +602,95 @@ export default function ChatPage() {
 
               <OfflineBanner isOnline={isOnline} />
 
-              {/* Messages */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
-                {loadingOlder && (
-                  <div className="flex justify-center py-3">
-                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--muted)" }} />
-                  </div>
-                )}
-                {loadingMsgs ? (
-                  <MessageListSkeleton />
-                ) : msgError ? (
-                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                    <p className="text-sm mb-3" style={{ color: "var(--riso-red)" }}>{msgError}</p>
-                    <button
-                      onClick={() => { setMsgError(null); setLoadingMsgs(true); window.location.reload(); }}
-                      className="brutal-btn brutal-btn-sm"
-                    >
-                      <RefreshCw className="w-3 h-3 mr-1" /> Retry
-                    </button>
-                  </div>
-                ) : (activeChat.messages || []).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div
-                      className="w-14 h-14 mb-3 grid place-items-center rounded-full"
-                      style={{ background: "var(--paper-3)", border: "1px solid var(--line-soft)" }}
-                    >
-                      <MessageSquare className="w-6 h-6" style={{ color: "var(--muted)" }} />
+              <div className="flex-1 flex overflow-hidden">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
+                  {loadingOlder && (
+                    <div className="flex justify-center py-3">
+                      <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--muted)" }} />
                     </div>
-                    <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No messages yet</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Send the first one to start the conversation!</p>
-                  </div>
-                ) : (
-                  groupMessagesByDate(activeChat.messages || []).map((group) => (
-                    <React.Fragment key={group.date}>
-                      <DateSeparator date={group.date} />
-                      {group.messages.map((m, i) => {
-                        const mine = m.sender?._id === user?._id || m.sender === user?._id;
-                        const msgs = group.messages;
-                        const prevMsg = i > 0 ? msgs[i - 1] : null;
-                        const nextMsg = i < msgs.length - 1 ? msgs[i + 1] : null;
-                        const prevSameSender = prevMsg && (prevMsg.sender?._id === m.sender?._id || prevMsg.sender === m.sender);
-                        const nextSameSender = nextMsg && (nextMsg.sender?._id === m.sender?._id || nextMsg.sender === m.sender);
-                        const isGroupStart = !prevSameSender;
-                        const isGroupEnd = !nextSameSender;
-                        return (
-                          <MessageBubble
-                            key={m._id}
-                            message={m}
-                            isMine={mine}
-                            isGroupStart={isGroupStart}
-                            isGroupEnd={isGroupEnd}
-                            otherMember={otherMember}
-                            currentUserId={user?._id}
-                            onRetry={handleRetrySend}
-                            onDelete={(id) => {
-                              if (m.pending || m.failed) handleDeleteFailed(id);
-                              else handleDeleteMessage(id);
-                            }}
-                            onReact={handleReact}
-                          />
-                        );
-                      })}
-                    </React.Fragment>
-                  ))
-                )}
-                {Object.keys(typingUsers).length > 0 && (
-                  <div className="flex justify-start mt-2">
-                    <span className="w-7 mr-2 flex-shrink-0" />
-                    <div className="px-3 py-2 flex items-center gap-1" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
-                      <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+                  )}
+                  {loadingMsgs ? (
+                    <MessageListSkeleton />
+                  ) : msgError ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      <p className="text-sm mb-3" style={{ color: "var(--riso-red)" }}>{msgError}</p>
+                      <button
+                        onClick={() => { setMsgError(null); setLoadingMsgs(true); window.location.reload(); }}
+                        className="brutal-btn brutal-btn-sm"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" /> Retry
+                      </button>
                     </div>
-                  </div>
+                  ) : (activeChat.messages || []).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div
+                        className="w-14 h-14 mb-3 grid place-items-center rounded-full"
+                        style={{ background: "var(--paper-3)", border: "1px solid var(--line-soft)" }}
+                      >
+                        <MessageSquare className="w-6 h-6" style={{ color: "var(--muted)" }} />
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No messages yet</p>
+                      <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Send the first one to start the conversation!</p>
+                    </div>
+                  ) : (
+                    groupMessagesByDate(activeChat.messages || []).map((group) => (
+                      <React.Fragment key={group.date}>
+                        <DateSeparator date={group.date} />
+                        {group.messages.map((m, i) => {
+                          const mine = m.sender?._id === user?._id || m.sender === user?._id;
+                          const msgs = group.messages;
+                          const prevMsg = i > 0 ? msgs[i - 1] : null;
+                          const nextMsg = i < msgs.length - 1 ? msgs[i + 1] : null;
+                          const prevSameSender = prevMsg && (prevMsg.sender?._id === m.sender?._id || prevMsg.sender === m.sender);
+                          const nextSameSender = nextMsg && (nextMsg.sender?._id === m.sender?._id || nextMsg.sender === m.sender);
+                          const isGroupStart = !prevSameSender;
+                          const isGroupEnd = !nextSameSender;
+                          return (
+                            <MessageBubble
+                              key={m._id}
+                              message={m}
+                              isMine={mine}
+                              isGroupStart={isGroupStart}
+                              isGroupEnd={isGroupEnd}
+                              otherMember={otherMember}
+                              currentUserId={user?._id}
+                              onRetry={handleRetrySend}
+                              onDelete={(id) => {
+                                if (m.pending || m.failed) handleDeleteFailed(id);
+                                else handleDeleteMessage(id);
+                              }}
+                              onReact={handleReact}
+                              onReply={handleReplyTo}
+                              onEdit={handleSaveEdit}
+                              onOpenThread={handleOpenThread}
+                            />
+                          );
+                        })}
+                      </React.Fragment>
+                    ))
+                  )}
+                  {Object.keys(typingUsers).length > 0 && (
+                    <div className="flex justify-start mt-2">
+                      <span className="w-7 mr-2 flex-shrink-0" />
+                      <div className="px-3 py-2 flex items-center gap-1" style={{ background: "var(--paper-2)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)" }}>
+                        <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {activeThread && (
+                  <ThreadPanel
+                    rootMessage={activeThread}
+                    currentUserId={user?._id}
+                    onClose={handleCloseThread}
+                    otherMember={otherMember}
+                  />
                 )}
               </div>
 
               <ScrollToBottom visible={showScrollBtn} onClick={scrollToBottom} unseenCount={unseenCount} />
 
-              {/* Composer / Recording Panel */}
               {recorder.isRecording || sendingAudio ? (
                 <RecordingPanel
                   duration={recorder.duration}
@@ -614,6 +700,7 @@ export default function ChatPage() {
                 />
               ) : (
                 <div style={{ borderTop: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
+                  <ReplyPreview message={replyToMessage} onCancel={handleCancelReply} />
                   <AttachmentsPreview attachments={attachments} onRemove={handleRemoveAttachment} />
 
                   {linkPreview && (
@@ -672,7 +759,7 @@ export default function ChatPage() {
                         value={draft}
                         onChange={(e) => { setDraft(e.target.value); handleTyping(); }}
                         onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendWithAttachments())}
-                        placeholder="Write a message…"
+                        placeholder={replyToMessage ? `Reply to ${replyToMessage.sender?.firstname || "someone"}…` : "Write a message…"}
                         className="brutal-input rounded-full text-sm"
                         style={{ paddingTop: 10, paddingBottom: 10 }}
                       />
