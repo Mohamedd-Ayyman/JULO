@@ -4,7 +4,7 @@ import { requireAuth } from "../middlewares/authMiddleware.js";
 import { tenantMiddleware } from "../middlewares/tenantMiddleware.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { asyncHandler } from "../utils/AppError.js";
-import { validate, chatCreateSchema, chatUpdateSchema, messageSchema, conversationListQuerySchema } from "../utils/validate.js";
+import { validate, chatCreateSchema, chatUpdateSchema, messageSchema, messageEditSchema, messageQuerySchema, conversationListQuerySchema, messageReplySchema, messageForwardSchema } from "../utils/validate.js";
 import { invalidateCache } from "../middlewares/cacheMiddleware.js";
 import { emitToChat, emitToUsers } from "../utils/socket.js";
 
@@ -241,6 +241,185 @@ router.delete(
     } catch (_) {}
 
     res.send({ success: true, message: "Chat deleted", statusCode: 200 });
+  })
+);
+
+// ── Consolidated Message CRUD ──────────────────────────────────────────────────
+
+router.get(
+  "/:chatId/messages",
+  requireAuth,
+  tenantMiddleware,
+  validate(messageQuerySchema, "query"),
+  asyncHandler(async (req, res) => {
+    const { cursor, limit, direction, includeDeleted, messageType, search } = req.query;
+    const result = await chatService.getMessages(req.params.chatId, req.user.userId, {
+      cursor: cursor || undefined,
+      limit,
+      direction: direction || "backward",
+      includeDeleted,
+      messageType,
+      search,
+    });
+    res.send({ success: true, data: result, statusCode: 200 });
+  })
+);
+
+router.put(
+  "/:chatId/messages/:messageId/edit",
+  requireAuth,
+  tenantMiddleware,
+  validate(messageEditSchema),
+  asyncHandler(async (req, res) => {
+    const message = await chatService.editMessage(req.params.messageId, req.user.userId, req.body.text);
+
+    try {
+      const msgObj = message.toObject ? message.toObject() : message;
+      emitToChat(req.params.chatId, "message_edited", {
+        messageId: req.params.messageId,
+        chatId: req.params.chatId,
+        text: msgObj.text,
+        edited: true,
+        editedAt: msgObj.updatedAt,
+      });
+    } catch (_) {}
+
+    res.send({ success: true, message: "Message updated", data: message, statusCode: 200 });
+  })
+);
+
+router.delete(
+  "/:chatId/messages/:messageId",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const Message = (await import("../models/message.js")).default;
+    const msgData = await Message.findById(req.params.messageId).lean().catch(() => null);
+
+    await chatService.deleteMessage(req.params.messageId, req.user.userId);
+
+    try {
+      if (msgData) {
+        emitToChat(req.params.chatId, "message_deleted", {
+          messageId: req.params.messageId,
+          chatId: req.params.chatId,
+          deletedBy: req.user.userId,
+        });
+      }
+    } catch (_) {}
+
+    res.send({ success: true, message: "Message deleted", statusCode: 200 });
+  })
+);
+
+router.put(
+  "/:chatId/messages/:messageId/restore",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const message = await chatService.restoreMessage(req.params.messageId, req.user.userId);
+
+    try {
+      emitToChat(req.params.chatId, "message_restored", {
+        messageId: req.params.messageId,
+        chatId: req.params.chatId,
+        restoredBy: req.user.userId,
+      });
+    } catch (_) {}
+
+    res.send({ success: true, data: message, statusCode: 200 });
+  })
+);
+
+router.put(
+  "/:chatId/messages/:messageId/react",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const { emoji } = req.body;
+    if (!emoji || typeof emoji !== "string" || emoji.length > 8) {
+      const err = new Error("Valid emoji required");
+      err.statusCode = 400;
+      throw err;
+    }
+    const message = await chatService.addReaction(req.params.messageId, req.user.userId, emoji);
+
+    try {
+      const msgObj = message.toObject ? message.toObject() : message;
+      const reactionsObj = {};
+      if (msgObj.reactions) {
+        msgObj.reactions.forEach((users, key) => {
+          reactionsObj[key] = users.map(String);
+        });
+      }
+      emitToChat(req.params.chatId, "reaction_updated", {
+        messageId: req.params.messageId,
+        chatId: req.params.chatId,
+        reactions: reactionsObj,
+        userId: req.user.userId,
+        emoji,
+      });
+    } catch (_) {}
+
+    res.send({ success: true, data: message, statusCode: 200 });
+  })
+);
+
+router.post(
+  "/:chatId/messages/:messageId/reply",
+  requireAuth,
+  tenantMiddleware,
+  idempotencyMiddleware(),
+  validate(messageReplySchema),
+  asyncHandler(async (req, res) => {
+    const message = await chatService.sendMessage(req.params.chatId, req.user.userId, req.tenantId, {
+      ...req.body,
+      replyTo: req.params.messageId,
+    });
+    await invalidateCache(`chat:${req.params.chatId}:*`);
+
+    try {
+      const msgObj = message.toObject ? message.toObject() : message;
+      emitToChat(req.params.chatId, "receive_message", {
+        ...msgObj,
+        senderId: req.user.userId,
+        tempId: req.body.tempId || null,
+        isReply: true,
+      });
+    } catch (_) {}
+
+    res.status(201).send({ success: true, message: "Reply sent", data: message, statusCode: 201 });
+  })
+);
+
+router.post(
+  "/:chatId/messages/:messageId/forward",
+  requireAuth,
+  tenantMiddleware,
+  validate(messageForwardSchema),
+  asyncHandler(async (req, res) => {
+    const { targetChatId } = req.body;
+    const message = await chatService.forwardMessage(req.params.messageId, targetChatId, req.user.userId);
+
+    try {
+      emitToChat(targetChatId, "receive_message", {
+        ...message.toObject(),
+        senderId: req.user.userId,
+        forwarded: true,
+      });
+    } catch (_) {}
+
+    res.status(201).send({ success: true, data: message, statusCode: 201 });
+  })
+);
+
+router.get(
+  "/:chatId/messages/:messageId/thread",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const result = await chatService.getThreadReplies(req.params.messageId, req.user.userId, req.query);
+    res.send({ success: true, data: result, statusCode: 200 });
   })
 );
 
