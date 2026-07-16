@@ -127,6 +127,7 @@ import callSessionRouter from "./controllers/callSessionController.js";
 import keyExchangeRouter from "./controllers/keyExchangeController.js";
 import encryptionSessionRouter from "./controllers/encryptionSessionController.js";
 import linkPreviewRouter from "./controllers/linkPreviewController.js";
+import participantRouter from "./controllers/participantController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
