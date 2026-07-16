@@ -26,7 +26,6 @@ import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 import { ChatListSkeleton } from "../../components/Skeletons.jsx";
 import { EmptyChatsState } from "../../components/EmptyStates.jsx";
-import { formatTime } from "../../components/CommonUI.jsx";
 
 export default function ChatPage() {
   const { chatId } = useParams();
