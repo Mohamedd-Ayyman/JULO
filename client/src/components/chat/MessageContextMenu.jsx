@@ -1,9 +1,24 @@
 import * as ContextMenu from "@radix-ui/react-context-menu";
-import { Copy, Smile, Trash2 } from "lucide-react";
+import { Copy, Smile, Trash2, Reply, Pencil } from "lucide-react";
+import toast from "react-hot-toast";
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
-export default function MessageContextMenu({ children, message, isMine, onCopy, onReact, onDelete }) {
+export default function MessageContextMenu({
+  children,
+  message,
+  isMine,
+  onCopy,
+  onReact,
+  onDelete,
+  onReply,
+  onEdit,
+}) {
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(message.text || "");
+    toast.success("Copied!");
+  };
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
@@ -22,9 +37,33 @@ export default function MessageContextMenu({ children, message, isMine, onCopy, 
             zIndex: 50,
           }}
         >
+          <ContextMenu.Item
+            onClick={onReply}
+            className="flex items-center gap-2.5 px-3 py-2 text-sm rounded cursor-pointer outline-none"
+            style={{ color: "var(--ink)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--paper-3)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <Reply className="w-3.5 h-3.5" style={{ color: "var(--muted)" }} />
+            Reply
+          </ContextMenu.Item>
+
+          {isMine && message.text && (
+            <ContextMenu.Item
+              onClick={onEdit}
+              className="flex items-center gap-2.5 px-3 py-2 text-sm rounded cursor-pointer outline-none"
+              style={{ color: "var(--ink)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--paper-3)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <Pencil className="w-3.5 h-3.5" style={{ color: "var(--muted)" }} />
+              Edit
+            </ContextMenu.Item>
+          )}
+
           {message.text && (
             <ContextMenu.Item
-              onClick={onCopy}
+              onClick={onCopy || handleCopy}
               className="flex items-center gap-2.5 px-3 py-2 text-sm rounded cursor-pointer outline-none"
               style={{ color: "var(--ink)" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--paper-3)"; }}
