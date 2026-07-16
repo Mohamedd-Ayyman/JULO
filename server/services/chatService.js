@@ -92,7 +92,7 @@ export class ChatService {
       }));
   }
 
-  async getMessages(chatId, userId, { page = 1, limit = 50, before = null, after = null, replyTo = null } = {}) {
+  async getMessages(chatId, userId, { cursor = null, limit = 50, direction = "backward" } = {}) {
     const chat = await Chat.findById(chatId);
     if (!chat) {
       const err = new Error("Chat not found");
@@ -105,24 +105,38 @@ export class ChatService {
       throw err;
     }
 
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
     const query = { chatId };
-    if (replyTo) query.replyTo = replyTo;
-    if (before) query.createdAt = { $lt: new Date(before) };
-    if (after) query.createdAt = { ...(query.createdAt || {}), $gt: new Date(after) };
 
-    const skip = (Number(page) - 1) * Number(limit);
-    const [messages, total] = await Promise.all([
-      Message.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit))
-        .populate("sender", "firstname lastname profilepic")
-        .populate("replyTo", "text sender createdAt")
-        .populate("threadRootId", "text sender createdAt")
-        .lean(),
-      Message.countDocuments(query),
-    ]);
-    return { messages, total, page: Number(page), pages: Math.ceil(total / Number(limit)) };
+    if (cursor) {
+      if (direction === "forward") {
+        query._id = { $gt: new mongoose.Types.ObjectId(cursor) };
+      } else {
+        query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+      }
+    }
+
+    const sort = direction === "forward" ? { _id: 1 } : { _id: -1 };
+
+    const messages = await Message.find(query)
+      .sort(sort)
+      .limit(safeLimit + 1)
+      .populate("sender", "firstname lastname profilepic")
+      .populate("replyTo", "text sender createdAt")
+      .populate("threadRootId", "text sender createdAt")
+      .lean();
+
+    const hasMore = messages.length > safeLimit;
+    if (hasMore) messages.pop();
+
+    if (direction === "forward") messages.reverse();
+
+    return {
+      messages,
+      nextCursor: direction === "backward" && hasMore ? String(messages[messages.length - 1]._id) : null,
+      prevCursor: direction === "forward" && hasMore ? String(messages[0]._id) : null,
+      hasMore,
+    };
   }
 
   async getThreadReplies(messageId, userId, { page = 1, limit = 50 } = {}) {
