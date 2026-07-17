@@ -57,7 +57,7 @@ jobs:
           NODE_ENV=test
           PORT_NUMBER=3001
           SECRET_KEY=test-secret-key-for-testing-only-must-be-64-chars-long-minimum-guaranteed
-          CONN_STRING=mongodb://localhost:27017/nuvora_test
+          CONN_STRING=mongodb://localhost:27017/julo_test
           CLIENT_URL=http://localhost:5173
           REDIS_URL=redis://localhost:6379/0
           EOF
@@ -156,7 +156,7 @@ jobs:
           file: ./Dockerfile
           target: server-runner
           push: false
-          tags: ${{ secrets.DOCKER_USERNAME }}/nuvora-server:${{ github.sha }},${{ secrets.DOCKER_USERNAME }}/nuvora-server:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/julo-server:${{ github.sha }},${{ secrets.DOCKER_USERNAME }}/julo-server:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -167,7 +167,7 @@ jobs:
           file: ./Dockerfile
           target: client-runner
           push: false
-          tags: ${{ secrets.DOCKER_USERNAME }}/nuvora-client:${{ github.sha }},${{ secrets.DOCKER_USERNAME }}/nuvora-client:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/julo-client:${{ github.sha }},${{ secrets.DOCKER_USERNAME }}/julo-client:latest
 
   # ── Summary ──────────────────────────────────────────────────────────────────
   summary:

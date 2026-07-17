@@ -367,7 +367,7 @@ router.put(
       err.statusCode = 400;
       throw err;
     }
-    const message = await chatService.addReaction(req.params.messageId, req.user.userId, emoji);
+    const { message, added } = await chatService.addReaction(req.params.messageId, req.user.userId, emoji);
 
     try {
       const msgObj = message.toObject ? message.toObject() : message;
@@ -384,6 +384,14 @@ router.put(
         userId: req.user.userId,
         emoji,
       });
+
+      if (added && String(msgObj.sender) !== String(req.user.userId)) {
+        const notif = await notificationService.create(
+          String(msgObj.sender), req.user.userId, req.tenantId, "message_reaction",
+          { chat: req.params.chatId, messageId: req.params.messageId, message: `reacted ${emoji} to your message` }
+        );
+        emitToUser(String(msgObj.sender), "notification", { type: "message_reaction", notification: notif });
+      }
     } catch (_) {}
 
     res.send({ success: true, data: message, statusCode: 200 });
@@ -414,6 +422,41 @@ router.post(
 
       const io = getIO();
       await typingService.clearOnMessageSent(req.user.userId, req.params.chatId, io);
+
+      const Message = (await import("../models/message.js")).default;
+      const parentMessage = await Message.findById(req.params.messageId).lean();
+      if (parentMessage && String(parentMessage.sender) !== String(req.user.userId)) {
+        const notif = await notificationService.create(
+          parentMessage.sender, req.user.userId, req.tenantId, "thread_reply",
+          { chat: req.params.chatId, messageId: req.params.messageId, message: "replied to your message" }
+        );
+        emitToUser(String(parentMessage.sender), "notification", { type: "thread_reply", notification: notif });
+        emitToUser(String(parentMessage.sender), "thread_reply", {
+          chatId: req.params.chatId,
+          parentMessageId: req.params.messageId,
+          reply: msgObj,
+        });
+      }
+
+      if (Array.isArray(msgObj.mentions) && msgObj.mentions.length > 0) {
+        const mentionedUserIds = msgObj.mentions
+          .map((m) => String(typeof m === "object" ? m._id || m : m))
+          .filter((id) => id !== String(req.user.userId));
+
+        for (const mentionedId of mentionedUserIds) {
+          const notif = await notificationService.create(
+            mentionedId, req.user.userId, req.tenantId, "chat_mention",
+            { chat: req.params.chatId, messageId: msgObj._id, message: "mentioned you in a message" }
+          );
+          emitToUser(mentionedId, "notification", { type: "chat_mention", notification: notif });
+          emitToUser(mentionedId, "user_mentioned", {
+            chatId: req.params.chatId,
+            messageId: msgObj._id,
+            mentionedBy: req.user.userId,
+            text: msgObj.text,
+          });
+        }
+      }
     } catch (_) {}
 
     res.status(201).send({ success: true, message: "Reply sent", data: message, statusCode: 201 });
@@ -548,6 +591,34 @@ router.get(
       },
       statusCode: 200,
     });
+  })
+);
+
+router.get(
+  "/:chatId/members/search",
+  requireAuth,
+  tenantMiddleware,
+  validate(mentionSearchQuerySchema, "query"),
+  asyncHandler(async (req, res) => {
+    const result = await chatService.getChatMembersForMentions(req.params.chatId, req.user.userId, {
+      q: req.query.q,
+      limit: req.query.limit,
+    });
+    res.send({ success: true, data: result.members, total: result.total, statusCode: 200 });
+  })
+);
+
+router.get(
+  "/:chatId/mentions",
+  requireAuth,
+  tenantMiddleware,
+  validate(mentionedMessagesQuerySchema, "query"),
+  asyncHandler(async (req, res) => {
+    const result = await chatService.getMentionedMessages(req.params.chatId, req.user.userId, {
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+    res.send({ success: true, data: result.messages, total: result.total, page: result.page, pages: result.pages, statusCode: 200 });
   })
 );
 

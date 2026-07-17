@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { addNotification } from "../redux/notificationSlice.js";
 import { prependPost } from "../redux/postSlice.js";
-import { setOnlineStatus } from "../redux/chatSlice.js";
+import { setOnlineStatus, selectMutedChats } from "../redux/chatSlice.js";
 import { SOCKET_EVENTS } from "../lib/constants.js";
 
 const SocketContext = createContext(null);
@@ -11,6 +11,9 @@ const SocketContext = createContext(null);
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const dispatch = useDispatch();
+  const mutedChats = useSelector(selectMutedChats);
+  const mutedChatsRef = useRef(mutedChats);
+  mutedChatsRef.current = mutedChats;
 
   const connectSocket = useCallback(() => {
     if (socket) return; // already connected
@@ -41,6 +44,9 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on(SOCKET_EVENTS.NOTIFICATION, (notification) => {
+      if (notification.type === "message" && notification.chatId && mutedChatsRef.current.includes(notification.chatId)) {
+        return;
+      }
       dispatch(addNotification(notification));
     });
 

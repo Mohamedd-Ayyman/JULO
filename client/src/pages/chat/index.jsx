@@ -51,6 +51,7 @@ export default function ChatPage() {
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.userReducer);
   const { chats, activeChat } = useSelector((s) => s.chatReducer);
+  const mutedChats = useSelector(selectMutedChats);
   const { socket } = useSocket();
 
   const [loadingChats, setLoadingChats] = useState(true);
@@ -74,6 +75,7 @@ export default function ChatPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [activeThread, setActiveThread] = useState(null);
+  const [showChatMenu, setShowChatMenu] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const recorder = useAudioRecorder();
@@ -390,6 +392,40 @@ export default function ChatPage() {
 
   const handleCloseThread = () => setActiveThread(null);
 
+  const isMuted = activeChat?._id ? mutedChats.includes(activeChat._id) : false;
+
+  const handleMuteToggle = async () => {
+    if (!activeChat?._id) return;
+    const wasMuted = mutedChats.includes(activeChat._id);
+    dispatch(toggleMuteChat(activeChat._id));
+    setShowChatMenu(false);
+    try {
+      if (wasMuted) {
+        await unmuteChat(activeChat._id);
+      } else {
+        await muteChat(activeChat._id);
+      }
+    } catch {
+      dispatch(toggleMuteChat(activeChat._id));
+      toast.error("Failed to update mute setting");
+    }
+  };
+
+  const handleMuteToggleById = async (chatId) => {
+    const wasMuted = mutedChats.includes(chatId);
+    dispatch(toggleMuteChat(chatId));
+    try {
+      if (wasMuted) {
+        await unmuteChat(chatId);
+      } else {
+        await muteChat(chatId);
+      }
+    } catch {
+      dispatch(toggleMuteChat(chatId));
+      toast.error("Failed to update mute setting");
+    }
+  };
+
   const isImageFile = (file) => file.type?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
 
   const handleFileSelect = (e) => {
@@ -621,7 +657,15 @@ export default function ChatPage() {
             ) : filteredChats.length === 0 ? (
               <div className="p-4"><EmptyChatsState /></div>
             ) : (
-              <div className="space-y-1 stagger">
+              <>
+                {(search.trim() || activeFilter !== "all") && (
+                  <div className="px-3 py-1.5">
+                    <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--muted-2)" }}>
+                      {filteredChats.length} conversation{filteredChats.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
+                <div className="space-y-1 stagger">
                 {filteredChats.map((c) => (
                   <ChatListItem
                     key={c._id}
@@ -629,10 +673,13 @@ export default function ChatPage() {
                     currentUserId={user?._id}
                     isActive={c._id === activeChat?._id}
                     isTyping={!!typingChats[c._id]}
+                    isMuted={mutedChats.includes(c._id)}
                     onClick={() => navigate(ROUTES.CHAT_ID(c._id))}
+                    onToggleMute={handleMuteToggleById}
                   />
                 ))}
               </div>
+              </>
             )}
           </div>
         </aside>
@@ -671,7 +718,39 @@ export default function ChatPage() {
                 <div className="flex items-center gap-1">
                   <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Phone className="w-4 h-4" /></button>
                   <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Video className="w-4 h-4" /></button>
-                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><MoreHorizontal className="w-4 h-4" /></button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowChatMenu((v) => !v)}
+                      className="brutal-btn brutal-btn-ghost brutal-btn-icon"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                    {showChatMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
+                        <div
+                          className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1 anim-fade-in"
+                          style={{
+                            background: "var(--paper)",
+                            border: "1px solid var(--line-soft)",
+                            borderRadius: "var(--r-md)",
+                            boxShadow: "var(--sh-3)",
+                          }}
+                        >
+                          <button
+                            onClick={handleMuteToggle}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                            style={{ color: "var(--ink)" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                          >
+                            {isMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                            {isMuted ? "Unmute" : "Mute"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </header>
 

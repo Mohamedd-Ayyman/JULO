@@ -36,12 +36,12 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: nuvora-server-hpa
+  name: julo-server-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: nuvora-server
+    name: julo-server
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -107,13 +107,13 @@ spec:
 
 ## Environment Separation
 
-| Variable | Development | Staging | Production |
-|---------|-------------|---------|-----------|
-| `NODE_ENV` | `development` | `staging` | `production` |
-| `PORT_NUMBER` | `3000` | `3001` | `3000` |
-| `REDIS_URL` | `redis://localhost:6379` | `redis://staging:6379` | `redis://cluster:6379` |
-| `LOG_LEVEL` | `debug` | `info` | `warn` |
-| `SENTRY_DSN` | unset | staging DSN | production DSN |
-| `STRIPE_MODE` | test | test | live |
+| Variable      | Development              | Staging                | Production             |
+| ------------- | ------------------------ | ---------------------- | ---------------------- |
+| `NODE_ENV`    | `development`            | `staging`              | `production`           |
+| `PORT_NUMBER` | `3000`                   | `3001`                 | `3000`                 |
+| `REDIS_URL`   | `redis://localhost:6379` | `redis://staging:6379` | `redis://cluster:6379` |
+| `LOG_LEVEL`   | `debug`                  | `info`                 | `warn`                 |
+| `SENTRY_DSN`  | unset                    | staging DSN            | production DSN         |
+| `STRIPE_MODE` | test                     | test                   | live                   |
 
 Run staging: `docker-compose -f docker-compose.prod.yml -f docker-compose.staging.yml up`

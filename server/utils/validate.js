@@ -344,6 +344,17 @@ export const messageSchema = z.object({
   message: "Message must have text, audio, file, image, or encrypted content",
 });
 
+// ── Media ──────────────────────────────────────────────────────────────────────
+export const mediaQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  mediaType: z.enum(["image", "audio", "file"]).optional(),
+});
+
+export const mediaUploadSchema = z.object({
+  chatId: z.string().min(1, "chatId is required").optional(),
+});
+
 // ── Middleware factory ────────────────────────────────────────────────────────────
 export const validate = (schema, mode = "body") => (req, res, next) => {
   const source = mode === "query" ? req.query : req.body;

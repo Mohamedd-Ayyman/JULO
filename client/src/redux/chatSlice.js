@@ -18,6 +18,25 @@ const chatSlice = createSlice({
   reducers: {
     setChats: (state, action) => { state.chats = action.payload; },
     setActiveChat: (state, action) => { state.activeChat = action.payload; },
+    setOnlineStatus: (state, action) => {
+      const { userId, isOnline, lastSeen } = action.payload;
+      state.chats.forEach((c) => {
+        c.members?.forEach((m) => {
+          if (m._id === userId) {
+            m.isOnline = isOnline;
+            if (lastSeen !== undefined) m.lastSeen = lastSeen;
+          }
+        });
+      });
+      if (state.activeChat?.members) {
+        state.activeChat.members.forEach((m) => {
+          if (m._id === userId) {
+            m.isOnline = isOnline;
+            if (lastSeen !== undefined) m.lastSeen = lastSeen;
+          }
+        });
+      }
+    },
     toggleMuteChat: (state, action) => {
       const chatId = action.payload;
       const idx = state.mutedChats.indexOf(chatId);
@@ -86,6 +105,7 @@ const chatSlice = createSlice({
 export const {
   setChats,
   setActiveChat,
+  setOnlineStatus,
   toggleMuteChat,
   addMessage,
   updateLastMessage,

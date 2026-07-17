@@ -1,14 +1,13 @@
 services:
-
   # ── MongoDB ──────────────────────────────────────────────────────────────────
   mongodb:
     image: mongo:7.0
-    container_name: nuvora-mongodb
+    container_name: julo-mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-nuvora}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-nuvora_secure_pass}
-      MONGO_INITDB_DATABASE: nuvora
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-julo}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-julo_secure_pass}
+      MONGO_INITDB_DATABASE: julo
     volumes:
       - mongodb_data:/data/db
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
@@ -21,12 +20,12 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - nuvora-net
+      - julo-net
 
   # ── Redis ──────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: nuvora-redis
+    container_name: julo-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
@@ -39,7 +38,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - nuvora-net
+      - julo-net
 
   # ── API Server ────────────────────────────────────────────────────────────────
   server:
@@ -47,7 +46,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: server-runner
-    container_name: nuvora-server
+    container_name: julo-server
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -57,7 +56,7 @@ services:
     environment:
       NODE_ENV: production
       PORT_NUMBER: 3000
-      CONN_STRING: mongodb://nuvora:nuvora_secure_pass@mongodb:27017/nuvora?authSource=admin
+      CONN_STRING: mongodb://julo:julo_secure_pass@mongodb:27017/julo?authSource=admin
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
@@ -73,7 +72,7 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - nuvora-net
+      - julo-net
 
   # ── Client (NGINX) ────────────────────────────────────────────────────────────
   client:
@@ -81,7 +80,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: client-runner
-    container_name: nuvora-client
+    container_name: julo-client
     restart: unless-stopped
     depends_on:
       - server
@@ -90,12 +89,12 @@ services:
     ports:
       - "80:80"
     networks:
-      - nuvora-net
+      - julo-net
 
   # ── Redis Commander (dev) ──────────────────────────────────────────────────────
   redis-commander:
     image: rediscommander/redis-commander:latest
-    container_name: nuvora-redis-ui
+    container_name: julo-redis-ui
     restart: unless-stopped
     environment:
       REDIS_HOSTS: local:redis:6379
@@ -106,15 +105,15 @@ services:
     profiles:
       - dev
     networks:
-      - nuvora-net
+      - julo-net
 
   # ── Mongo Express (dev) ──────────────────────────────────────────────────────
   mongo-express:
     image: mongo-express:latest
-    container_name: nuvora-mongo-ui
+    container_name: julo-mongo-ui
     restart: unless-stopped
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://nuvora:nuvora_secure_pass@mongodb:27017/
+      ME_CONFIG_MONGODB_URL: mongodb://julo:julo_secure_pass@mongodb:27017/
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: admin
     ports:
@@ -124,12 +123,12 @@ services:
     profiles:
       - dev
     networks:
-      - nuvora-net
+      - julo-net
 
 volumes:
   mongodb_data:
   redis_data:
 
 networks:
-  nuvora-net:
+  julo-net:
     driver: bridge

@@ -9,6 +9,93 @@ export const createOrFindChat = async (otherUserId) => {
   }
 };
 
+export const createGroupChat = async ({ members, name, description, icon }) => {
+  try {
+    const response = await axiosInstance.post("/api/chat/create-new-chat", {
+      members,
+      type: "group",
+      name,
+      description: description || null,
+      icon: icon || null,
+    });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const updateChatInfo = async (chatId, { name, description, icon }) => {
+  try {
+    const response = await axiosInstance.put(`/api/chat/update-chat/${chatId}`, { name, description, icon });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const getChatParticipants = async (chatId) => {
+  try {
+    const response = await axiosInstance.get(`/api/participants/chat/${chatId}`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const addParticipants = async (chatId, userIds) => {
+  try {
+    const response = await axiosInstance.post(`/api/participants/chat/${chatId}`, { userIds });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const removeParticipant = async (chatId, userId) => {
+  try {
+    const response = await axiosInstance.delete(`/api/participants/chat/${chatId}/user/${userId}`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const leaveChat = async (chatId) => {
+  try {
+    const response = await axiosInstance.post(`/api/participants/chat/${chatId}/leave`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const updateParticipantRole = async (chatId, userId, role) => {
+  try {
+    const response = await axiosInstance.put(`/api/participants/chat/${chatId}/user/${userId}/role`, { role });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const muteChat = async (chatId, muted, mutedUntil = null) => {
+  try {
+    const response = await axiosInstance.put(`/api/participants/chat/${chatId}/mute`, { muted, mutedUntil });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const deleteChat = async (chatId) => {
+  try {
+    const response = await axiosInstance.delete(`/api/chat/delete-chat/${chatId}`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
 export const getAllChats = async ({ search, type, archived, page, limit } = {}) => {
   try {
     const params = new URLSearchParams();
@@ -71,9 +158,9 @@ export const deleteMessage = async (messageId) => {
   }
 };
 
-export const addReaction = async (messageId, emoji) => {
+export const addReaction = async (chatId, messageId, emoji) => {
   try {
-    const response = await axiosInstance.put(`/api/message/${messageId}/react`, { emoji });
+    const response = await axiosInstance.put(`/api/chat/${chatId}/messages/${messageId}/react`, { emoji });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
@@ -159,8 +246,8 @@ export const fetchLinkPreview = async (url) => {
 
 export const sendReply = async (chatId, replyTo, text, receiverId = null) => {
   try {
-    const response = await axiosInstance.post("/api/message/reply", {
-      chatId, replyTo, text, receiverId,
+    const response = await axiosInstance.post(`/api/chat/${chatId}/messages/${replyTo}/reply`, {
+      chatId, text, receiverId,
     });
     return response.data;
   } catch (error) {
@@ -189,6 +276,28 @@ export const muteChat = async (chatId) => {
 export const unmuteChat = async (chatId) => {
   try {
     const response = await axiosInstance.put(`/api/chat/${chatId}/unmute`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const searchChatMembersForMention = async (chatId, q = "", limit = 10) => {
+  try {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (limit) params.set("limit", String(limit));
+    const qs = params.toString();
+    const response = await axiosInstance.get(`/api/chat/${chatId}/members/search${qs ? `?${qs}` : ""}`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const getMentionedMessages = async (chatId, page = 1, limit = 20) => {
+  try {
+    const response = await axiosInstance.get(`/api/chat/${chatId}/mentions?page=${page}&limit=${limit}`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };

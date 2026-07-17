@@ -14,14 +14,14 @@ RUN npm run build 2>/dev/null || true
 FROM node:22-alpine AS server-runner
 WORKDIR /app/server
 ENV NODE_ENV=production
-RUN addgroup -S nuvora && adduser -S nuvora -G nuvora
+RUN addgroup -S julo && adduser -S julo -G julo
 
 # Copy installed deps
 COPY --from=server-deps /app/server/node_modules ./node_modules
 # Copy application code
-COPY --chown=nuvora:nuvora server/ ./
+COPY --chown=julo:julo server/ ./
 
-USER nuvora
+USER julo
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

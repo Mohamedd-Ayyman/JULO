@@ -3,6 +3,7 @@ import Chat from "../models/chat.js";
 import Message from "../models/message.js";
 import Participant from "../models/participant.js";
 import User from "../models/user.js";
+import Media from "../models/media.js";
 import { scopeByTenant } from "../middlewares/tenantMiddleware.js";
 import logger from "../utils/logger.js";
 
@@ -825,6 +826,11 @@ export class ChatService {
     message.deleted = true;
     message.edited = false;
     await message.save();
+
+    try {
+      await Media.updateMany({ messageId }, { deleted: true });
+    } catch (_) {}
+
     logger.info(`[Message] Deleted: ${messageId}`);
   }
 
@@ -838,15 +844,19 @@ export class ChatService {
     const reactions = message.reactions || {};
     if (!reactions[emoji]) reactions[emoji] = [];
     const idx = reactions[emoji].findIndex((u) => String(u) === String(userId));
+    let added;
     if (idx > -1) {
       reactions[emoji].splice(idx, 1);
       if (reactions[emoji].length === 0) delete reactions[emoji];
+      added = false;
     } else {
       reactions[emoji].push(userId);
+      added = true;
     }
     message.reactions = reactions;
     await message.save();
-    return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
+    const populated = await Message.findById(message._id).populate("sender", "firstname lastname profilepic");
+    return { message: populated, added };
   }
 
   async updateChat(chatId, userId, { name, description, icon }) {
@@ -914,6 +924,7 @@ export class ChatService {
     }
 
     await Message.deleteMany({ chatId });
+    await Media.deleteMany({ chatId });
     await Participant.deleteMany({ chatId });
     await Chat.findByIdAndDelete(chatId);
 
@@ -925,6 +936,7 @@ export class ChatService {
     const chats = await Chat.find({ members: userId });
     const chatIds = chats.map((c) => c._id);
     await Message.deleteMany({ chatId: { $in: chatIds } });
+    await Media.deleteMany({ chatId: { $in: chatIds } });
     await Participant.deleteMany({ chatId: { $in: chatIds } });
     await Chat.deleteMany({ members: userId });
     logger.info(`[Chat] Deleted ${chats.length} chats and associated messages for user ${userId}`);
