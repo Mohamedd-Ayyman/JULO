@@ -115,7 +115,7 @@ export const getAllChats = async ({ search, type, archived, page, limit } = {}) 
 
 export const sendMessage = async (chatId, text, receiverId = null) => {
   try {
-    const response = await axiosInstance.post("/api/message/new-message", { chatId, text, receiverId });
+    const response = await axiosInstance.post("/api/chat/new-message", { chatId, text, receiverId });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
@@ -124,7 +124,7 @@ export const sendMessage = async (chatId, text, receiverId = null) => {
 
 export const getMessages = async (chatId, page = 1, limit = 30) => {
   try {
-    const response = await axiosInstance.get(`/api/message/retrieve-chat/${chatId}?page=${page}&limit=${limit}`);
+    const response = await axiosInstance.get(`/api/chat/${chatId}/messages?page=${page}&limit=${limit}`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
@@ -133,25 +133,25 @@ export const getMessages = async (chatId, page = 1, limit = 30) => {
 
 export const markMessagesRead = async (chatId) => {
   try {
-    const response = await axiosInstance.put("/api/message/mark-read", { chatId });
+    const response = await axiosInstance.put("/api/chat/mark-read", { chatId });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
   }
 };
 
-export const editMessage = async (messageId, text) => {
+export const editMessage = async (chatId, messageId, text) => {
   try {
-    const response = await axiosInstance.put(`/api/message/${messageId}`, { text });
+    const response = await axiosInstance.put(`/api/chat/${chatId}/messages/${messageId}/edit`, { text });
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
   }
 };
 
-export const deleteMessage = async (messageId) => {
+export const deleteMessage = async (chatId, messageId) => {
   try {
-    const response = await axiosInstance.delete(`/api/message/${messageId}`);
+    const response = await axiosInstance.delete(`/api/chat/${chatId}/messages/${messageId}`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };
@@ -187,7 +187,7 @@ export const uploadAudio = async (blob) => {
 
 export const sendAudioMessage = async (chatId, audioUrl, audioDuration, receiverId = null) => {
   try {
-    const response = await axiosInstance.post("/api/message/new-message", {
+    const response = await axiosInstance.post("/api/chat/new-message", {
       chatId,
       text: "",
       audioUrl,
@@ -215,7 +215,7 @@ export const uploadChatFile = async (file) => {
 
 export const sendImageMessage = async (chatId, imageUrl, text = "", receiverId = null, linkPreview = null) => {
   try {
-    const response = await axiosInstance.post("/api/message/new-message", {
+    const response = await axiosInstance.post("/api/chat/new-message", {
       chatId, text, imageUrl, receiverId, linkPreview,
     });
     return response.data;
@@ -226,7 +226,7 @@ export const sendImageMessage = async (chatId, imageUrl, text = "", receiverId =
 
 export const sendFileMessage = async (chatId, fileUrl, fileName, fileSize, mimeType, text = "", receiverId = null) => {
   try {
-    const response = await axiosInstance.post("/api/message/new-message", {
+    const response = await axiosInstance.post("/api/chat/new-message", {
       chatId, text, fileUrl, fileName, fileSize, mimeType, receiverId,
     });
     return response.data;
@@ -258,24 +258,6 @@ export const sendReply = async (chatId, replyTo, text, receiverId = null) => {
 export const getThreadReplies = async (messageId, page = 1, limit = 50) => {
   try {
     const response = await axiosInstance.get(`/api/message/thread/${messageId}?page=${page}&limit=${limit}`);
-    return response.data;
-  } catch (error) {
-    return error.response?.data || { success: false };
-  }
-};
-
-export const muteChat = async (chatId) => {
-  try {
-    const response = await axiosInstance.put(`/api/chat/${chatId}/mute`);
-    return response.data;
-  } catch (error) {
-    return error.response?.data || { success: false };
-  }
-};
-
-export const unmuteChat = async (chatId) => {
-  try {
-    const response = await axiosInstance.put(`/api/chat/${chatId}/unmute`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };

@@ -16,10 +16,12 @@ import {
   MessageSquare,
   BellOff,
   Bell,
+  Plus,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { muteChat, unmuteChat } from "../../apiCalls/message.js";
-import { toggleMuteChat, selectMutedChats } from "../../redux/chatSlice.js";
+import { muteChat } from "../../apiCalls/message.js";
+import { toggleMuteChat, selectMutedChats, setActiveChat as setActiveChatRedux } from "../../redux/chatSlice.js";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
@@ -34,12 +36,14 @@ import EmojiPicker from "../../components/chat/EmojiPicker.jsx";
 import AttachmentsPreview from "../../components/chat/AttachmentsPreview.jsx";
 import ReplyPreview from "../../components/chat/ReplyPreview.jsx";
 import ThreadPanel from "../../components/chat/ThreadPanel.jsx";
+import CreateGroupModal from "../../components/chat/CreateGroupModal.jsx";
+import GroupDetailsPanel from "../../components/chat/GroupDetailsPanel.jsx";
 import useAudioRecorder from "../../hooks/useAudioRecorder.js";
 import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import useLinkPreview from "../../hooks/useLinkPreview.js";
 import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage, editMessage, sendReply } from "../../apiCalls/message.js";
-import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy } from "../../redux/chatSlice.js";
+import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy, updateActiveChatInfo } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 import { ChatListSkeleton } from "../../components/Skeletons.jsx";
@@ -76,6 +80,8 @@ export default function ChatPage() {
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [activeThread, setActiveThread] = useState(null);
   const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showGroupDetails, setShowGroupDetails] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const recorder = useAudioRecorder();
@@ -254,8 +260,8 @@ export default function ChatPage() {
     const msg = activeChat.messages?.find((m) => m._id === messageId);
     if (!msg) return;
     dispatch(markMessageSuccess({ tempId: messageId, realMessage: { ...msg, pending: true, failed: false } }));
-    const other = activeChat.members?.find((m) => m._id !== user?._id);
-    const res = await sendMessage(activeChat._id, msg.text, other?._id);
+    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
+    const res = await sendMessage(activeChat._id, msg.text, receiverId);
     if (res.success && socket) {
       socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
       dispatch(markMessageSuccess({ tempId: messageId, realMessage: res.data }));
@@ -348,7 +354,7 @@ export default function ChatPage() {
   };
 
   const handleReact = async (messageId, emoji) => {
-    const res = await addReaction(messageId, emoji);
+    const res = await addReaction(activeChat._id, messageId, emoji);
     if (res.success && res.data) {
       dispatch(addMessage({ ...res.data, chatId: activeChat._id, _replace: messageId }));
     }
@@ -456,7 +462,7 @@ export default function ChatPage() {
 
   const handleSendWithAttachments = async () => {
     if (!activeChat?._id) return;
-    const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
     const text = draft.trim();
     const hasAttachments = attachments.length > 0;
     const hasText = text.length > 0;
@@ -489,12 +495,12 @@ export default function ChatPage() {
           if (att.type === "image") {
             if (currentReplyTo) {
               const { sendReply: sendReplyFn } = await import("../../apiCalls/message.js");
-              res = await sendReplyFn(activeChat._id, currentReplyTo, "", other?._id);
+              res = await sendReplyFn(activeChat._id, currentReplyTo, "", receiverId);
             } else {
-              res = await sendImageMessage(activeChat._id, uploadRes.url, "", other?._id, linkPreview);
+              res = await sendImageMessage(activeChat._id, uploadRes.url, "", receiverId, linkPreview);
             }
           } else {
-            res = await sendFileMessage(activeChat._id, uploadRes.url, uploadRes.fileName || att.file.name, uploadRes.fileSize || att.file.size, uploadRes.mimeType || att.file.type, "", other?._id);
+            res = await sendFileMessage(activeChat._id, uploadRes.url, uploadRes.fileName || att.file.name, uploadRes.fileSize || att.file.size, uploadRes.mimeType || att.file.type, "", receiverId);
           }
           if (res.success && socket) {
             socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
@@ -527,11 +533,9 @@ export default function ChatPage() {
 
       let res;
       if (currentReplyTo) {
-        res = await sendReply(activeChat._id, currentReplyTo, text, other?._id);
+        res = await sendReply(activeChat._id, currentReplyTo, text, receiverId);
       } else {
-        const msgPayload = { chatId: activeChat._id, text, receiverId: other?._id };
-        if (linkPreview) msgPayload.linkPreview = linkPreview;
-        res = await sendMessage(activeChat._id, text, other?._id);
+        res = await sendMessage(activeChat._id, text, receiverId);
       }
       if (res.success && socket) {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
@@ -546,7 +550,7 @@ export default function ChatPage() {
     const blob = recorder.audioBlob;
     if (!blob || !activeChat?._id) return;
     setSendingAudio(true);
-    const other = activeChat.members?.find((m) => m._id !== user?._id);
+    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
     const tempId = `temp-audio-${Date.now()}`;
     const tempMsg = {
       _id: tempId,
@@ -562,7 +566,7 @@ export default function ChatPage() {
     recorder.resetBlob();
     const uploadRes = await uploadAudio(blob);
     if (uploadRes.success) {
-      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recorder.duration, other?._id);
+      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recorder.duration, receiverId);
       if (res.success && socket) {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
         dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
@@ -597,6 +601,7 @@ export default function ChatPage() {
   };
 
   const otherMember = activeChat?.members?.find((m) => m._id !== user?._id);
+  const isGroupChat = activeChat?.type === "group";
 
   return (
     <AppLayout title="Messages" hideRightRail fullWidth>
@@ -606,7 +611,17 @@ export default function ChatPage() {
           style={{ borderColor: "var(--line-soft)", background: "var(--paper-2)" }}
         >
           <div className="p-4" style={{ borderBottom: "1px solid var(--line-soft)" }}>
-            <h1 className="font-display text-xl font-black tracking-tight mb-3" style={{ color: "var(--ink)" }}>Messages</h1>
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="font-display text-xl font-black tracking-tight" style={{ color: "var(--ink)" }}>Messages</h1>
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="brutal-btn brutal-btn-primary brutal-btn-icon"
+                aria-label="Create group chat"
+                title="New group chat"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
               <input
@@ -705,27 +720,53 @@ export default function ChatPage() {
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
-                  <Avatar src={otherMember?.profilepic} name={`${otherMember?.firstname || ""} ${otherMember?.lastname || ""}`} size={40} online={otherMember?.isOnline && otherMember?.showOnlineStatus !== false} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>
-                      {otherMember?.firstname} {otherMember?.lastname}
-                    </p>
-                    <p className="font-mono text-[10px]" style={{ color: "var(--muted-2)" }}>
-                      {otherMember?.isOnline && otherMember?.showOnlineStatus !== false ? "Active now" : otherMember?.lastSeen ? `Last seen ${new Date(otherMember.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Offline"}
-                    </p>
-                  </div>
+                  {isGroupChat ? (
+                    <>
+                      <Avatar src={activeChat.icon} name={activeChat.name || "Group"} size={40} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>
+                          {activeChat.name || "Unnamed Group"}
+                        </p>
+                        <p className="font-mono text-[10px]" style={{ color: "var(--muted-2)" }}>
+                          {activeChat.memberCount || activeChat.members?.length || 0} members
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Avatar src={otherMember?.profilepic} name={`${otherMember?.firstname || ""} ${otherMember?.lastname || ""}`} size={40} online={otherMember?.isOnline && otherMember?.showOnlineStatus !== false} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>
+                          {otherMember?.firstname} {otherMember?.lastname}
+                        </p>
+                        <p className="font-mono text-[10px]" style={{ color: "var(--muted-2)" }}>
+                          {otherMember?.isOnline && otherMember?.showOnlineStatus !== false ? "Active now" : otherMember?.lastSeen ? `Last seen ${new Date(otherMember.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Offline"}
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Phone className="w-4 h-4" /></button>
-                  <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Video className="w-4 h-4" /></button>
+                  {!isGroupChat && (
+                    <>
+                      <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Phone className="w-4 h-4" /></button>
+                      <button className="brutal-btn brutal-btn-ghost brutal-btn-icon"><Video className="w-4 h-4" /></button>
+                    </>
+                  )}
                   <div className="relative">
                     <button
-                      onClick={() => setShowChatMenu((v) => !v)}
+                      onClick={() => {
+                        if (isGroupChat) {
+                          setShowGroupDetails(true);
+                        } else {
+                          setShowChatMenu((v) => !v);
+                        }
+                      }}
                       className="brutal-btn brutal-btn-ghost brutal-btn-icon"
                     >
-                      <MoreHorizontal className="w-4 h-4" />
+                      {isGroupChat ? <Users className="w-4 h-4" /> : <MoreHorizontal className="w-4 h-4" />}
                     </button>
-                    {showChatMenu && (
+                    {!isGroupChat && showChatMenu && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
                         <div
@@ -806,7 +847,9 @@ export default function ChatPage() {
                               isMine={mine}
                               isGroupStart={isGroupStart}
                               isGroupEnd={isGroupEnd}
+                              isGroupChat={isGroupChat}
                               otherMember={otherMember}
+                              members={activeChat.members}
                               currentUserId={user?._id}
                               onRetry={handleRetrySend}
                               onDelete={(id) => {

@@ -88,7 +88,7 @@ export default function ThreadPanel({ rootMessage, currentUserId, onClose, other
 
   const handleReact = async (messageId, emoji) => {
     const { addReaction } = await import("../../apiCalls/message.js");
-    const res = await addReaction(messageId, emoji);
+    const res = await addReaction(rootMessage.chatId, messageId, emoji);
     if (res.success && res.data) {
       setReplies((prev) => prev.map((r) => r._id === messageId ? res.data : r));
     }
