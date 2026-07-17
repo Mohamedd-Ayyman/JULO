@@ -3,7 +3,7 @@ import { X, ArrowLeft, Send, Loader2 } from "lucide-react";
 import Avatar from "../Avatar.jsx";
 import MessageBubble from "./MessageBubble.jsx";
 import DateSeparator from "./DateSeparator.jsx";
-import { getThreadReplies, sendReply } from "../../apiCalls/message.js";
+import { getThreadReplies, sendReply, deleteMessage, addReaction } from "../../apiCalls/message.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS } from "../../lib/constants.js";
 
@@ -83,11 +83,15 @@ export default function ThreadPanel({ rootMessage, currentUserId, onClose, other
   };
 
   const handleDelete = async (messageId) => {
-    setReplies((prev) => prev.map((r) => r._id === messageId ? { ...r, deleted: true } : r));
+    const confirmed = window.confirm("Delete this reply?");
+    if (!confirmed) return;
+    const res = await deleteMessage(rootMessage.chatId, messageId);
+    if (res.success) {
+      setReplies((prev) => prev.map((r) => r._id === messageId ? { ...r, deleted: true } : r));
+    }
   };
 
   const handleReact = async (messageId, emoji) => {
-    const { addReaction } = await import("../../apiCalls/message.js");
     const res = await addReaction(rootMessage.chatId, messageId, emoji);
     if (res.success && res.data) {
       setReplies((prev) => prev.map((r) => r._id === messageId ? res.data : r));

@@ -244,10 +244,10 @@ export const fetchLinkPreview = async (url) => {
   }
 };
 
-export const sendReply = async (chatId, replyTo, text, receiverId = null) => {
+export const sendReply = async (chatId, replyTo, text, receiverId = null, extra = {}) => {
   try {
     const response = await axiosInstance.post(`/api/chat/${chatId}/messages/${replyTo}/reply`, {
-      chatId, text, receiverId,
+      text, receiverId, ...extra,
     });
     return response.data;
   } catch (error) {

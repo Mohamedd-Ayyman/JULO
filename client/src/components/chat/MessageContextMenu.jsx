@@ -15,7 +15,8 @@ export default function MessageContextMenu({
   onEdit,
 }) {
   const handleCopy = () => {
-    navigator.clipboard?.writeText(message.text || "");
+    const text = message.text || message.imageUrl || message.fileUrl || "";
+    navigator.clipboard?.writeText(text);
     toast.success("Copied!");
   };
 
@@ -61,7 +62,7 @@ export default function MessageContextMenu({
             </ContextMenu.Item>
           )}
 
-          {message.text && (
+          {(message.text || message.imageUrl || message.fileUrl) && (
             <ContextMenu.Item
               onClick={onCopy || handleCopy}
               className="flex items-center gap-2.5 px-3 py-2 text-sm rounded cursor-pointer outline-none"

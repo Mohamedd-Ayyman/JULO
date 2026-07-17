@@ -183,7 +183,9 @@ export default function MessageBubble({
   isMine,
   isGroupStart,
   isGroupEnd,
+  isGroupChat,
   otherMember,
+  members,
   currentUserId,
   onRetry,
   onDelete,
@@ -196,6 +198,11 @@ export default function MessageBubble({
   const [swipeX, setSwipeX] = useState(0);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
   const isSwipingRef = useRef(false);
+
+  const sender = isGroupChat && !isMine
+    ? members?.find((m) => (m._id || m) === (message.sender?._id || message.sender))
+    : null;
+  const senderName = sender ? `${sender.firstname || ""} ${sender.lastname || ""}`.trim() : "";
 
   const deleted = message.deleted;
   const pending = message.pending && !message.failed;
@@ -229,9 +236,15 @@ export default function MessageBubble({
   if (deleted) {
     return (
       <div className={cn("flex flex-col", isMine ? "items-end" : "items-start", isGroupStart ? "mt-3" : "mt-0.5")}>
+        {isGroupChat && !isMine && isGroupStart && senderName && (
+          <div className="flex items-center gap-1.5 mb-1 ml-1">
+            <Avatar src={sender?.profilepic} name={senderName} size={20} />
+            <span className="text-[11px] font-medium" style={{ color: "var(--muted-2)" }}>{senderName}</span>
+          </div>
+        )}
         <div className={cn("flex", isMine ? "justify-end" : "justify-start")}>
           {!isMine && isGroupStart && (
-            <Avatar src={otherMember?.profilepic} name={otherMember?.firstname || ""} size={28} className="mr-2 self-end" />
+            <Avatar src={sender?.profilepic} name={senderName} size={28} className="mr-2 self-end" />
           )}
           {!isMine && !isGroupStart && <span className="w-7 mr-2 flex-shrink-0" />}
           <div
@@ -292,6 +305,13 @@ export default function MessageBubble({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {isGroupChat && !isMine && isGroupStart && senderName && (
+        <div className="flex items-center gap-1.5 mb-1 ml-1">
+          <Avatar src={sender?.profilepic} name={senderName} size={20} />
+          <span className="text-[11px] font-medium" style={{ color: "var(--muted-2)" }}>{senderName}</span>
+        </div>
+      )}
+
       {swipeX > 40 && (
         <div className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-60">
           <Pencil className="w-4 h-4" style={{ color: "var(--acid)" }} />
@@ -307,7 +327,10 @@ export default function MessageBubble({
       <MessageContextMenu
         message={message}
         isMine={isMine}
-        onCopy={() => navigator.clipboard?.writeText(message.text || "")}
+        onCopy={() => {
+          const text = message.text || message.imageUrl || message.fileUrl || "";
+          navigator.clipboard?.writeText(text);
+        }}
         onReact={(emoji) => onReact(message._id, emoji)}
         onDelete={() => onDelete(message._id)}
         onReply={() => onReply?.(message)}

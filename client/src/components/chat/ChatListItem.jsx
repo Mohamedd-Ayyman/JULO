@@ -3,29 +3,38 @@ import Avatar from "../Avatar.jsx";
 import { formatTime } from "../CommonUI.jsx";
 import { BellOff, Bell } from "lucide-react";
 
-function getPreviewText(message, currentUserId) {
+function getPreviewText(message, currentUserId, isGroupChat) {
   if (!message) return "Say hi";
   if (message.deleted) return "Message deleted";
   if (message.audioUrl) {
-    const prefix = message.sender?._id === currentUserId || message.sender === currentUserId ? "You: " : "";
+    const isMine = message.sender?._id === currentUserId || message.sender === currentUserId;
+    const prefix = isMine ? "You: " : (isGroupChat && message.sender?.firstname ? `${message.sender.firstname}: ` : "");
     return `${prefix}🎤 Voice message`;
   }
   if (message.image) {
-    const prefix = message.sender?._id === currentUserId || message.sender === currentUserId ? "You: " : "";
+    const isMine = message.sender?._id === currentUserId || message.sender === currentUserId;
+    const prefix = isMine ? "You: " : (isGroupChat && message.sender?.firstname ? `${message.sender.firstname}: ` : "");
     return `${prefix}📷 Photo`;
   }
   if (message.video) {
-    const prefix = message.sender?._id === currentUserId || message.sender === currentUserId ? "You: " : "";
+    const isMine = message.sender?._id === currentUserId || message.sender === currentUserId;
+    const prefix = isMine ? "You: " : (isGroupChat && message.sender?.firstname ? `${message.sender.firstname}: ` : "");
     return `${prefix}🎬 Video`;
   }
   const isMine = message.sender?._id === currentUserId || message.sender === currentUserId;
   if (isMine && message.text) return `You: ${message.text}`;
+  if (isGroupChat && !isMine && message.sender?.firstname) {
+    return `${message.sender.firstname}: ${message.text || "Say hi"}`;
+  }
   return message.text || "Say hi";
 }
 
 export default function ChatListItem({ chat, currentUserId, isActive, isTyping, isMuted, onClick, onToggleMute }) {
+  const isGroupChat = chat.type === "group";
   const other = chat.members?.find((m) => m._id !== currentUserId);
-  const name = `${other?.firstname || ""} ${other?.lastname || ""}`.trim();
+  const name = isGroupChat
+    ? (chat.name || "Unnamed Group")
+    : `${other?.firstname || ""} ${other?.lastname || ""}`.trim();
   const unread = chat.unreadMessageCount || 0;
   const hasUnread = unread > 0;
   const [showCtx, setShowCtx] = useState(false);
@@ -43,10 +52,12 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
 
   const handleContextMenu = (e) => {
     e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
     setCtxPos({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 100) });
     setShowCtx(true);
   };
+
+  const avatarSrc = isGroupChat ? chat.icon : other?.profilepic;
+  const avatarName = isGroupChat ? (chat.name || "Group") : name;
 
   return (
     <>
@@ -66,19 +77,34 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
           />
         )}
 
-        <Avatar src={other?.profilepic} name={name} size={44} online={other?.isOnline} />
+        <Avatar src={avatarSrc} name={avatarName} size={44} online={!isGroupChat && other?.isOnline} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <p
-              className="text-sm truncate"
-              style={{
-                color: "var(--ink)",
-                fontWeight: hasUnread ? 700 : 500,
-              }}
-            >
-              {name || "Unknown"}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p
+                className="text-sm truncate"
+                style={{
+                  color: "var(--ink)",
+                  fontWeight: hasUnread ? 700 : 500,
+                }}
+              >
+                {name || "Unknown"}
+              </p>
+              {isGroupChat && (
+                <span
+                  className="font-mono text-[9px] px-1.5 py-0.5 flex-shrink-0"
+                  style={{
+                    color: "var(--muted)",
+                    background: "var(--paper-3)",
+                    border: "1px solid var(--line-soft)",
+                    borderRadius: "var(--r-pill)",
+                  }}
+                >
+                  {chat.memberCount || chat.members?.length || 0}
+                </span>
+              )}
+            </div>
             {chat.lastMessage?.createdAt && (
               <span
                 className="font-mono text-[10px] flex-shrink-0 ml-2"
@@ -103,7 +129,7 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
                 }}
               >
                 {isMuted && <BellOff className="w-3 h-3 flex-shrink-0" style={{ color: "var(--muted)" }} />}
-                {getPreviewText(chat.lastMessage, currentUserId)}
+                {getPreviewText(chat.lastMessage, currentUserId, isGroupChat)}
               </p>
             )}
             {unread > 0 && (

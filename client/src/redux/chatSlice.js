@@ -99,6 +99,52 @@ const chatSlice = createSlice({
         state.activeChat.messages = [...messages, ...(state.activeChat.messages || [])];
       }
     },
+    updateMessageDelivery: (state, action) => {
+      const { chatId, messageId, userId, deliveredAt } = action.payload;
+      if (state.activeChat?._id !== chatId) return;
+      const msg = state.activeChat.messages?.find((m) => m._id === messageId);
+      if (!msg) return;
+      if (!msg.deliveredTo) msg.deliveredTo = [];
+      const already = msg.deliveredTo.some((d) => (d.userId?._id || d.userId) === userId);
+      if (!already) {
+        msg.deliveredTo.push({ userId, readAt: deliveredAt });
+      }
+      if (!msg.status || msg.status === "sent") {
+        msg.status = "delivered";
+      }
+    },
+    updateMessageReadBy: (state, action) => {
+      const { chatId, messages: readMessages } = action.payload;
+      if (state.activeChat?._id !== chatId) return;
+      for (const { messageId, userId, readAt } of readMessages) {
+        const msg = state.activeChat.messages?.find((m) => m._id === messageId);
+        if (!msg) continue;
+        if (!msg.readBy) msg.readBy = [];
+        const already = msg.readBy.some((r) => (r.userId?._id || r.userId) === userId);
+        if (!already) {
+          msg.readBy.push({ userId, readAt });
+        }
+        msg.read = true;
+        msg.status = "read";
+      }
+    },
+    updateActiveChatInfo: (state, action) => {
+      const { chatId, updates } = action.payload;
+      if (state.activeChat?._id === chatId) {
+        Object.assign(state.activeChat, updates);
+      }
+      const chat = state.chats.find((c) => c._id === chatId);
+      if (chat) {
+        Object.assign(chat, updates);
+      }
+    },
+    updateChatInList: (state, action) => {
+      const { chatId, updates } = action.payload;
+      const chat = state.chats.find((c) => c._id === chatId);
+      if (chat) {
+        Object.assign(chat, updates);
+      }
+    },
   },
 });
 
@@ -113,6 +159,10 @@ export const {
   markMessageSuccess,
   removeMessage,
   prependMessages,
+  updateMessageDelivery,
+  updateMessageReadBy,
+  updateActiveChatInfo,
+  updateChatInList,
 } = chatSlice.actions;
 
 const selectChatState = (s) => s.chatReducer;

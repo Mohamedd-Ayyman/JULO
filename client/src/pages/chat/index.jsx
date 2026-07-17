@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { muteChat } from "../../apiCalls/message.js";
-import { toggleMuteChat, selectMutedChats, setActiveChat as setActiveChatRedux } from "../../redux/chatSlice.js";
+import { toggleMuteChat, selectMutedChats, setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy, updateActiveChatInfo } from "../../redux/chatSlice.js";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
@@ -43,7 +43,6 @@ import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import useLinkPreview from "../../hooks/useLinkPreview.js";
 import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage, editMessage, sendReply } from "../../apiCalls/message.js";
-import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy, updateActiveChatInfo } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 import { ChatListSkeleton } from "../../components/Skeletons.jsx";
@@ -229,6 +228,29 @@ export default function ChatPage() {
     socket.on(SOCKET_EVENTS.REACTION_UPDATED, onReactionUpdated);
     socket.on(SOCKET_EVENTS.DELIVERY_CONFIRMED, onDeliveryConfirmed);
     socket.on(SOCKET_EVENTS.MESSAGES_READ, onMessagesRead);
+
+    const onChatUpdated = ({ chatId, changes, updatedBy }) => {
+      dispatch(updateActiveChatInfo({ chatId, updates: changes }));
+    };
+    const onParticipantAdded = ({ chatId }) => {
+      if (chatId === activeChat?._id) {
+        dispatch(updateActiveChatInfo({ chatId, updates: { memberCount: (activeChat.memberCount || activeChat.members?.length || 0) + 1 } }));
+      }
+    };
+    const onParticipantRemoved = ({ chatId, userId }) => {
+      if (chatId === activeChat?._id && userId === user?._id) {
+        dispatch(setActiveChat(null));
+        navigate(ROUTES.CHAT);
+        toast.info("You were removed from the group");
+      } else if (chatId === activeChat?._id) {
+        dispatch(updateActiveChatInfo({ chatId, updates: { memberCount: Math.max(0, (activeChat.memberCount || activeChat.members?.length || 1) - 1) } }));
+      }
+    };
+
+    socket.on("chat_updated", onChatUpdated);
+    socket.on("participant_added", onParticipantAdded);
+    socket.on("participant_removed", onParticipantRemoved);
+
     if (activeChat?._id) socket.emit(SOCKET_EVENTS.JOIN_CHAT, activeChat._id);
     return () => {
       socket.off(SOCKET_EVENTS.RECEIVE_MESSAGE, onReceive);
@@ -239,6 +261,9 @@ export default function ChatPage() {
       socket.off(SOCKET_EVENTS.REACTION_UPDATED, onReactionUpdated);
       socket.off(SOCKET_EVENTS.DELIVERY_CONFIRMED, onDeliveryConfirmed);
       socket.off(SOCKET_EVENTS.MESSAGES_READ, onMessagesRead);
+      socket.off("chat_updated", onChatUpdated);
+      socket.off("participant_added", onParticipantAdded);
+      socket.off("participant_removed", onParticipantRemoved);
       if (activeChat?._id) socket.emit(SOCKET_EVENTS.LEAVE_CHAT, activeChat._id);
     };
   }, [socket, activeChat?._id, user?._id, dispatch]);
@@ -361,9 +386,14 @@ export default function ChatPage() {
   };
 
   const handleDeleteMessage = async (messageId) => {
-    const res = await deleteMessage(messageId);
+    const confirmed = window.confirm("Delete this message?");
+    if (!confirmed) return;
+    const res = await deleteMessage(activeChat._id, messageId);
     if (res.success) {
       dispatch(addMessage({ _id: messageId, deleted: true, chatId: activeChat._id, _replace: messageId }));
+      toast.success("Message deleted");
+    } else {
+      toast.error("Failed to delete message");
     }
   };
 
@@ -375,7 +405,7 @@ export default function ChatPage() {
   const handleCancelReply = () => setReplyToMessage(null);
 
   const handleSaveEdit = async (message, newText) => {
-    const res = await editMessage(message._id, newText);
+    const res = await editMessage(activeChat._id, message._id, newText);
     if (res.success) {
       dispatch(addMessage({
         _id: message._id,
@@ -406,11 +436,7 @@ export default function ChatPage() {
     dispatch(toggleMuteChat(activeChat._id));
     setShowChatMenu(false);
     try {
-      if (wasMuted) {
-        await unmuteChat(activeChat._id);
-      } else {
-        await muteChat(activeChat._id);
-      }
+      await muteChat(activeChat._id, !wasMuted);
     } catch {
       dispatch(toggleMuteChat(activeChat._id));
       toast.error("Failed to update mute setting");
@@ -421,11 +447,7 @@ export default function ChatPage() {
     const wasMuted = mutedChats.includes(chatId);
     dispatch(toggleMuteChat(chatId));
     try {
-      if (wasMuted) {
-        await unmuteChat(chatId);
-      } else {
-        await muteChat(chatId);
-      }
+      await muteChat(chatId, !wasMuted);
     } catch {
       dispatch(toggleMuteChat(chatId));
       toast.error("Failed to update mute setting");
@@ -494,10 +516,9 @@ export default function ChatPage() {
           let res;
           if (att.type === "image") {
             if (currentReplyTo) {
-              const { sendReply: sendReplyFn } = await import("../../apiCalls/message.js");
-              res = await sendReplyFn(activeChat._id, currentReplyTo, "", receiverId);
+              res = await sendReply(activeChat._id, currentReplyTo, text || "", receiverId, { imageUrl: uploadRes.url });
             } else {
-              res = await sendImageMessage(activeChat._id, uploadRes.url, "", receiverId, linkPreview);
+              res = await sendImageMessage(activeChat._id, uploadRes.url, text || "", receiverId, linkPreview);
             }
           } else {
             res = await sendFileMessage(activeChat._id, uploadRes.url, uploadRes.fileName || att.file.name, uploadRes.fileSize || att.file.size, uploadRes.mimeType || att.file.type, "", receiverId);
@@ -604,6 +625,7 @@ export default function ChatPage() {
   const isGroupChat = activeChat?.type === "group";
 
   return (
+    <>
     <AppLayout title="Messages" hideRightRail fullWidth>
       <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex">
         <aside
@@ -990,5 +1012,25 @@ export default function ChatPage() {
         </section>
       </div>
     </AppLayout>
+    {showCreateGroup && (
+      <CreateGroupModal
+        onClose={() => setShowCreateGroup(false)}
+        onCreated={(chatId) => {
+          setShowCreateGroup(false);
+          navigate(ROUTES.CHAT_ID(chatId));
+        }}
+      />
+    )}
+    {showGroupDetails && activeChat && isGroupChat && (
+      <GroupDetailsPanel
+        chat={activeChat}
+        currentUserId={user?._id}
+        onClose={() => setShowGroupDetails(false)}
+        onChatUpdated={(updatedChat) => {
+          dispatch(setActiveChat({ ...activeChat, ...updatedChat }));
+        }}
+      />
+    )}
+    </>
   );
 }
