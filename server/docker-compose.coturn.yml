@@ -1,0 +1,60 @@
+# JULO TURN/STUN server — runs alongside the main app
+#
+# Usage:
+#   docker compose -f docker-compose.coturn.yml up -d
+#
+# Production notes:
+#   - Set TURN_SECRET in .env to match config.env TURN_SECRET
+#   - Replace the static credential with an external auth endpoint for dynamic auth
+#   - Open ports 3478 (TCP/UDP), 5349 (TLS), 49152-65535 (relay range)
+#   - For cloud deployments, use a managed TURN service (Twilio, Metered, etc.)
+
+services:
+  coturn:
+    image: coturn/coturn:latest
+    container_name: julo-coturn
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TURN_SECRET=${TURN_SECRET:-your-turn-secret-here}
+      - TURN_REALM=${TURN_REALM:-julo.app}
+    volumes:
+      - coturn-data:/var/lib/turn
+    command:
+      - "--log-file=stdout"
+      - "--simple-log"
+      - "--verbose"
+      - "--realm=${TURN_REALM:-julo.app}"
+      - "--use-auth-secret"
+      - "--static-auth-secret=${TURN_SECRET:-your-turn-secret-here}"
+      - "--user=julo:${TURN_PASSWORD:-julo123}"
+      - "--lt-cred-mech"
+      - "--no-multicast-peers"
+      - "--no-cli"
+      - "--no-tlsv1"
+      - "--no-tlsv1_1"
+      - "--cipher-list=ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512"
+      - "--proc-user=turnserver"
+      - "--proc-group=turnserver"
+      - "--min-port=49152"
+      - "--max-port=65535"
+      - "--fingerprint"
+      - "--no-dtls"
+      - "--no-stdout"
+
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "5349:5349/tcp"
+      - "5349:5349/udp"
+      - "49152-65535:49152-65535/udp"
+
+    healthcheck:
+      test: ["CMD", "turnutils_uclient", "-T", "-u", "julo", "-w", "julo123", "127.0.0.1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  coturn-data:

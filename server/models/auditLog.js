@@ -14,6 +14,9 @@ const AUDIT_ACTIONS = [
   "password_change",
   "account_deactivate",
   "account_delete",
+  "block",
+  "unblock",
+  "report",
 ];
 
 const AUDIT_RESOURCES = [
@@ -34,6 +37,8 @@ const AUDIT_RESOURCES = [
   "pre_key",
   "encryption_session",
   "participant",
+  "block",
+  "report",
 ];
 
 const auditLogSchema = new mongoose.Schema(

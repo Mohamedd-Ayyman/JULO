@@ -1,8 +1,10 @@
 import express from "express";
 import callSessionService from "../services/callSessionService.js";
+import webrtcSignalingService from "../services/webrtcSignalingService.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
 import { auditAction } from "../middlewares/auditMiddleware.js";
 import { asyncHandler, AppError } from "../utils/AppError.js";
+import { validate, callHistoryQuerySchema } from "../utils/validate.js";
 import { getIO } from "../utils/socket.js";
 
 const router = express.Router();
@@ -91,6 +93,16 @@ router.post(
   })
 );
 
+// ── Get TURN/STUN configuration ────────────────────────────────────────
+router.get(
+  "/turn-config",
+  requireAuth,
+  asyncHandler(async (_req, res) => {
+    const iceConfig = await webrtcSignalingService.getTurnCredentials();
+    res.send({ success: true, data: iceConfig, statusCode: 200 });
+  })
+);
+
 // ── Get active call for a chat ─────────────────────────────────────────
 router.get(
   "/active/:chatId",
@@ -105,12 +117,13 @@ router.get(
 router.get(
   "/history/:chatId",
   requireAuth,
+  validate(callHistoryQuerySchema, "query"),
   asyncHandler(async (req, res) => {
-    const { page, limit } = req.query;
+    const { page, limit, type } = req.query;
     const result = await callSessionService.getCallHistory(
       req.params.chatId,
       req.user.userId,
-      { page, limit }
+      { page, limit, type }
     );
     res.send({ success: true, data: result.calls, total: result.total, page: result.page, pages: result.pages, statusCode: 200 });
   })
@@ -120,13 +133,14 @@ router.get(
 router.get(
   "/my-history",
   requireAuth,
+  validate(callHistoryQuerySchema, "query"),
   asyncHandler(async (req, res) => {
-    const { page, limit } = req.query;
+    const { page, limit, type } = req.query;
     const tenantId = req.user.tenantId || null;
     const result = await callSessionService.getUserCallHistory(
       req.user.userId,
       tenantId,
-      { page, limit }
+      { page, limit, type }
     );
     res.send({ success: true, data: result.calls, total: result.total, page: result.page, pages: result.pages, statusCode: 200 });
   })

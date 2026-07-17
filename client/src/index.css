@@ -455,3 +455,45 @@
 .animate-scale-in {
   animation: scaleIn 120ms var(--ease-out) both;
 }
+
+/* ─── Chat mobile transitions ──────────────────────────────────────── */
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slideOutToRight {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes slideInFromLeft {
+  from { transform: translateX(-30%); opacity: 0.6; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOutToLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-30%); opacity: 0.6; }
+}
+@keyframes slideInFromBottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes slideOutToBottom {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+.animate-slide-in-right  { animation: slideInFromRight 320ms var(--ease-out) both; }
+.animate-slide-out-right { animation: slideOutToRight 320ms var(--ease-out) both; }
+.animate-slide-in-left   { animation: slideInFromLeft 320ms var(--ease-out) both; }
+.animate-slide-out-left  { animation: slideOutToLeft 320ms var(--ease-out) both; }
+.animate-slide-in-bottom { animation: slideInFromBottom 280ms var(--ease-out) both; }
+.animate-slide-out-bottom{ animation: slideOutToBottom 280ms var(--ease-out) both; }
+
+.chat-slide-enter  { transform: translateX(100%); }
+.chat-slide-active { transform: translateX(0); transition: transform 320ms var(--ease-out); }
+.chat-slide-exit   { transform: translateX(-30%); opacity: 0.6; transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
+
+.chat-list-active  { transform: translateX(0); transition: transform 320ms var(--ease-out); }
+.chat-list-exit    { transform: translateX(-30%); opacity: 0.6; transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
+.chat-list-enter   { transform: translateX(-30%); opacity: 0.6; }
+.chat-list-restore { transform: translateX(0); transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }

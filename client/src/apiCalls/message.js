@@ -285,3 +285,48 @@ export const getMentionedMessages = async (chatId, page = 1, limit = 20) => {
     return error.response?.data || { success: false };
   }
 };
+
+export const pinChat = async (chatId, pinned) => {
+  try {
+    const response = await axiosInstance.put(`/api/participants/chat/${chatId}/pin`, { pinned });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const archiveChat = async (chatId, archived) => {
+  try {
+    const response = await axiosInstance.put(`/api/participants/chat/${chatId}/archive`, { archived });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const setNotifications = async (chatId, enabled) => {
+  try {
+    const response = await axiosInstance.put(`/api/participants/chat/${chatId}/notifications`, { enabled });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const setNickname = async (chatId, nickname) => {
+  try {
+    const response = await axiosInstance.put(`/api/participants/chat/${chatId}/nickname`, { nickname });
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};
+
+export const getMyParticipantInfo = async (chatId) => {
+  try {
+    const response = await axiosInstance.get(`/api/participants/chat/${chatId}/me`);
+    return response.data;
+  } catch (error) {
+    return error.response?.data || { success: false };
+  }
+};

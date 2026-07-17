@@ -2,6 +2,8 @@ import CallSession from "../models/callSession.js";
 import Chat from "../models/chat.js";
 import logger from "../utils/logger.js";
 
+const MISSED_CALL_TIMEOUT_MS = 30_000;
+
 export class CallSessionService {
   async initiateCall(chatId, initiatorId, tenantId, callType = "audio") {
     const chat = await Chat.findById(chatId).lean();
@@ -46,7 +48,30 @@ export class CallSessionService {
     });
 
     logger.info(`[Call] Initiated: ${call._id} in chat ${chatId} by ${initiatorId}`);
-    return this._populateCall(call._id);
+
+    const callId = call._id;
+    setTimeout(async () => {
+      try {
+        const current = await CallSession.findById(callId).lean();
+        if (current && current.status === "ringing") {
+          await this.markCallMissed(callId);
+
+          const { getIO } = await import("../utils/socket.js");
+          const io = getIO();
+          io.to(`chat:${chatId}`).emit("call_missed", {
+            callId,
+            initiator: initiatorId,
+            callType: callType || "audio",
+          });
+
+          logger.info(`[Call] Auto-marked as missed after timeout: ${callId}`);
+        }
+      } catch (err) {
+        logger.error(`[Call] Missed-call timeout error for ${callId}: ${err.message}`);
+      }
+    }, MISSED_CALL_TIMEOUT_MS);
+
+    return this._populateCall(callId);
   }
 
   async acceptCall(callId, userId) {
@@ -168,7 +193,7 @@ export class CallSessionService {
     return this._populateCall(call._id);
   }
 
-  async getCallHistory(chatId, userId, { page = 1, limit = 20 } = {}) {
+  async getCallHistory(chatId, userId, { page = 1, limit = 20, type } = {}) {
     const chat = await Chat.findById(chatId).lean();
     if (!chat) {
       const err = new Error("Chat not found");
@@ -183,7 +208,7 @@ export class CallSessionService {
     }
 
     const skip = (Number(page) - 1) * Number(limit);
-    const query = { chatId, status: { $in: ["ended", "missed", "rejected"] } };
+    const query = this._buildCallHistoryQuery(chatId, userId, type);
 
     const [calls, total] = await Promise.all([
       CallSession.find(query)
@@ -205,12 +230,10 @@ export class CallSessionService {
     };
   }
 
-  async getUserCallHistory(userId, tenantId, { page = 1, limit = 20 } = {}) {
+  async getUserCallHistory(userId, tenantId, { page = 1, limit = 20, type } = {}) {
     const skip = (Number(page) - 1) * Number(limit);
-    const query = {
-      "participants.userId": userId,
-      status: { $in: ["ended", "missed", "rejected"] },
-    };
+    const query = this._buildCallHistoryQuery(null, userId, type);
+    query["participants.userId"] = userId;
     if (tenantId) query.tenantId = tenantId;
 
     const [calls, total] = await Promise.all([
@@ -398,6 +421,36 @@ export class CallSessionService {
       throw err;
     }
     return call;
+  }
+
+  _buildCallHistoryQuery(chatId, userId, type) {
+    const query = {};
+    if (chatId) query.chatId = chatId;
+
+    if (!type) {
+      query.status = { $in: ["ended", "missed", "rejected"] };
+      return query;
+    }
+
+    switch (type) {
+      case "missed":
+        query.status = "missed";
+        break;
+      case "incoming":
+        query.status = { $in: ["ended", "missed", "rejected"] };
+        query.initiator = { $ne: userId };
+        break;
+      case "outgoing":
+        query.status = { $in: ["ended", "missed", "rejected"] };
+        query.initiator = userId;
+        break;
+      case "recorded":
+        query.status = { $in: ["ended", "missed", "rejected"] };
+        query.recordingId = { $ne: null };
+        break;
+    }
+
+    return query;
   }
 
   async _populateCall(callId) {

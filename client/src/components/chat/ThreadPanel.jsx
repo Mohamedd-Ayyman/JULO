@@ -6,6 +6,7 @@ import DateSeparator from "./DateSeparator.jsx";
 import { getThreadReplies, sendReply, deleteMessage, addReaction } from "../../apiCalls/message.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS } from "../../lib/constants.js";
+import { useIsMobile } from "../../hooks/use-mobile.jsx";
 
 function groupByDate(messages) {
   const groups = [];
@@ -24,6 +25,7 @@ function groupByDate(messages) {
 
 export default function ThreadPanel({ rootMessage, currentUserId, onClose, otherMember }) {
   const { socket } = useSocket();
+  const isMobileView = useIsMobile();
   const [replies, setReplies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -110,8 +112,16 @@ export default function ThreadPanel({ rootMessage, currentUserId, onClose, other
 
   return (
     <div
-      className="flex flex-col h-full border-l animate-slide-in-right"
-      style={{ borderColor: "var(--line-soft)", background: "var(--paper)", width: 380, maxWidth: "100%" }}
+      className={isMobileView
+        ? "fixed inset-0 z-[70] flex flex-col animate-slide-in-right"
+        : "flex flex-col h-full border-l animate-slide-in-right"
+      }
+      style={{
+        borderColor: "var(--line-soft)",
+        background: "var(--paper)",
+        width: isMobileView ? "100%" : 380,
+        maxWidth: isMobileView ? "100%" : "100%",
+      }}
     >
       {/* Header */}
       <div

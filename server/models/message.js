@@ -92,6 +92,9 @@ const messageSchema = new mongoose.Schema(
       of: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
       default: {},
     },
+    spamFlag: { type: Boolean, default: false },
+    spamScore: { type: Number, default: 0 },
+    spamReasons: { type: [String], default: [] },
   },
   { timestamps: true }
 );
@@ -104,6 +107,7 @@ messageSchema.index({ mentions: 1, createdAt: -1 });
 messageSchema.index({ chatId: 1, status: 1 });
 messageSchema.index({ "deliveredTo.userId": 1 });
 messageSchema.index({ "readBy.userId": 1 });
+messageSchema.index({ spamFlag: 1 });
 
 const Message = mongoose.model("messages", messageSchema);
 export default Message;

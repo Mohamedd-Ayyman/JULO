@@ -96,6 +96,16 @@ app.use("/api", rateLimit({
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
+// ICE endpoint — stricter limit since TURN creds are expensive to generate
+app.use("/api/ice", rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipOptions,
+  message: { success: false, message: "Too many ICE requests, please try again later.", statusCode: 429 },
+}));
+
 // ── 11. API v1 router ─────────────────────────────────────────────────
 const v1 = express.Router();
 
@@ -131,6 +141,7 @@ import participantRouter from "./controllers/participantController.js";
 import mediaRouter from "./controllers/mediaController.js";
 import pushRouter from "./controllers/pushController.js";
 import presenceRouter from "./controllers/presenceController.js";
+import moderationRouter from "./controllers/moderationController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
@@ -154,6 +165,8 @@ v1.use("/participants", participantRouter);
 v1.use("/media", mediaRouter);
 v1.use("/push", pushRouter);
 v1.use("/presence", presenceRouter);
+v1.use("/moderation", moderationRouter);
+v1.use("/ice", iceRouter);
 
 // Stripe webhook — raw body already parsed at step 4
 app.post("/webhooks/stripe", stripeWebhookController);

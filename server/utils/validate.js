@@ -199,6 +199,13 @@ export const profileUpdateSchema = z.object({
   message: "At least one field must be provided",
 });
 
+// ── Call History ─────────────────────────────────────────────────────────────
+export const callHistoryQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  type: z.enum(["missed", "incoming", "outgoing", "recorded"]).optional(),
+});
+
 // ── Consent ─────────────────────────────────────────────────────────────────────
 export const consentUpdateSchema = z.object({
   consents: z.array(z.object({
@@ -370,3 +377,35 @@ export const validate = (schema, mode = "body") => (req, res, next) => {
   }
   next();
 };
+
+// ── Moderation ──────────────────────────────────────────────────────────────
+export const blockUserSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+});
+
+export const reportMessageSchema = z.object({
+  messageId: z.string().min(1, "messageId is required"),
+  chatId: z.string().min(1, "chatId is required"),
+  reason: z.enum(["spam", "harassment", "hate_speech", "inappropriate_content", "impersonation", "other"]),
+  description: z.string().trim().max(500).optional(),
+});
+
+export const reportUserSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  reason: z.enum(["spam", "harassment", "hate_speech", "inappropriate_content", "impersonation", "other"]),
+  description: z.string().trim().max(500).optional(),
+});
+
+export const reportQuerySchema = z.object({
+  status: z.enum(["pending", "reviewed", "dismissed", "resolved"]).optional(),
+  reason: z.enum(["spam", "harassment", "hate_speech", "inappropriate_content", "impersonation", "other"]).optional(),
+  targetType: z.enum(["message", "user"]).optional(),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+});
+
+export const reportReviewSchema = z.object({
+  status: z.enum(["reviewed", "dismissed", "resolved"]),
+  action: z.enum(["none", "warning", "message_deleted", "user_muted", "user_banned"]).optional().default("none"),
+  actionNote: z.string().trim().max(500).optional(),
+});

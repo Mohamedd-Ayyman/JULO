@@ -103,6 +103,22 @@ export const config = {
     storyConcurrency: 3,
   },
 
+  // ── TURN / STUN (WebRTC media) ──────────────────────────────────────────────
+  turn: {
+    enabled: process.env.TURN_ENABLED !== "false",
+    secret: process.env.TURN_SECRET || "",
+    realm: process.env.TURN_REALM || "julo.app",
+    credentialTtl: Number(process.env.TURN_EXPIRES) || 86400,
+    turnUrls: (process.env.TURN_URL || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    stunUrls: (process.env.STUN_URL || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  },
+
   // ── Circuit breaker defaults ───────────────────────────────────────────────
   circuitBreaker: {
     stripeFailureThreshold: 3,

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Avatar from "../Avatar.jsx";
 import { formatTime } from "../CommonUI.jsx";
-import { BellOff, Bell } from "lucide-react";
+import { BellOff, Bell, Pin, PinOff, Archive, ArchiveRestore, Users } from "lucide-react";
 
 function getPreviewText(message, currentUserId, isGroupChat) {
   if (!message) return "Say hi";
@@ -29,7 +29,7 @@ function getPreviewText(message, currentUserId, isGroupChat) {
   return message.text || "Say hi";
 }
 
-export default function ChatListItem({ chat, currentUserId, isActive, isTyping, isMuted, onClick, onToggleMute }) {
+export default function ChatListItem({ chat, currentUserId, isActive, isTyping, isMuted, isPinned, onClick, onToggleMute, onTogglePin, onArchive, onOpenGroupInfo }) {
   const isGroupChat = chat.type === "group";
   const other = chat.members?.find((m) => m._id !== currentUserId);
   const name = isGroupChat
@@ -52,7 +52,7 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
 
   const handleContextMenu = (e) => {
     e.preventDefault();
-    setCtxPos({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 100) });
+    setCtxPos({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 120) });
     setShowCtx(true);
   };
 
@@ -82,6 +82,7 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 min-w-0">
+              {isPinned && <Pin className="w-3 h-3 flex-shrink-0" style={{ color: "var(--acid)" }} />}
               <p
                 className="text-sm truncate"
                 style={{
@@ -175,6 +176,38 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
               {isMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
               {isMuted ? "Unmute" : "Mute"}
             </button>
+            <button
+              onClick={() => { onTogglePin?.(chat._id); setShowCtx(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+              style={{ color: "var(--ink)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              {isPinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+              {isPinned ? "Unpin" : "Pin"}
+            </button>
+            <button
+              onClick={() => { onArchive?.(chat._id); setShowCtx(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+              style={{ color: "var(--ink)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              {chat.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              {chat.archived ? "Unarchive" : "Archive"}
+            </button>
+            {isGroupChat && (
+              <button
+                onClick={() => { onOpenGroupInfo?.(); setShowCtx(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                style={{ color: "var(--ink)" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
+                <Users className="w-4 h-4" />
+                Group Info
+              </button>
+            )}
           </div>
         </>
       )}

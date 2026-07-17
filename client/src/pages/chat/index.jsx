@@ -18,10 +18,14 @@ import {
   Bell,
   Plus,
   Users,
+  Pin,
+  PinOff,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { muteChat } from "../../apiCalls/message.js";
-import { toggleMuteChat, selectMutedChats, setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy, updateActiveChatInfo } from "../../redux/chatSlice.js";
+import { muteChat, pinChat, archiveChat } from "../../apiCalls/message.js";
+import { toggleMuteChat, togglePinChat, archiveChatInList, selectMutedChats, selectPinnedChats, setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy, updateActiveChatInfo } from "../../redux/chatSlice.js";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
@@ -42,6 +46,7 @@ import useAudioRecorder from "../../hooks/useAudioRecorder.js";
 import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import useLinkPreview from "../../hooks/useLinkPreview.js";
+import { useIsMobile } from "../../hooks/use-mobile.jsx";
 import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage, editMessage, sendReply } from "../../apiCalls/message.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
@@ -55,6 +60,7 @@ export default function ChatPage() {
   const { user } = useSelector((s) => s.userReducer);
   const { chats, activeChat } = useSelector((s) => s.chatReducer);
   const mutedChats = useSelector(selectMutedChats);
+  const pinnedChats = useSelector(selectPinnedChats);
   const { socket } = useSocket();
 
   const [loadingChats, setLoadingChats] = useState(true);
@@ -88,6 +94,12 @@ export default function ChatPage() {
   const { isOnline, wasOffline } = useOnlineStatus();
   const { preview: linkPreview, clear: clearLinkPreview } = useLinkPreview(draft);
 
+  const isMobileView = useIsMobile();
+  const [mobileView, setMobileView] = useState(chatId ? "chat" : "list");
+  const [mobileAnim, setMobileAnim] = useState(null);
+  const prevChatIdRef = useRef(chatId);
+  const mobileAnimTimerRef = useRef(null);
+
   useEffect(() => {
     if (wasOffline) toast.success("You're back online");
   }, [wasOffline]);
@@ -119,6 +131,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!chatId) {
+      if (isMobileView && mobileAnim === "leaving") return;
       dispatch(setActiveChat(null));
       setReplyToMessage(null);
       setActiveThread(null);
@@ -131,7 +144,15 @@ export default function ChatPage() {
     setActiveThread(null);
     const found = chats.find((c) => c._id === chatId);
     if (found) dispatch(setActiveChat({ ...found, messages: [] }));
-  }, [chatId, chats, dispatch]);
+  }, [chatId, chats, dispatch, isMobileView, mobileAnim]);
+
+  useEffect(() => {
+    if (!chatId && !mobileAnim && mobileView === "list") {
+      dispatch(setActiveChat(null));
+      setReplyToMessage(null);
+      setActiveThread(null);
+    }
+  }, [chatId, mobileAnim, mobileView, dispatch]);
 
   useEffect(() => {
     if (!activeChat?._id || activeChat.messages?.length) return;
@@ -358,6 +379,35 @@ export default function ChatPage() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
+  useEffect(() => {
+    if (!isMobileView) {
+      setMobileView(chatId ? "chat" : "list");
+      setMobileAnim(null);
+      if (mobileAnimTimerRef.current) clearTimeout(mobileAnimTimerRef.current);
+      return;
+    }
+    const prev = prevChatIdRef.current;
+    prevChatIdRef.current = chatId;
+    if (chatId && !prev) {
+      setMobileAnim("entering");
+      if (mobileAnimTimerRef.current) clearTimeout(mobileAnimTimerRef.current);
+      mobileAnimTimerRef.current = setTimeout(() => {
+        setMobileView("chat");
+        setMobileAnim(null);
+      }, 350);
+    } else if (!chatId && prev) {
+      setMobileAnim("leaving");
+      if (mobileAnimTimerRef.current) clearTimeout(mobileAnimTimerRef.current);
+      mobileAnimTimerRef.current = setTimeout(() => {
+        setMobileView("list");
+        setMobileAnim(null);
+      }, 350);
+    }
+    return () => {
+      if (mobileAnimTimerRef.current) clearTimeout(mobileAnimTimerRef.current);
+    };
+  }, [chatId, isMobileView]);
+
   const scrollToBottom = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     setUnseenCount(0);
@@ -453,6 +503,49 @@ export default function ChatPage() {
       toast.error("Failed to update mute setting");
     }
   };
+
+  const handlePinToggleById = async (chatId) => {
+    const wasPinned = pinnedChats.includes(chatId);
+    dispatch(togglePinChat(chatId));
+    try {
+      await pinChat(chatId, !wasPinned);
+      toast.success(wasPinned ? "Chat unpinned" : "Chat pinned");
+    } catch {
+      dispatch(togglePinChat(chatId));
+      toast.error("Failed to update pin");
+    }
+  };
+
+  const handleArchiveById = async (chatId) => {
+    const chat = chats.find((c) => c._id === chatId);
+    const wasArchived = chat?.archived;
+    if (!wasArchived && !confirm("Archive this chat?")) return;
+    try {
+      await archiveChat(chatId, !wasArchived);
+      if (!wasArchived) {
+        dispatch(archiveChatInList(chatId));
+        toast.success("Chat archived");
+      } else {
+        dispatch(updateActiveChatInfo({ chatId, updates: { archived: false } }));
+        toast.success("Chat unarchived");
+      }
+    } catch {
+      toast.error("Failed to update archive");
+    }
+  };
+
+  const handleOpenGroupInfoFromList = (chatId) => {
+    navigate(ROUTES.CHAT_ID(chatId));
+  };
+
+  const handleMobileBack = useCallback(() => {
+    setMobileAnim("leaving");
+    mobileAnimTimerRef.current = setTimeout(() => {
+      navigate(ROUTES.CHAT);
+      setMobileView("list");
+      setMobileAnim(null);
+    }, 350);
+  }, [navigate]);
 
   const isImageFile = (file) => file.type?.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
 
@@ -627,9 +720,19 @@ export default function ChatPage() {
   return (
     <>
     <AppLayout title="Messages" hideRightRail fullWidth>
-      <div className="h-[calc(100vh-3.5rem)] lg:h-screen flex">
+      <div className="h-[calc(100dvh-3.5rem-4.5rem)] lg:h-screen flex relative overflow-hidden">
         <aside
-          className={`${activeChat?._id ? "hidden md:flex" : "flex"} flex-col w-full md:w-[340px] flex-shrink-0 border-r z-10`}
+          className={`flex-col border-r z-10
+            ${isMobileView
+              ? mobileAnim === "leaving"
+                ? "flex animate-slide-in-left"
+                : activeChat?._id && mobileView === "chat"
+                  ? mobileAnim === "entering"
+                    ? "hidden"
+                    : "hidden"
+                  : "flex animate-fade-in"
+              : activeChat?._id ? "hidden md:flex" : "flex"}
+            w-full md:w-[340px] flex-shrink-0`}
           style={{ borderColor: "var(--line-soft)", background: "var(--paper-2)" }}
         >
           <div className="p-4" style={{ borderBottom: "1px solid var(--line-soft)" }}>
@@ -711,8 +814,12 @@ export default function ChatPage() {
                     isActive={c._id === activeChat?._id}
                     isTyping={!!typingChats[c._id]}
                     isMuted={mutedChats.includes(c._id)}
+                    isPinned={pinnedChats.includes(c._id)}
                     onClick={() => navigate(ROUTES.CHAT_ID(c._id))}
                     onToggleMute={handleMuteToggleById}
+                    onTogglePin={handlePinToggleById}
+                    onArchive={handleArchiveById}
+                    onOpenGroupInfo={() => handleOpenGroupInfoFromList(c._id)}
                   />
                 ))}
               </div>
@@ -721,7 +828,17 @@ export default function ChatPage() {
           </div>
         </aside>
 
-        <section className={`${activeChat?._id ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
+        <section className={`flex-1 flex-col min-w-0
+          ${isMobileView
+            ? mobileAnim === "leaving"
+              ? "hidden"
+              : activeChat?._id
+                ? mobileAnim === "entering"
+                  ? "flex animate-slide-in-right"
+                  : "flex"
+                : "hidden"
+            : activeChat?._id ? "flex" : "hidden md:flex"}
+        `} style={isMobileView && mobileAnim === "entering" ? {} : undefined}>
           {!activeChat?._id ? (
             <div className="flex-1 grid place-items-center text-center p-8">
               <div className="animate-fade-in-up">
@@ -737,7 +854,7 @@ export default function ChatPage() {
               <header className="flex items-center justify-between p-3" style={{ borderBottom: "1px solid var(--line-soft)", background: "var(--paper-2)" }}>
                 <div className="flex items-center gap-3 min-w-0">
                   <button
-                    onClick={() => navigate(ROUTES.CHAT)}
+                    onClick={() => isMobileView ? handleMobileBack() : navigate(ROUTES.CHAT)}
                     className="brutal-btn brutal-btn-ghost brutal-btn-icon"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -777,18 +894,12 @@ export default function ChatPage() {
                   )}
                   <div className="relative">
                     <button
-                      onClick={() => {
-                        if (isGroupChat) {
-                          setShowGroupDetails(true);
-                        } else {
-                          setShowChatMenu((v) => !v);
-                        }
-                      }}
+                      onClick={() => setShowChatMenu((v) => !v)}
                       className="brutal-btn brutal-btn-ghost brutal-btn-icon"
                     >
                       {isGroupChat ? <Users className="w-4 h-4" /> : <MoreHorizontal className="w-4 h-4" />}
                     </button>
-                    {!isGroupChat && showChatMenu && (
+                    {showChatMenu && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
                         <div
@@ -800,6 +911,18 @@ export default function ChatPage() {
                             boxShadow: "var(--sh-3)",
                           }}
                         >
+                          {isGroupChat && (
+                            <button
+                              onClick={() => { setShowGroupDetails(true); setShowChatMenu(false); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                              style={{ color: "var(--ink)" }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+                              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                            >
+                              <Users className="w-4 h-4" />
+                              Group Info
+                            </button>
+                          )}
                           <button
                             onClick={handleMuteToggle}
                             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
@@ -809,6 +932,41 @@ export default function ChatPage() {
                           >
                             {isMuted ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                             {isMuted ? "Unmute" : "Mute"}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const wasPinned = pinnedChats.includes(activeChat._id);
+                              dispatch(togglePinChat(activeChat._id));
+                              setShowChatMenu(false);
+                              try { await pinChat(activeChat._id, !wasPinned); toast.success(wasPinned ? "Chat unpinned" : "Chat pinned"); }
+                              catch { dispatch(togglePinChat(activeChat._id)); toast.error("Failed to update pin"); }
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                            style={{ color: "var(--ink)" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                          >
+                            {pinnedChats.includes(activeChat._id) ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                            {pinnedChats.includes(activeChat._id) ? "Unpin" : "Pin"}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setShowChatMenu(false);
+                              const wasArchived = activeChat.archived;
+                              if (!wasArchived && !confirm("Archive this chat?")) return;
+                              try {
+                                await archiveChat(activeChat._id, !wasArchived);
+                                if (!wasArchived) { dispatch(archiveChatInList(activeChat._id)); toast.success("Chat archived"); }
+                                else { dispatch(updateActiveChatInfo({ chatId: activeChat._id, updates: { archived: false } })); toast.success("Chat unarchived"); }
+                              } catch { toast.error("Failed to update archive"); }
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                            style={{ color: "var(--ink)" }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                          >
+                            {activeChat.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                            {activeChat.archived ? "Unarchive" : "Archive"}
                           </button>
                         </div>
                       </>

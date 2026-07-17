@@ -291,6 +291,393 @@ export async function initSocket(httpServer) {
       });
     });
 
+    // ── Call session management ─────────────────────────────────────────
+    socket.on("call_initiate", async ({ chatId, callType }) => {
+      try {
+        const { default: callSessionService } = await import("../services/callSessionService.js");
+        const { default: Chat } = await import("../models/chat.js");
+
+        const chat = await Chat.findById(chatId).lean();
+        if (!chat || !chat.members.some((m) => String(m) === String(socket.userId))) {
+          socket.emit("call_error", { message: "Not a member of this chat" });
+          return;
+        }
+
+        const call = await callSessionService.initiateCall(
+          chatId,
+          socket.userId,
+          null,
+          callType || "audio"
+        );
+
+        io.to(`chat:${chatId}`).emit("call_invite", {
+          callId: call._id,
+          initiator: call.initiator,
+          callType: call.callType,
+          participants: call.participants,
+          status: "ringing",
+          createdAt: call.createdAt,
+        });
+
+        socket.emit("call_initiated", { callId: call._id, status: "ringing" });
+      } catch (err) {
+        logger.error(`[Socket] call_initiate error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to initiate call" });
+      }
+    });
+
+    socket.on("call_accept", async ({ callId }) => {
+      try {
+        const { default: callSessionService } = await import("../services/callSessionService.js");
+        const call = await callSessionService.acceptCall(callId, socket.userId);
+
+        io.to(`chat:${call.chatId}`).emit("call_accepted", {
+          callId: call._id,
+          userId: socket.userId,
+          status: "active",
+          startedAt: call.startedAt,
+        });
+
+        socket.emit("call_accepted_ack", { callId: call._id, status: "active" });
+      } catch (err) {
+        logger.error(`[Socket] call_accept error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to accept call" });
+      }
+    });
+
+    socket.on("call_reject", async ({ callId }) => {
+      try {
+        const { default: callSessionService } = await import("../services/callSessionService.js");
+        const call = await callSessionService.rejectCall(callId, socket.userId);
+
+        io.to(`chat:${call.chatId}`).emit("call_rejected", {
+          callId: call._id,
+          userId: socket.userId,
+          status: "rejected",
+        });
+
+        socket.emit("call_rejected_ack", { callId: call._id, status: "rejected" });
+      } catch (err) {
+        logger.error(`[Socket] call_reject error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to reject call" });
+      }
+    });
+
+    socket.on("call_end", async ({ callId, reason }) => {
+      try {
+        const { default: callSessionService } = await import("../services/callSessionService.js");
+        const call = await callSessionService.endCall(callId, socket.userId, reason);
+
+        io.to(`chat:${call.chatId}`).emit("call_ended", {
+          callId: call._id,
+          duration: call.duration,
+          endReason: call.endReason,
+          endedBy: socket.userId,
+        });
+
+        socket.emit("call_ended_ack", { callId: call._id, status: "ended" });
+      } catch (err) {
+        logger.error(`[Socket] call_end error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to end call" });
+      }
+    });
+
+    socket.on("call_join", async ({ callId }) => {
+      try {
+        const { default: callSessionService } = await import("../services/callSessionService.js");
+        const { default: CallSession } = await import("../models/callSession.js");
+
+        const call = await CallSession.findById(callId);
+        if (!call) {
+          socket.emit("call_error", { message: "Call not found" });
+          return;
+        }
+
+        if (call.status === "ended" || call.status === "missed" || call.status === "rejected") {
+          socket.emit("call_error", { message: "Call has already ended" });
+          return;
+        }
+
+        let participant = call.participants.find(
+          (p) => String(p.userId) === String(socket.userId)
+        );
+
+        if (!participant) {
+          const { default: Chat } = await import("../models/chat.js");
+          const chat = await Chat.findById(call.chatId).lean();
+          if (!chat || !chat.members.some((m) => String(m) === String(socket.userId))) {
+            socket.emit("call_error", { message: "Not a member of this chat" });
+            return;
+          }
+
+          call.participants.push({
+            userId: socket.userId,
+            joinedAt: new Date(),
+            leftAt: null,
+            consentToRecording: false,
+            consentUpdatedAt: null,
+          });
+          participant = call.participants[call.participants.length - 1];
+        } else if (!participant.joinedAt) {
+          participant.joinedAt = new Date();
+        } else {
+          socket.emit("call_error", { message: "Already in call" });
+          return;
+        }
+
+        await call.save();
+
+        const populated = await CallSession.findById(callId)
+          .populate("participants.userId", "firstname lastname profilepic")
+          .lean();
+
+        io.to(`chat:${call.chatId}`).emit("call_participant_joined", {
+          callId: call._id,
+          userId: socket.userId,
+          joinedAt: participant.joinedAt,
+          participants: populated.participants,
+        });
+
+        socket.emit("call_joined_ack", { callId: call._id, status: call.status });
+      } catch (err) {
+        logger.error(`[Socket] call_join error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to join call" });
+      }
+    });
+
+    socket.on("call_leave", async ({ callId }) => {
+      try {
+        const { default: CallSession } = await import("../models/callSession.js");
+
+        const call = await CallSession.findById(callId);
+        if (!call) {
+          socket.emit("call_error", { message: "Call not found" });
+          return;
+        }
+
+        const participant = call.participants.find(
+          (p) => String(p.userId) === String(socket.userId)
+        );
+
+        if (!participant || !participant.joinedAt) {
+          socket.emit("call_error", { message: "Not in this call" });
+          return;
+        }
+
+        if (!participant.leftAt) {
+          participant.leftAt = new Date();
+        }
+
+        await call.save();
+
+        io.to(`chat:${call.chatId}`).emit("call_participant_left", {
+          callId: call._id,
+          userId: socket.userId,
+          leftAt: participant.leftAt,
+        });
+
+        const activeParticipants = call.participants.filter(
+          (p) => p.joinedAt && !p.leftAt
+        );
+
+        if (activeParticipants.length === 0 && call.status === "active") {
+          const { default: callSessionService } = await import("../services/callSessionService.js");
+          const endedCall = await callSessionService.endCall(callId, socket.userId, "normal");
+
+          io.to(`chat:${endedCall.chatId}`).emit("call_ended", {
+            callId: endedCall._id,
+            duration: endedCall.duration,
+            endReason: endedCall.endReason,
+            endedBy: socket.userId,
+          });
+        }
+
+        socket.emit("call_left_ack", { callId: call._id });
+      } catch (err) {
+        logger.error(`[Socket] call_leave error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to leave call" });
+      }
+    });
+
+    socket.on("call_mute_toggle", async ({ callId, muted }) => {
+      try {
+        const { default: CallSession } = await import("../models/callSession.js");
+
+        const call = await CallSession.findById(callId);
+        if (!call) {
+          socket.emit("call_error", { message: "Call not found" });
+          return;
+        }
+
+        const participant = call.participants.find(
+          (p) => String(p.userId) === String(socket.userId)
+        );
+
+        if (!participant || !participant.joinedAt || participant.leftAt) {
+          socket.emit("call_error", { message: "Not an active participant in this call" });
+          return;
+        }
+
+        io.to(`chat:${call.chatId}`).emit("call_mute_updated", {
+          callId: call._id,
+          userId: socket.userId,
+          muted: !!muted,
+        });
+      } catch (err) {
+        logger.error(`[Socket] call_mute_toggle error: ${err.message}`);
+        socket.emit("call_error", { message: err.message || "Failed to toggle mute" });
+      }
+    });
+
+    // ── WebRTC Signaling ──────────────────────────────────────────────
+    socket.on("call_offer", async ({ callId, targetUserId, offer }) => {
+      if (!callId || !targetUserId || !offer) {
+        socket.emit("error", { message: "Missing callId, targetUserId, or offer" });
+        return;
+      }
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const signalData = await webrtcService.handleOffer(callId, socket.userId, targetUserId, offer);
+        io.to(`user:${targetUserId}`).emit("call_offer", signalData);
+        logger.debug(`[Socket] call_offer relayed: ${socket.userId} → ${targetUserId}`);
+      } catch (err) {
+        logger.error(`[Socket] call_offer error: ${err.message}`);
+        socket.emit("error", { message: "Failed to relay call offer" });
+      }
+    });
+
+    socket.on("call_answer", async ({ callId, targetUserId, answer }) => {
+      if (!callId || !targetUserId || !answer) {
+        socket.emit("error", { message: "Missing callId, targetUserId, or answer" });
+        return;
+      }
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const signalData = await webrtcService.handleAnswer(callId, socket.userId, targetUserId, answer);
+        io.to(`user:${targetUserId}`).emit("call_answer", signalData);
+        logger.debug(`[Socket] call_answer relayed: ${socket.userId} → ${targetUserId}`);
+      } catch (err) {
+        logger.error(`[Socket] call_answer error: ${err.message}`);
+        socket.emit("error", { message: "Failed to relay call answer" });
+      }
+    });
+
+    socket.on("ice_candidate", async ({ callId, targetUserId, candidate }) => {
+      if (!callId || !targetUserId || !candidate) {
+        socket.emit("error", { message: "Missing callId, targetUserId, or candidate" });
+        return;
+      }
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const signalData = await webrtcService.handleIceCandidate(callId, socket.userId, targetUserId, candidate);
+        io.to(`user:${targetUserId}`).emit("ice_candidate", signalData);
+      } catch (err) {
+        logger.debug(`[Socket] ice_candidate error: ${err.message}`);
+        socket.emit("error", { message: "Failed to relay ICE candidate" });
+      }
+    });
+
+    socket.on("call_renegotiate", async ({ callId, targetUserId, offer }) => {
+      if (!callId || !targetUserId || !offer) {
+        socket.emit("error", { message: "Missing callId, targetUserId, or offer" });
+        return;
+      }
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const signalData = await webrtcService.handleRenegotiate(callId, socket.userId, targetUserId, offer);
+        io.to(`user:${targetUserId}`).emit("call_renegotiate", signalData);
+        logger.debug(`[Socket] call_renegotiate relayed: ${socket.userId} → ${targetUserId}`);
+      } catch (err) {
+        logger.error(`[Socket] call_renegotiate error: ${err.message}`);
+        socket.emit("error", { message: "Failed to relay renegotiation" });
+      }
+    });
+
+    socket.on("call_mute", async ({ callId, isMuted }) => {
+      if (!callId) return;
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const state = webrtcService.handleMuteToggle(callId, socket.userId, isMuted);
+        socket.to(`chat:${callId}`).emit("call_mute", state);
+      } catch (err) {
+        logger.debug(`[Socket] call_mute error: ${err.message}`);
+      }
+    });
+
+    socket.on("call_video_toggle", async ({ callId, isVideoOff }) => {
+      if (!callId) return;
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const state = webrtcService.handleVideoToggle(callId, socket.userId, isVideoOff);
+        socket.to(`chat:${callId}`).emit("call_video_toggle", state);
+      } catch (err) {
+        logger.debug(`[Socket] call_video_toggle error: ${err.message}`);
+      }
+    });
+
+    socket.on("call_screen_share_toggle", async ({ callId, isScreenSharing }) => {
+      if (!callId) return;
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const state = webrtcService.handleScreenShareToggle(callId, socket.userId, isScreenSharing);
+        socket.to(`chat:${callId}`).emit("call_screen_share_toggle", state);
+      } catch (err) {
+        logger.debug(`[Socket] call_screen_share_toggle error: ${err.message}`);
+      }
+    });
+
+    socket.on("call_join_session", async ({ callId }) => {
+      if (!callId) return;
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const state = webrtcService.handleJoinSession(callId, socket.userId);
+        socket.emit("call_media_state", state);
+        socket.to(`chat:${callId}`).emit("call_participant_webcam_joined", {
+          callId,
+          userId: socket.userId,
+          timestamp: state.timestamp,
+        });
+      } catch (err) {
+        logger.debug(`[Socket] call_join_session error: ${err.message}`);
+      }
+    });
+
+    socket.on("call_leave_session", async ({ callId }) => {
+      if (!callId) return;
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        const state = webrtcService.handleLeaveSession(callId, socket.userId);
+        socket.to(`chat:${callId}`).emit("call_participant_webcam_left", {
+          callId,
+          userId: socket.userId,
+          remainingParticipants: state.remainingParticipants,
+          timestamp: state.timestamp,
+        });
+      } catch (err) {
+        logger.debug(`[Socket] call_leave_session error: ${err.message}`);
+      }
+    });
+
+    socket.on("call_quality_report", async ({ callId, metrics }) => {
+      if (!callId || !metrics) return;
+
+      try {
+        const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
+        webrtcService.handleQualityReport(callId, socket.userId, metrics);
+      } catch (err) {
+        logger.debug(`[Socket] call_quality_report error: ${err.message}`);
+      }
+    });
+
     // ── Disconnect ─────────────────────────────────────────────────────
     socket.on("disconnect", async (reason) => {
       logger.info(`[Socket] Disconnected: ${socket.userId} (${reason})`, { requestId });

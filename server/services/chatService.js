@@ -5,6 +5,7 @@ import Participant from "../models/participant.js";
 import User from "../models/user.js";
 import Media from "../models/media.js";
 import { scopeByTenant } from "../middlewares/tenantMiddleware.js";
+import moderationService from "./moderationService.js";
 import logger from "../utils/logger.js";
 
 export function sanitizeText(text) {
@@ -52,6 +53,14 @@ export class ChatService {
     const chatType = members.length === 1 && type === "direct" ? "direct" : type;
 
     if (chatType === "direct" && members.length === 1) {
+      const targetUserId = String(members[0]);
+      const blocked = await moderationService.isBlocked(currentUserId, targetUserId);
+      if (blocked) {
+        const err = new Error("Cannot create chat with this user");
+        err.statusCode = 403;
+        throw err;
+      }
+
       let baseQuery = Chat.findOne({ members: { $all: [currentUserId, ...members] }, type: "direct" });
       baseQuery = scopeByTenant(baseQuery, tenantId);
       const existing = await baseQuery;
@@ -124,6 +133,13 @@ export class ChatService {
 
     const validParticipants = participants.filter((p) => p.chatId);
 
+    let blockedIds = [];
+    try {
+      blockedIds = await moderationService.getBlockedUserIds(userId);
+    } catch (_) {}
+
+    const blockedSet = new Set(blockedIds);
+
     const directChatPartnerIds = [];
     for (const p of validParticipants) {
       const chat = p.chatId;
@@ -143,6 +159,15 @@ export class ChatService {
         partnerMap[String(u._id)] = u;
       }
     }
+
+    const filteredParticipants = validParticipants.filter((p) => {
+      const chat = p.chatId;
+      if (chat.type === "direct" && Array.isArray(chat.members)) {
+        const partnerId = chat.members.find((m) => String(m) !== String(userId));
+        if (partnerId && blockedSet.has(String(partnerId))) return false;
+      }
+      return true;
+    });
 
     if (search) {
       const searchLower = search.toLowerCase();
@@ -356,6 +381,18 @@ export class ChatService {
       throw err;
     }
 
+    if (chat.type === "direct") {
+      const otherMemberId = chat.members.find((m) => String(m) !== String(senderId));
+      if (otherMemberId) {
+        const blocked = await moderationService.isBlocked(senderId, otherMemberId);
+        if (blocked) {
+          const err = new Error("Cannot send message to this user");
+          err.statusCode = 403;
+          throw err;
+        }
+      }
+    }
+
     const messageData = { chatId, sender: senderId, tenantId, text: sanitizeText(text), read: false, status: "sent" };
 
     if (replyTo) {
@@ -427,6 +464,13 @@ export class ChatService {
         { $inc: { unreadCount: 1 } }
       );
 
+      moderationService.checkSpamRateLimit(senderId, chatId)
+        .then((rateResult) =>
+          moderationService.checkRepeatedText(senderId, chatId, messageData.text)
+            .then((repeatResult) => moderationService.applySpamFlags(message, [rateResult, repeatResult]))
+        )
+        .catch(() => {});
+
       logger.info(`[Message] Sent: ${message._id} in chat ${chatId}`);
       return populateMentions(
         Message.findById(message._id)
@@ -453,6 +497,13 @@ export class ChatService {
         { chatId, isDeleted: false, muted: false, userId: { $ne: senderId } },
         { $inc: { unreadCount: 1 } }
       );
+
+      moderationService.checkSpamRateLimit(senderId, chatId)
+        .then((rateResult) =>
+          moderationService.checkRepeatedText(senderId, chatId, messageData.text)
+            .then((repeatResult) => moderationService.applySpamFlags(message, [rateResult, repeatResult]))
+        )
+        .catch(() => {});
 
       logger.info(`[Message] Sent: ${message._id} in chat ${chatId}`);
       return populateMentions(

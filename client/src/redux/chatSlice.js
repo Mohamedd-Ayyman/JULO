@@ -12,9 +12,21 @@ const persistMutedChats = (ids) => {
   localStorage.setItem("mutedChats", JSON.stringify(ids));
 };
 
+const loadPinnedChats = () => {
+  try {
+    return JSON.parse(localStorage.getItem("pinnedChats") || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const persistPinnedChats = (ids) => {
+  localStorage.setItem("pinnedChats", JSON.stringify(ids));
+};
+
 const chatSlice = createSlice({
   name: "chat",
-  initialState: { chats: [], activeChat: null, mutedChats: loadMutedChats() },
+  initialState: { chats: [], activeChat: null, mutedChats: loadMutedChats(), pinnedChats: loadPinnedChats() },
   reducers: {
     setChats: (state, action) => { state.chats = action.payload; },
     setActiveChat: (state, action) => { state.activeChat = action.payload; },
@@ -46,6 +58,23 @@ const chatSlice = createSlice({
         state.mutedChats.splice(idx, 1);
       }
       persistMutedChats(state.mutedChats);
+    },
+    togglePinChat: (state, action) => {
+      const chatId = action.payload;
+      const idx = state.pinnedChats.indexOf(chatId);
+      if (idx === -1) {
+        state.pinnedChats.push(chatId);
+      } else {
+        state.pinnedChats.splice(idx, 1);
+      }
+      persistPinnedChats(state.pinnedChats);
+    },
+    archiveChatInList: (state, action) => {
+      const chatId = action.payload;
+      state.chats = state.chats.filter((c) => c._id !== chatId);
+      if (state.activeChat?._id === chatId) {
+        state.activeChat = null;
+      }
     },
     addMessage: (state, action) => {
       const msg = action.payload;
@@ -153,6 +182,8 @@ export const {
   setActiveChat,
   setOnlineStatus,
   toggleMuteChat,
+  togglePinChat,
+  archiveChatInList,
   addMessage,
   updateLastMessage,
   markMessageFailed,
@@ -170,6 +201,11 @@ const selectChatState = (s) => s.chatReducer;
 export const selectMutedChats = createSelector(
   [selectChatState],
   (chat) => chat.mutedChats
+);
+
+export const selectPinnedChats = createSelector(
+  [selectChatState],
+  (chat) => chat.pinnedChats
 );
 
 export const selectTotalUnreadMessages = createSelector(

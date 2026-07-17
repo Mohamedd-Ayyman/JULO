@@ -38,6 +38,9 @@ export const PERMISSIONS = {
   "content:moderate":  [ROLES.MODERATOR, ROLES.ADMIN],
   "content:hide":      [ROLES.MODERATOR, ROLES.ADMIN],
   "user:view_history": [ROLES.MODERATOR, ROLES.ADMIN],
+  "moderation:read":   [ROLES.MODERATOR, ROLES.ADMIN],
+  "moderation:review": [ROLES.MODERATOR, ROLES.ADMIN],
+  "moderation:ban":    [ROLES.MODERATOR, ROLES.ADMIN],
 
   // Admin-only
   "admin:panel":      [ROLES.ADMIN],
