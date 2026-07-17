@@ -2,12 +2,37 @@ import mongoose from "mongoose";
 import Chat from "../models/chat.js";
 import Message from "../models/message.js";
 import Participant from "../models/participant.js";
+import User from "../models/user.js";
 import { scopeByTenant } from "../middlewares/tenantMiddleware.js";
 import logger from "../utils/logger.js";
 
 export function sanitizeText(text) {
   if (!text) return "";
   return text.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
+export function parseMentions(text, chatMembers) {
+  if (!text || !chatMembers || chatMembers.length === 0) return [];
+
+  const mentionPattern = /@(\w+(?:\s+\w+)*)/gi;
+  const mentionedIds = new Set();
+  let match;
+
+  while ((match = mentionPattern.exec(text)) !== null) {
+    const query = match[1].toLowerCase().trim();
+    for (const member of chatMembers) {
+      const memberId = String(member._id || member);
+      const firstName = (member.firstname || "").toLowerCase();
+      const lastName = (member.lastname || "").toLowerCase();
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      if (query === firstName || query === fullName) {
+        mentionedIds.add(memberId);
+      }
+    }
+  }
+
+  return [...mentionedIds];
 }
 
 const canUseTransactions = () => {
@@ -268,6 +293,7 @@ export class ChatService {
       .populate("sender", "firstname lastname profilepic")
       .populate("replyTo", "text sender createdAt")
       .populate("threadRootId", "text sender createdAt")
+      .populate("mentions", "firstname lastname profilepic")
       .lean();
 
     const hasMore = messages.length > safeLimit;
@@ -329,7 +355,7 @@ export class ChatService {
       throw err;
     }
 
-    const messageData = { chatId, sender: senderId, tenantId, text: sanitizeText(text), read: false };
+    const messageData = { chatId, sender: senderId, tenantId, text: sanitizeText(text), read: false, status: "sent" };
 
     if (replyTo) {
       const parentMessage = await Message.findById(replyTo).lean();
@@ -375,6 +401,15 @@ export class ChatService {
       };
     }
 
+    if (messageData.text) {
+      const memberDocs = await User.find({ _id: { $in: chat.members } })
+        .select("firstname lastname")
+        .lean();
+      messageData.mentions = parseMentions(messageData.text, memberDocs);
+    }
+
+    const populateMentions = (q) => q.populate("mentions", "firstname lastname profilepic");
+
     if (!canUseTransactions()) {
       const message = new Message(messageData);
       await message.save();
@@ -392,9 +427,11 @@ export class ChatService {
       );
 
       logger.info(`[Message] Sent: ${message._id} in chat ${chatId}`);
-      return Message.findById(message._id)
-        .populate("sender", "firstname lastname profilepic")
-        .populate("replyTo", "text sender createdAt");
+      return populateMentions(
+        Message.findById(message._id)
+          .populate("sender", "firstname lastname profilepic")
+          .populate("replyTo", "text sender createdAt")
+      );
     }
 
     const session = await mongoose.startSession();
@@ -417,9 +454,11 @@ export class ChatService {
       );
 
       logger.info(`[Message] Sent: ${message._id} in chat ${chatId}`);
-      return Message.findById(message._id)
-        .populate("sender", "firstname lastname profilepic")
-        .populate("replyTo", "text sender createdAt");
+      return populateMentions(
+        Message.findById(message._id)
+          .populate("sender", "firstname lastname profilepic")
+          .populate("replyTo", "text sender createdAt")
+      );
     } catch (err) {
       await session.abortTransaction();
       throw err;
@@ -445,7 +484,7 @@ export class ChatService {
 
     await Message.updateMany(
       { chatId, sender: { $ne: userId }, "readBy.userId": { $ne: userId } },
-      { $push: { readBy: { userId, readAt: new Date() } }, $set: { read: true } }
+      { $push: { readBy: { userId, readAt: new Date() } }, $set: { read: true, status: "read" } }
     );
 
     await Participant.findOneAndUpdate(
@@ -458,6 +497,139 @@ export class ChatService {
     );
 
     await Chat.findByIdAndUpdate(chatId, { unreadMessageCount: 0 });
+  }
+
+  async markDelivered(messageId, userId) {
+    const message = await Message.findById(messageId);
+    if (!message) {
+      const err = new Error("Message not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (String(message.sender) === String(userId)) {
+      return message;
+    }
+
+    const alreadyDelivered = message.deliveredTo?.some(
+      (d) => String(d.userId) === String(userId)
+    );
+    if (alreadyDelivered) return message;
+
+    const update = {
+      $push: { deliveredTo: { userId, readAt: new Date() } },
+    };
+
+    if (message.status === "sent") {
+      update.$set = { status: "delivered" };
+    }
+
+    await Message.findByIdAndUpdate(messageId, update);
+
+    return Message.findById(messageId)
+      .populate("sender", "firstname lastname profilepic");
+  }
+
+  async getMessageReceipts(messageId, userId) {
+    const message = await Message.findById(messageId).lean();
+    if (!message) {
+      const err = new Error("Message not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const chat = await Chat.findById(message.chatId).lean();
+    if (!chat || !chat.members.some((m) => String(m) === String(userId))) {
+      const err = new Error("Not a member of this chat");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const User = (await import("../models/user.js")).default;
+
+    const deliveredUserIds = (message.deliveredTo || []).map((d) => d.userId);
+    const readUserIds = (message.readBy || []).map((r) => r.userId);
+    const allUserIds = [...new Set([...deliveredUserIds.map(String), ...readUserIds.map(String)])];
+
+    let userMap = {};
+    if (allUserIds.length > 0) {
+      const users = await User.find({ _id: { $in: allUserIds } })
+        .select("firstname lastname profilepic")
+        .lean();
+      for (const u of users) {
+        userMap[String(u._id)] = u;
+      }
+    }
+
+    const deliveredTo = (message.deliveredTo || []).map((d) => ({
+      userId: d.userId,
+      deliveredAt: d.readAt,
+      user: userMap[String(d.userId)] || null,
+    }));
+
+    const readBy = (message.readBy || []).map((r) => ({
+      userId: r.userId,
+      readAt: r.readAt,
+      user: userMap[String(r.userId)] || null,
+    }));
+
+    return {
+      messageId: message._id,
+      chatId: message.chatId,
+      sender: message.sender,
+      status: message.status,
+      deliveredTo,
+      readBy,
+    };
+  }
+
+  async getBulkReceipts(chatId, messageIds, userId) {
+    const chat = await Chat.findById(chatId).lean();
+    if (!chat || !chat.members.some((m) => String(m) === String(userId))) {
+      const err = new Error("Not a member of this chat");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const messages = await Message.find({
+      _id: { $in: messageIds },
+      chatId,
+    })
+      .select("sender status deliveredTo readBy")
+      .lean();
+
+    const User = (await import("../models/user.js")).default;
+
+    const allUserIds = new Set();
+    for (const msg of messages) {
+      (msg.deliveredTo || []).forEach((d) => allUserIds.add(String(d.userId)));
+      (msg.readBy || []).forEach((r) => allUserIds.add(String(r.userId)));
+    }
+
+    let userMap = {};
+    if (allUserIds.size > 0) {
+      const users = await User.find({ _id: { $in: [...allUserIds] } })
+        .select("firstname lastname profilepic")
+        .lean();
+      for (const u of users) {
+        userMap[String(u._id)] = u;
+      }
+    }
+
+    return messages.map((msg) => ({
+      messageId: msg._id,
+      sender: msg.sender,
+      status: msg.status,
+      deliveredTo: (msg.deliveredTo || []).map((d) => ({
+        userId: d.userId,
+        deliveredAt: d.readAt,
+        user: userMap[String(d.userId)] || null,
+      })),
+      readBy: (msg.readBy || []).map((r) => ({
+        userId: r.userId,
+        readAt: r.readAt,
+        user: userMap[String(r.userId)] || null,
+      })),
+    }));
   }
 
   async pinMessage(messageId, userId) {
@@ -573,30 +745,6 @@ export class ChatService {
       error.statusCode = 400;
       throw error;
     }
-    message.text = text;
-    message.edited = true;
-    await message.save();
-    return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
-  }
-
-  async editMessage(messageId, userId, text) {
-    const message = await Message.findById(messageId);
-    if (!message) {
-      const err = new Error("Message not found");
-      err.statusCode = 404;
-      throw err;
-    }
-    if (String(message.sender) !== String(userId)) {
-      const err = new Error("You can only edit your own messages");
-      err.statusCode = 403;
-      throw err;
-    }
-    if (message.deleted) {
-      const err = "Cannot edit a deleted message";
-      const error = new Error(err);
-      error.statusCode = 400;
-      throw error;
-    }
     const sanitized = sanitizeText(text);
     if (!sanitized) {
       const err = new Error("Text is required");
@@ -616,8 +764,19 @@ export class ChatService {
     message.text = sanitized;
     message.edited = true;
     message.editCount = message.editHistory.length;
+
+    const chat = await Chat.findById(message.chatId).lean();
+    if (chat) {
+      const memberDocs = await User.find({ _id: { $in: chat.members } })
+        .select("firstname lastname")
+        .lean();
+      message.mentions = parseMentions(sanitized, memberDocs);
+    }
+
     await message.save();
-    return Message.findById(message._id).populate("sender", "firstname lastname profilepic");
+    return Message.findById(message._id)
+      .populate("sender", "firstname lastname profilepic")
+      .populate("mentions", "firstname lastname profilepic");
   }
 
   async restoreMessage(messageId, userId) {
@@ -770,6 +929,64 @@ export class ChatService {
     await Chat.deleteMany({ members: userId });
     logger.info(`[Chat] Deleted ${chats.length} chats and associated messages for user ${userId}`);
     return { deletedChats: chats.length };
+  }
+
+  async getChatMembersForMentions(chatId, userId, { q = "", limit = 10 } = {}) {
+    const chat = await Chat.findById(chatId).lean();
+    if (!chat) {
+      const err = new Error("Chat not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!chat.members.some((m) => String(m) === String(userId))) {
+      const err = new Error("Not a member of this chat");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const query = { _id: { $in: chat.members } };
+    if (q) {
+      const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.$or = [
+        { firstname: { $regex: safeQ, $options: "i" } },
+        { lastname: { $regex: safeQ, $options: "i" } },
+      ];
+    }
+
+    const members = await User.find(query)
+      .select("firstname lastname profilepic")
+      .limit(Number(limit))
+      .lean();
+
+    return { members, total: members.length };
+  }
+
+  async getMentionedMessages(chatId, userId, { page = 1, limit = 20 } = {}) {
+    const chat = await Chat.findById(chatId).lean();
+    if (!chat) {
+      const err = new Error("Chat not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!chat.members.some((m) => String(m) === String(userId))) {
+      const err = new Error("Not a member of this chat");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [messages, total] = await Promise.all([
+      Message.find({ chatId, mentions: userId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate("sender", "firstname lastname profilepic")
+        .populate("mentions", "firstname lastname profilepic")
+        .lean(),
+      Message.countDocuments({ chatId, mentions: userId }),
+    ]);
+
+    return { messages, total, page: Number(page), pages: Math.ceil(total / Number(limit)) };
   }
 }
 

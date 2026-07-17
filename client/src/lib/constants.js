@@ -37,6 +37,8 @@ export const API = {
   // Chat
   CHAT_CREATE: "/api/chat/create-new-chat",
   CHAT_ALL: "/api/chat/get-all-user-chats",
+  CHAT_MUTE: (chatId) => `/api/chat/${chatId}/mute`,
+  CHAT_UNMUTE: (chatId) => `/api/chat/${chatId}/unmute`,
 
   // Message
   MSG_NEW: "/api/message/new-message",
@@ -100,6 +102,7 @@ export const SOCKET_EVENTS = {
   LEAVE_CHAT: "leave_chat",
   TYPING_START: "typing_start",
   TYPING_STOP: "typing_stop",
+  MESSAGE_DELIVERED: "message_delivered",
   NEW_POST: "new_post",
 
   // Server → Client
@@ -109,7 +112,14 @@ export const SOCKET_EVENTS = {
   MESSAGE_EDITED: "message_edited",
   MESSAGE_DELETED: "message_deleted",
   REACTION_UPDATED: "reaction_updated",
+  DELIVERY_CONFIRMED: "delivery_confirmed",
+  MESSAGES_READ: "messages_read",
   FEED_UPDATE: "feed_update",
   NOTIFICATION: "notification",
   NEW_POST_RECEIVED: "new_post",
+
+  // Presence (Server → Client)
+  USER_ONLINE: "user_online",
+  USER_OFFLINE: "user_offline",
+  PRESENCE_SYNC: "presence_sync",
 };

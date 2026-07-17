@@ -44,7 +44,7 @@ export default function ChatListItem({ chat, currentUserId, isActive, isTyping, 
         />
       )}
 
-      <Avatar src={other?.profilepic} name={name} size={44} online={other?.isOnline} />
+      <Avatar src={other?.profilepic} name={name} size={44} online={other?.isOnline && other?.showOnlineStatus !== false} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">

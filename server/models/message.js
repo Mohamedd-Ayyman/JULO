@@ -59,6 +59,7 @@ const messageSchema = new mongoose.Schema(
     ephemeralPublicKey: { type: String, default: null },
     ratchetStep: { type: Number, default: 0 },
     messageType: { type: String, enum: ["text", "encrypted", "file", "system", "key_exchange"], default: "text" },
+    status: { type: String, enum: ["sent", "delivered", "read"], default: "sent", index: true },
     read: { type: Boolean, default: false },
     readBy: { type: [readReceiptSchema], default: [] },
     deliveredTo: { type: [readReceiptSchema], default: [] },
@@ -100,6 +101,9 @@ messageSchema.index({ chatId: 1, pinned: 1, pinnedAt: -1 });
 messageSchema.index({ threadRootId: 1, createdAt: 1 });
 messageSchema.index({ chatId: 1, replyTo: 1 });
 messageSchema.index({ mentions: 1, createdAt: -1 });
+messageSchema.index({ chatId: 1, status: 1 });
+messageSchema.index({ "deliveredTo.userId": 1 });
+messageSchema.index({ "readBy.userId": 1 });
 
 const Message = mongoose.model("messages", messageSchema);
 export default Message;

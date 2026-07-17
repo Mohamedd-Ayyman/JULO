@@ -94,6 +94,7 @@ export function formatTime(date) {
  */
 export function OnlineStatus({ user }) {
   if (!user) return null;
+  if (user.showOnlineStatus === false) return null;
   if (user.isOnline) {
     return <span className="font-mono text-[10px] font-bold" style={{ color: "var(--mood-cozy)" }}>Online</span>;
   }

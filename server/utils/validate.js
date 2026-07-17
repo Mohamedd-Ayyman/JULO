@@ -129,6 +129,16 @@ export const messageEditSchema = z.object({
   text: z.string().trim().min(1, "Text is required").max(2000),
 });
 
+export const mentionSearchQuerySchema = z.object({
+  q: z.string().trim().max(60).optional().default(""),
+  limit: z.coerce.number().int().positive().max(50).optional().default(10),
+});
+
+export const mentionedMessagesQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+});
+
 export const messageQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(50),
@@ -161,6 +171,22 @@ export const messageReplySchema = z.object({
 export const messageForwardSchema = z.object({
   messageId: z.string().min(1, "messageId is required"),
   targetChatId: z.string().min(1, "targetChatId is required"),
+});
+
+// ── Delivery & Receipts ───────────────────────────────────────────────────────
+export const deliveryAckSchema = z.object({
+  messageId: z.string().min(1, "messageId is required"),
+  chatId: z.string().min(1, "chatId is required"),
+});
+
+export const batchDeliveryAckSchema = z.object({
+  messageIds: z.array(z.string()).min(1, "At least one messageId required").max(100),
+  chatId: z.string().min(1, "chatId is required"),
+});
+
+// ── Last Seen ─────────────────────────────────────────────────────────────────
+export const lastSeenQuerySchema = z.object({
+  userId: z.string().min(1, "userId is required"),
 });
 
 // ── Profile ──────────────────────────────────────────────────────────────────────

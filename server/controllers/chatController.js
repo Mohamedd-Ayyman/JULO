@@ -1,12 +1,14 @@
 import express from "express";
 import chatService from "../services/chatService.js";
+import notificationService from "../services/notificationService.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
 import { tenantMiddleware } from "../middlewares/tenantMiddleware.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { asyncHandler } from "../utils/AppError.js";
-import { validate, chatCreateSchema, chatUpdateSchema, messageSchema, messageEditSchema, messageQuerySchema, conversationListQuerySchema, messageReplySchema, messageForwardSchema } from "../utils/validate.js";
+import { validate, chatCreateSchema, chatUpdateSchema, messageSchema, messageEditSchema, messageQuerySchema, conversationListQuerySchema, messageReplySchema, messageForwardSchema, deliveryAckSchema, batchDeliveryAckSchema, mentionSearchQuerySchema, mentionedMessagesQuerySchema } from "../utils/validate.js";
 import { invalidateCache } from "../middlewares/cacheMiddleware.js";
-import { emitToChat, emitToUsers } from "../utils/socket.js";
+import { emitToChat, emitToUsers, emitToUser, getIO } from "../utils/socket.js";
+import typingService from "../services/typingService.js";
 
 const router = express.Router();
 
@@ -108,6 +110,29 @@ router.post(
         senderId: req.user.userId,
         tempId: req.body.tempId || null,
       });
+
+      const io = getIO();
+      await typingService.clearOnMessageSent(req.user.userId, req.body.chatId, io);
+
+      if (Array.isArray(msgObj.mentions) && msgObj.mentions.length > 0) {
+        const mentionedUserIds = msgObj.mentions
+          .map((m) => String(typeof m === "object" ? m._id || m : m))
+          .filter((id) => id !== String(req.user.userId));
+
+        for (const mentionedId of mentionedUserIds) {
+          const notif = await notificationService.create(
+            mentionedId, req.user.userId, req.tenantId, "chat_mention",
+            { chat: req.body.chatId, messageId: msgObj._id, message: "mentioned you in a message" }
+          );
+          emitToUser(mentionedId, "notification", { type: "chat_mention", notification: notif });
+          emitToUser(mentionedId, "user_mentioned", {
+            chatId: req.body.chatId,
+            messageId: msgObj._id,
+            mentionedBy: req.user.userId,
+            text: msgObj.text,
+          });
+        }
+      }
     } catch (_) {}
 
     res.status(201).send({ success: true, message: "Message sent", data: message, statusCode: 201 });
@@ -386,6 +411,9 @@ router.post(
         tempId: req.body.tempId || null,
         isReply: true,
       });
+
+      const io = getIO();
+      await typingService.clearOnMessageSent(req.user.userId, req.params.chatId, io);
     } catch (_) {}
 
     res.status(201).send({ success: true, message: "Reply sent", data: message, statusCode: 201 });
@@ -420,6 +448,106 @@ router.get(
   asyncHandler(async (req, res) => {
     const result = await chatService.getThreadReplies(req.params.messageId, req.user.userId, req.query);
     res.send({ success: true, data: result, statusCode: 200 });
+  })
+);
+
+// ── Delivery Receipts ─────────────────────────────────────────────────────────
+
+router.post(
+  "/:chatId/messages/:messageId/deliver",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const message = await chatService.markDelivered(req.params.messageId, req.user.userId);
+
+    try {
+      const msgObj = message.toObject ? message.toObject() : message;
+      emitToUser(String(msgObj.sender), "delivery_confirmed", {
+        messageId: req.params.messageId,
+        chatId: req.params.chatId,
+        deliveredTo: req.user.userId,
+        deliveredAt: new Date(),
+        status: msgObj.status,
+      });
+    } catch (_) {}
+
+    res.send({ success: true, data: message, statusCode: 200 });
+  })
+);
+
+router.post(
+  "/:chatId/messages/batch-deliver",
+  requireAuth,
+  tenantMiddleware,
+  validate(batchDeliveryAckSchema),
+  asyncHandler(async (req, res) => {
+    const { messageIds } = req.body;
+    const results = [];
+
+    for (const messageId of messageIds) {
+      try {
+        const message = await chatService.markDelivered(messageId, req.user.userId);
+        const msgObj = message.toObject ? message.toObject() : message;
+        results.push({ messageId, status: "ok", messageStatus: msgObj.status });
+
+        try {
+          emitToUser(String(msgObj.sender), "delivery_confirmed", {
+            messageId,
+            chatId: req.params.chatId,
+            deliveredTo: req.user.userId,
+            deliveredAt: new Date(),
+            status: msgObj.status,
+          });
+        } catch (_) {}
+      } catch (err) {
+        results.push({ messageId, status: "error", message: err.message });
+      }
+    }
+
+    res.send({ success: true, data: results, statusCode: 200 });
+  })
+);
+
+// ── Receipt Details ───────────────────────────────────────────────────────────
+
+router.get(
+  "/:chatId/messages/:messageId/receipts",
+  requireAuth,
+  tenantMiddleware,
+  asyncHandler(async (req, res) => {
+    const receipts = await chatService.getMessageReceipts(req.params.messageId, req.user.userId);
+    res.send({ success: true, data: receipts, statusCode: 200 });
+  })
+);
+
+// ── Last Seen ─────────────────────────────────────────────────────────────────
+
+router.get(
+  "/users/:userId/last-seen",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const User = (await import("../models/user.js")).default;
+    const user = await User.findById(req.params.userId)
+      .select("isOnline lastSeen showOnlineStatus firstname lastname")
+      .lean();
+
+    if (!user) {
+      const err = new Error("User not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const visible = user.showOnlineStatus !== false;
+    res.send({
+      success: true,
+      data: {
+        userId: user._id,
+        isOnline: visible ? user.isOnline : false,
+        lastSeen: visible ? user.lastSeen : null,
+        showOnlineStatus: visible,
+      },
+      statusCode: 200,
+    });
   })
 );
 

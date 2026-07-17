@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Check, CheckCheck, MessageSquare, Pencil, X } from "lucide-react";
+import { Check, CheckCheck, Loader2, MessageSquare, Pencil, X } from "lucide-react";
 import Avatar from "../Avatar.jsx";
 import AudioMessage from "./AudioMessage.jsx";
 import ImageMessage from "./ImageMessage.jsx";
@@ -15,10 +15,42 @@ function formatBubbleTime(iso) {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
-function ReadReceipt({ read, pending, failed }) {
-  if (failed || pending) return null;
-  if (!read) {
+function formatFullTimestamp(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }) + " at " + d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function getMessageStatus(message) {
+  if (message.pending && !message.failed) return "pending";
+  if (message.failed) return "failed";
+  if (message.read || (message.readBy && message.readBy.length > 0)) return "read";
+  if (message.status === "read") return "read";
+  if (message.deliveredTo && message.deliveredTo.length > 0) return "delivered";
+  if (message.status === "delivered") return "delivered";
+  return "sent";
+}
+
+function ReadReceipt({ message }) {
+  const status = getMessageStatus(message);
+
+  if (status === "pending") {
+    return <Loader2 className="w-3 h-3 inline-block animate-spin" style={{ color: "var(--muted-2)" }} />;
+  }
+  if (status === "failed") return null;
+  if (status === "sent") {
     return <Check className="w-3 h-3 inline-block" style={{ color: "var(--muted-2)" }} />;
+  }
+  if (status === "delivered") {
+    return <CheckCheck className="w-3 h-3 inline-block" style={{ color: "var(--muted-2)" }} />;
   }
   return <CheckCheck className="w-3 h-3 inline-block" style={{ color: "var(--acid)" }} />;
 }
@@ -325,17 +357,27 @@ export default function MessageBubble({
       {(isGroupEnd || (!isMine && isGroupEnd)) && (
         <div
           className={cn(
-            "flex items-center gap-1.5 mt-0.5 px-1",
+            "flex items-center gap-1.5 mt-0.5 px-1 group/timestamp relative",
             isMine ? "mr-1" : "ml-9",
           )}
         >
           <span
-            className="font-mono text-[10px] tabular-nums"
+            className="font-mono text-[10px] tabular-nums cursor-default"
             style={{ color: "var(--muted-2)" }}
           >
             {formatBubbleTime(message.createdAt)}
           </span>
-          {isMine && <ReadReceipt read={message.read} pending={pending} failed={failed} />}
+          {isMine && <ReadReceipt message={message} />}
+          <div
+            className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg text-[11px] font-mono whitespace-nowrap opacity-0 pointer-events-none group-hover/timestamp:opacity-100 transition-opacity z-50"
+            style={{
+              background: "var(--ink)",
+              color: "var(--paper)",
+              boxShadow: "var(--sh-3)",
+            }}
+          >
+            {formatFullTimestamp(message.createdAt)}
+          </div>
         </div>
       )}
 

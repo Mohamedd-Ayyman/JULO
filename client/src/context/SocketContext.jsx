@@ -3,6 +3,7 @@ import { io } from "socket.io-client";
 import { useDispatch } from "react-redux";
 import { addNotification } from "../redux/notificationSlice.js";
 import { prependPost } from "../redux/postSlice.js";
+import { setOnlineStatus } from "../redux/chatSlice.js";
 import { SOCKET_EVENTS } from "../lib/constants.js";
 
 const SocketContext = createContext(null);
@@ -28,6 +29,7 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on("connect", () => {
       console.log("[Socket] Connected:", newSocket.id);
+      newSocket.emit(SOCKET_EVENTS.PRESENCE_SYNC);
     });
 
     newSocket.on("disconnect", (reason) => {
@@ -44,6 +46,14 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on(SOCKET_EVENTS.NEW_POST_RECEIVED, (post) => {
       dispatch(prependPost(post));
+    });
+
+    newSocket.on(SOCKET_EVENTS.USER_ONLINE, ({ userId }) => {
+      dispatch(setOnlineStatus({ userId, isOnline: true, lastSeen: null }));
+    });
+
+    newSocket.on(SOCKET_EVENTS.USER_OFFLINE, ({ userId, lastSeen }) => {
+      dispatch(setOnlineStatus({ userId, isOnline: false, lastSeen }));
     });
 
     setSocket(newSocket);

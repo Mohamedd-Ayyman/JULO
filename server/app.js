@@ -128,6 +128,8 @@ import keyExchangeRouter from "./controllers/keyExchangeController.js";
 import encryptionSessionRouter from "./controllers/encryptionSessionController.js";
 import linkPreviewRouter from "./controllers/linkPreviewController.js";
 import participantRouter from "./controllers/participantController.js";
+import pushRouter from "./controllers/pushController.js";
+import presenceRouter from "./controllers/presenceController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
@@ -148,6 +150,8 @@ v1.use("/link-preview", linkPreviewRouter);
 v1.use("/keys", keyExchangeRouter);
 v1.use("/encryption", encryptionSessionRouter);
 v1.use("/participants", participantRouter);
+v1.use("/push", pushRouter);
+v1.use("/presence", presenceRouter);
 
 // Stripe webhook — raw body already parsed at step 4
 app.post("/webhooks/stripe", stripeWebhookController);

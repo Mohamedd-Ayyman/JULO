@@ -1,11 +1,33 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, createSelector } from "@reduxjs/toolkit";
+
+const loadMutedChats = () => {
+  try {
+    return JSON.parse(localStorage.getItem("mutedChats") || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const persistMutedChats = (ids) => {
+  localStorage.setItem("mutedChats", JSON.stringify(ids));
+};
 
 const chatSlice = createSlice({
   name: "chat",
-  initialState: { chats: [], activeChat: null },
+  initialState: { chats: [], activeChat: null, mutedChats: loadMutedChats() },
   reducers: {
     setChats: (state, action) => { state.chats = action.payload; },
     setActiveChat: (state, action) => { state.activeChat = action.payload; },
+    toggleMuteChat: (state, action) => {
+      const chatId = action.payload;
+      const idx = state.mutedChats.indexOf(chatId);
+      if (idx === -1) {
+        state.mutedChats.push(chatId);
+      } else {
+        state.mutedChats.splice(idx, 1);
+      }
+      persistMutedChats(state.mutedChats);
+    },
     addMessage: (state, action) => {
       const msg = action.payload;
       if (msg._replace && state.activeChat?._id === msg.chatId) {
@@ -64,6 +86,7 @@ const chatSlice = createSlice({
 export const {
   setChats,
   setActiveChat,
+  toggleMuteChat,
   addMessage,
   updateLastMessage,
   markMessageFailed,
@@ -71,4 +94,17 @@ export const {
   removeMessage,
   prependMessages,
 } = chatSlice.actions;
+
+const selectChatState = (s) => s.chatReducer;
+
+export const selectMutedChats = createSelector(
+  [selectChatState],
+  (chat) => chat.mutedChats
+);
+
+export const selectTotalUnreadMessages = createSelector(
+  [selectChatState],
+  (chat) => chat.chats.reduce((sum, c) => sum + (c.unreadMessageCount || 0), 0)
+);
+
 export default chatSlice.reducer;

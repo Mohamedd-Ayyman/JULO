@@ -82,12 +82,15 @@ export async function createQueues(redisClient) {
   notificationWorker = new Worker(
     "notifications",
     async (job) => {
-      const { recipientId, senderId, tenantId, type, post, comment } = job.data;
+      const { recipientId, senderId, tenantId, type, post, comment, chat, messageId, messageText, senderName } = job.data;
       logger.debug(`[Queue] Processing notification job ${job.id}: ${type}`, { recipientId, senderId });
 
       const Notification = (await import("../models/notification.js")).default;
+      const PushToken = (await import("../models/pushToken.js")).default;
+      const NotificationPreferences = (await import("../models/notificationPreferences.js")).default;
       const { getIO } = await import("../utils/socket.js");
 
+      // ── 1. Create in-app notification ────────────────────────────────────
       const notif = await Notification.create({
         recipient: recipientId,
         sender: senderId,
@@ -95,6 +98,8 @@ export async function createQueues(redisClient) {
         type,
         ...(post && { post }),
         ...(comment && { comment }),
+        ...(chat && { chat }),
+        ...(messageId && { messageId }),
       });
 
       const populated = await Notification.findById(notif._id)
@@ -102,9 +107,154 @@ export async function createQueues(redisClient) {
         .populate("post", "text image")
         .populate("comment", "text");
 
+      // ── 2. Emit via Socket.IO (in-app real-time) ────────────────────────
       const io = getIO();
       io.to(String(recipientId)).emit("notification", populated);
-      logger.debug(`[Queue] Notification sent: ${notif._id}`);
+      logger.debug(`[Queue] In-app notification sent: ${notif._id}`);
+
+      // ── 3. Check push preferences and dispatch push notification ─────────
+      try {
+        const prefs = await NotificationPreferences.findOne({
+          userId: recipientId,
+          tenantId: tenantId || null,
+        }).lean();
+
+        // Map notification type to preference key
+        const prefKeyMap = {
+          like_post: "likes",
+          like_comment: "likes",
+          comment_post: "comments",
+          follow: "follows",
+          mention: "mentions",
+          chat_mention: "chatMentions",
+          thread_reply: "threadReplies",
+          share: "shares",
+        };
+        const prefKey = prefKeyMap[type] || type;
+        const pushEnabled = prefs?.preferences?.[prefKey]?.push !== false;
+
+        if (pushEnabled) {
+          const pushServiceModule = (await import("../services/pushService.js")).default;
+          if (pushServiceModule.isAvailable()) {
+            const tokens = await PushToken.find({ userId: recipientId, active: true });
+            if (tokens.length > 0) {
+              const registrationTokens = tokens.map((t) => t.token);
+
+              const senderPopulated = populated?.sender;
+              const senderDisplayName = senderName || (senderPopulated
+                ? `${senderPopulated.firstname} ${senderPopulated.lastname}`
+                : "Someone");
+
+              let notifBody = "";
+              let notifTitle = senderDisplayName;
+              switch (type) {
+                case "like_post":
+                case "like_comment":
+                  notifBody = "liked your post";
+                  break;
+                case "comment_post":
+                  notifBody = "commented on your post";
+                  break;
+                case "follow":
+                  notifBody = "started following you";
+                  break;
+                case "mention":
+                  notifBody = "mentioned you";
+                  break;
+                case "chat_mention":
+                  notifBody = "mentioned you in a chat";
+                  break;
+                case "thread_reply":
+                  notifBody = "replied in a thread";
+                  break;
+                case "share":
+                  notifBody = "shared your post";
+                  break;
+                default:
+                  notifBody = "sent you a notification";
+              }
+
+              // Check quiet hours
+              let inQuietHours = false;
+              if (prefs?.quietHours?.enabled) {
+                try {
+                  const tz = prefs.quietHours.timezone || "UTC";
+                  const now = new Date();
+                  const formatter = new Intl.DateTimeFormat("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                    timeZone: tz,
+                  });
+                  const currentTime = formatter.format(now);
+                  const [startH, startM] = prefs.quietHours.start.split(":").map(Number);
+                  const [endH, endM] = prefs.quietHours.end.split(":").map(Number);
+                  const [curH, curM] = currentTime.split(":").map(Number);
+                  const curMinutes = curH * 60 + curM;
+                  const startMinutes = startH * 60 + startM;
+                  const endMinutes = endH * 60 + endM;
+
+                  if (startMinutes <= endMinutes) {
+                    inQuietHours = curMinutes >= startMinutes && curMinutes < endMinutes;
+                  } else {
+                    inQuietHours = curMinutes >= startMinutes || curMinutes < endMinutes;
+                  }
+                } catch (_) {}
+              }
+
+              if (!inQuietHours) {
+                const payload = {
+                  notification: { title: notifTitle, body: notifBody },
+                  data: {
+                    type,
+                    notificationId: String(notif._id),
+                    senderId: String(senderId),
+                    ...(post && { postId: String(post) }),
+                    ...(comment && { commentId: String(comment) }),
+                    ...(chat && { chatId: String(chat) }),
+                    ...(messageId && { messageId: String(messageId) }),
+                  },
+                  android: { priority: "high" },
+                  apns: { payload: { aps: { "content-available": 1, sound: "default" } } },
+                };
+
+                const result = await pushServiceModule.send({
+                  tokens: registrationTokens,
+                  ...payload,
+                });
+
+                if (result) {
+                  logger.debug(`[Queue] Push dispatched: ${result.successCount} success, ${result.failureCount} failed`);
+
+                  // Deactivate invalid tokens
+                  const { messaging } = (await import("firebase-admin")).default;
+                  const invalidTokens = result.responses
+                    .map((r, i) => {
+                      if (!r.success && r.error) {
+                        const code = r.error;
+                        if (code?.includes?.("registration-token-not-registered") || code?.includes?.("invalid-registration-token")) {
+                          return registrationTokens[i];
+                        }
+                      }
+                      return null;
+                    })
+                    .filter(Boolean);
+
+                  if (invalidTokens.length > 0) {
+                    await PushToken.updateMany(
+                      { token: { $in: invalidTokens } },
+                      { $set: { active: false } }
+                    );
+                    logger.debug(`[Queue] Deactivated ${invalidTokens.length} invalid push tokens`);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (pushErr) {
+        logger.error(`[Queue] Push notification failed for job ${job.id}`, { error: pushErr.message });
+      }
     },
     { connection: redisClient, concurrency: config.workers.notificationConcurrency }
   );

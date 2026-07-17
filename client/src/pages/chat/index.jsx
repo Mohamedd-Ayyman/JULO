@@ -14,12 +14,17 @@ import {
   Mic,
   RefreshCw,
   MessageSquare,
+  BellOff,
+  Bell,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { muteChat, unmuteChat } from "../../apiCalls/message.js";
+import { toggleMuteChat, selectMutedChats } from "../../redux/chatSlice.js";
 import AppLayout from "../../components/appLayout.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RecordingPanel from "../../components/chat/RecordingPanel.jsx";
 import ChatListItem from "../../components/chat/ChatListItem.jsx";
+import ChatFilterBar from "../../components/chat/ChatFilterBar.jsx";
 import OfflineBanner from "../../components/chat/OfflineBanner.jsx";
 import MessageListSkeleton from "../../components/chat/MessageListSkeleton.jsx";
 import MessageBubble from "../../components/chat/MessageBubble.jsx";
@@ -34,7 +39,7 @@ import useChatTyping from "../../hooks/useChatTyping.js";
 import useOnlineStatus from "../../hooks/useOnlineStatus.js";
 import useLinkPreview from "../../hooks/useLinkPreview.js";
 import { getAllChats, getMessages, sendMessage, markMessagesRead, uploadAudio, sendAudioMessage, uploadChatFile, sendImageMessage, sendFileMessage, addReaction, deleteMessage, editMessage, sendReply } from "../../apiCalls/message.js";
-import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages } from "../../redux/chatSlice.js";
+import { setChats, setActiveChat, addMessage, markMessageFailed, markMessageSuccess, removeMessage, prependMessages, updateMessageDelivery, updateMessageReadBy } from "../../redux/chatSlice.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 import { ChatListSkeleton } from "../../components/Skeletons.jsx";
@@ -53,6 +58,9 @@ export default function ChatPage() {
   const [chatError, setChatError] = useState(null);
   const [msgError, setMsgError] = useState(null);
   const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const searchTimerRef = useRef(null);
   const [draft, setDraft] = useState("");
   const [typingUsers, setTypingUsers] = useState({});
   const [sendingAudio, setSendingAudio] = useState(false);
@@ -81,7 +89,12 @@ export default function ChatPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getAllChats();
+        const params = {};
+        if (search.trim()) params.search = search.trim();
+        if (activeFilter === "direct") params.type = "direct";
+        if (activeFilter === "groups") params.type = "group";
+        if (activeFilter === "archived") params.archived = true;
+        const res = await getAllChats(params);
         if (cancelled) return;
         if (res.success) {
           dispatch(setChats(res.data || []));
@@ -95,7 +108,7 @@ export default function ChatPage() {
       if (!cancelled) setLoadingChats(false);
     })();
     return () => { cancelled = true; };
-  }, [dispatch]);
+  }, [dispatch, search, activeFilter]);
 
   useEffect(() => {
     if (!chatId) {
@@ -142,7 +155,12 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!socket) return;
-    const onReceive = (m) => dispatch(addMessage(m));
+    const onReceive = (m) => {
+      dispatch(addMessage(m));
+      if (m.sender?._id !== user?._id && m.sender !== user?._id && m._id && !m._id.startsWith("temp-")) {
+        socket.emit(SOCKET_EVENTS.MESSAGE_DELIVERED, { messageId: m._id, chatId: m.chatId || activeChat?._id });
+      }
+    };
     const onTypingStart = ({ chatId: cId, userId }) => {
       if (cId === activeChat?._id && userId !== user?._id) {
         setTypingUsers((p) => ({ ...p, [userId]: true }));
@@ -173,12 +191,36 @@ export default function ChatPage() {
         dispatch(addMessage({ _id: messageId, chatId: cId, reactions, _replace: messageId }));
       }
     };
+    const onDeliveryConfirmed = ({ messageId, chatId: cId, deliveredTo, deliveredAt }) => {
+      if (cId === activeChat?._id) {
+        dispatch(updateMessageDelivery({ chatId: cId, messageId, userId: deliveredTo, deliveredAt }));
+      }
+    };
+    const onMessagesRead = ({ chatId: cId, userId, readUpTo, readAt }) => {
+      if (cId !== activeChat?._id) return;
+      const msgs = activeChat.messages || [];
+      const readMessages = [];
+      for (const m of msgs) {
+        const isMine = m.sender?._id === user?._id || m.sender === user?._id;
+        if (!isMine) continue;
+        if (m._id && m._id.startsWith("temp-")) continue;
+        const alreadyRead = (m.readBy || []).some((r) => (r.userId?._id || r.userId) === userId);
+        if (alreadyRead) continue;
+        if (readUpTo && m._id > readUpTo) continue;
+        readMessages.push({ messageId: m._id, userId, readAt });
+      }
+      if (readMessages.length > 0) {
+        dispatch(updateMessageReadBy({ chatId: cId, messages: readMessages }));
+      }
+    };
     socket.on(SOCKET_EVENTS.RECEIVE_MESSAGE, onReceive);
     socket.on(SOCKET_EVENTS.USER_TYPING, onTypingStart);
     socket.on(SOCKET_EVENTS.USER_STOPPED_TYPING, onTypingStop);
     socket.on(SOCKET_EVENTS.MESSAGE_EDITED, onMessageEdited);
     socket.on(SOCKET_EVENTS.MESSAGE_DELETED, onMessageDeleted);
     socket.on(SOCKET_EVENTS.REACTION_UPDATED, onReactionUpdated);
+    socket.on(SOCKET_EVENTS.DELIVERY_CONFIRMED, onDeliveryConfirmed);
+    socket.on(SOCKET_EVENTS.MESSAGES_READ, onMessagesRead);
     if (activeChat?._id) socket.emit(SOCKET_EVENTS.JOIN_CHAT, activeChat._id);
     return () => {
       socket.off(SOCKET_EVENTS.RECEIVE_MESSAGE, onReceive);
@@ -187,6 +229,8 @@ export default function ChatPage() {
       socket.off(SOCKET_EVENTS.MESSAGE_EDITED, onMessageEdited);
       socket.off(SOCKET_EVENTS.MESSAGE_DELETED, onMessageDeleted);
       socket.off(SOCKET_EVENTS.REACTION_UPDATED, onReactionUpdated);
+      socket.off(SOCKET_EVENTS.DELIVERY_CONFIRMED, onDeliveryConfirmed);
+      socket.off(SOCKET_EVENTS.MESSAGES_READ, onMessagesRead);
       if (activeChat?._id) socket.emit(SOCKET_EVENTS.LEAVE_CHAT, activeChat._id);
     };
   }, [socket, activeChat?._id, user?._id, dispatch]);
@@ -496,11 +540,25 @@ export default function ChatPage() {
   };
 
   const filteredChats = chats.filter((c) => {
-    if (!search.trim()) return true;
-    const other = c.members?.find((m) => m._id !== user?._id);
-    const name = `${other?.firstname || ""} ${other?.lastname || ""}`.toLowerCase();
-    return name.includes(search.toLowerCase());
+    if (activeFilter === "unread") return (c.unreadMessageCount || 0) > 0;
+    return true;
   });
+
+  const unreadCount = chats.filter((c) => (c.unreadMessageCount || 0) > 0).length;
+
+  const handleSearchInput = (value) => {
+    setSearchInput(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearch(value);
+    }, 300);
+  };
+
+  const handleFilterChange = (filterId) => {
+    setActiveFilter(filterId);
+    setSearch("");
+    setSearchInput("");
+  };
 
   const otherMember = activeChat?.members?.find((m) => m._id !== user?._id);
 
@@ -516,11 +574,18 @@ export default function ChatPage() {
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-2)" }} />
               <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => handleSearchInput(e.target.value)}
                 placeholder="Search conversations…"
                 className="brutal-input pl-11 text-sm"
                 style={{ paddingTop: 10, paddingBottom: 10 }}
+              />
+            </div>
+            <div className="mt-3">
+              <ChatFilterBar
+                activeFilter={activeFilter}
+                onFilterChange={handleFilterChange}
+                unreadCount={unreadCount}
               />
             </div>
           </div>
@@ -540,8 +605,18 @@ export default function ChatPage() {
             ) : filteredChats.length === 0 && search.trim() ? (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                 <Search className="w-8 h-8 mb-3" style={{ color: "var(--muted)" }} />
-                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No results for "{search}"</p>
+                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No results for "{searchInput}"</p>
                 <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Try a different search</p>
+              </div>
+            ) : filteredChats.length === 0 && activeFilter === "unread" ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>All caught up</p>
+                <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>No unread conversations</p>
+              </div>
+            ) : filteredChats.length === 0 && activeFilter === "archived" ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <p className="text-sm font-medium" style={{ color: "var(--ink)" }}>No archived conversations</p>
+                <p className="text-xs mt-1" style={{ color: "var(--muted-2)" }}>Archive chats to see them here</p>
               </div>
             ) : filteredChats.length === 0 ? (
               <div className="p-4"><EmptyChatsState /></div>
@@ -583,13 +658,13 @@ export default function ChatPage() {
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
-                  <Avatar src={otherMember?.profilepic} name={`${otherMember?.firstname || ""} ${otherMember?.lastname || ""}`} size={40} online={otherMember?.isOnline} />
+                  <Avatar src={otherMember?.profilepic} name={`${otherMember?.firstname || ""} ${otherMember?.lastname || ""}`} size={40} online={otherMember?.isOnline && otherMember?.showOnlineStatus !== false} />
                   <div className="min-w-0">
                     <p className="text-sm font-bold truncate" style={{ color: "var(--ink)" }}>
                       {otherMember?.firstname} {otherMember?.lastname}
                     </p>
                     <p className="font-mono text-[10px]" style={{ color: "var(--muted-2)" }}>
-                      {otherMember?.isOnline ? "Active now" : "Offline"}
+                      {otherMember?.isOnline && otherMember?.showOnlineStatus !== false ? "Active now" : otherMember?.lastSeen ? `Last seen ${new Date(otherMember.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Offline"}
                     </p>
                   </div>
                 </div>

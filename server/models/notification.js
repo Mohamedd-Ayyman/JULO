@@ -30,6 +30,7 @@ const notificationSchema = new mongoose.Schema(
         "share",
         "chat_mention",
         "thread_reply",
+        "message_reaction",
       ],
       required: true,
     },

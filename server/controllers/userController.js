@@ -232,11 +232,15 @@ router.delete(
 
     const { notificationService } = await import("../services/notificationService.js");
     const { chatService } = await import("../services/chatService.js");
+    const PushToken = (await import("../models/pushToken.js")).default;
+    const NotificationPreferences = (await import("../models/notificationPreferences.js")).default;
 
     await Promise.all([
       storyService.deleteUserStories(req.user.userId),
       notificationService.deleteUserNotifications(req.user.userId),
       chatService.deleteUserChats(req.user.userId),
+      PushToken.deleteMany({ userId: req.user.userId }),
+      NotificationPreferences.deleteMany({ userId: req.user.userId }),
       authService.logout({ userId: req.user.userId, allDevices: true }),
     ]);
 

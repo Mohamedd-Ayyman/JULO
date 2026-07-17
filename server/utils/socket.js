@@ -5,10 +5,10 @@ import { config } from "../config/env.js";
 import { redis } from "../config/redis.js";
 import logger from "../utils/logger.js";
 import { v4 as uuidv4 } from "uuid";
+import presenceService from "../services/presenceService.js";
+import typingService from "../services/typingService.js";
 
 let io;
-const typingTimers = new Map();
-const userOnlineBroadcast = new Set();
 
 /**
  * Build Socket.IO server with optional Redis adapter for horizontal scaling.
@@ -84,16 +84,7 @@ export async function initSocket(httpServer) {
     socket.join(`user:${socket.userId}`);
 
     // Track socket in Redis (for presence)
-    if (redis.ready) {
-      try {
-        await redis.client.hset(`sockets:${socket.userId}`, socket.id, JSON.stringify({
-          connectedAt: new Date().toISOString(),
-          requestId,
-        }));
-      } catch (err) {
-        logger.debug(`[Socket] Redis presence update failed for ${socket.userId}`, { error: err.message });
-      }
-    }
+    await presenceService.trackSocket(socket.userId, socket.id);
 
     logger.info(`[Socket] Connected: ${socket.userId} (${socket.id})`, { requestId });
 
@@ -103,23 +94,13 @@ export async function initSocket(httpServer) {
       const chats = await Chat.find({ members: socket.userId }).select("_id").lean();
       const chatIds = chats.map((c) => String(c._id));
       chatIds.forEach((chatId) => socket.join(`chat:${chatId}`));
-
-      if (redis.ready) {
-        try {
-          await redis.client.set(`user_chats:${socket.userId}`, JSON.stringify(chatIds));
-        } catch (err) {
-          logger.debug("[Socket] Failed to cache user chats", { error: err.message });
-        }
-      }
+      await presenceService.cacheUserChats(socket.userId, chatIds);
     } catch (err) {
       logger.debug(`[Socket] Auto-join failed for ${socket.userId}: ${err.message}`);
     }
 
     // ── Presence: broadcast online to contacts ──────────────────────────
-    if (!userOnlineBroadcast.has(socket.userId)) {
-      userOnlineBroadcast.add(socket.userId);
-      await broadcastPresence(socket.userId, true);
-    }
+    await presenceService.broadcastPresence(socket.userId, true, io);
 
     // ── Chat rooms ─────────────────────────────────────────────────────
     socket.on("join_chat", async (chatId) => {
@@ -167,6 +148,7 @@ export async function initSocket(httpServer) {
           ratchetStep,
           messageType,
           tempId,
+          status: "sent",
           createdAt: new Date(),
           requestId,
         };
@@ -176,6 +158,8 @@ export async function initSocket(httpServer) {
         if (receiverId) {
           io.to(`user:${receiverId}`).emit("receive_message", messagePayload);
         }
+
+        await typingService.clearOnMessageSent(socket.userId, chatId, io);
       } catch (err) {
         logger.error(`[Socket] send_message error: ${err.message}`);
         socket.emit("error", { message: "Failed to send message" });
@@ -187,24 +171,16 @@ export async function initSocket(httpServer) {
       if (!messageId || !chatId) return;
 
       try {
-        const { default: Message } = await import("../models/message.js");
-        const message = await Message.findById(messageId).lean();
-        if (!message) return;
+        const { default: chatService } = await import("../services/chatService.js");
+        const message = await chatService.markDelivered(messageId, socket.userId);
+        const msgObj = message.toObject ? message.toObject() : message;
 
-        const alreadyDelivered = message.deliveredTo?.some(
-          (d) => String(d.userId) === String(socket.userId)
-        );
-        if (alreadyDelivered) return;
-
-        await Message.findByIdAndUpdate(messageId, {
-          $push: { deliveredTo: { userId: socket.userId, readAt: new Date() } },
-        });
-
-        io.to(`user:${message.sender}`).emit("delivery_confirmed", {
+        io.to(`user:${msgObj.sender}`).emit("delivery_confirmed", {
           messageId,
           chatId,
           deliveredTo: socket.userId,
           deliveredAt: new Date(),
+          status: msgObj.status,
         });
       } catch (err) {
         logger.debug(`[Socket] message_delivered error: ${err.message}`);
@@ -216,20 +192,11 @@ export async function initSocket(httpServer) {
       if (!chatId) return;
 
       try {
+        const { default: chatService } = await import("../services/chatService.js");
+        await chatService.markRead(chatId, socket.userId);
+
         const { default: Message } = await import("../models/message.js");
-        const { default: Participant } = await import("../models/participant.js");
-
-        await Message.updateMany(
-          { chatId, sender: { $ne: socket.userId }, "readBy.userId": { $ne: socket.userId } },
-          { $push: { readBy: { userId: socket.userId, readAt: new Date() } }, $set: { read: true } }
-        );
-
         const lastMsg = lastMessageId || (await Message.findOne({ chatId }).sort({ createdAt: -1 }).lean())?._id;
-
-        await Participant.findOneAndUpdate(
-          { chatId, userId: socket.userId, isDeleted: false },
-          { unreadCount: 0, lastReadMessageId: lastMsg, lastReadAt: new Date() }
-        );
 
         socket.to(`chat:${chatId}`).emit("messages_read", {
           chatId,
@@ -242,29 +209,51 @@ export async function initSocket(httpServer) {
       }
     });
 
-    // ── Typing indicators (accepts both userId and receiverId) ──────────
+    // ── Typing indicators ─────────────────────────────────────────────
     socket.on("typing_start", ({ chatId, receiverId, userId }) => {
       const targetId = receiverId || userId;
-      if (chatId) socket.to(`chat:${chatId}`).emit("user_typing", { chatId, userId: socket.userId });
-      if (targetId) io.to(`user:${targetId}`).emit("user_typing", { chatId, userId: socket.userId });
 
-      const timerKey = `${socket.userId}:${chatId}`;
-      if (typingTimers.has(timerKey)) clearTimeout(typingTimers.get(timerKey));
-      typingTimers.set(timerKey, setTimeout(() => {
-        socket.emit("typing_stop", { chatId });
-        typingTimers.delete(timerKey);
-      }, 5000));
+      typingService.startTyping(socket.userId, chatId, io);
+
+      if (targetId && targetId !== socket.userId) {
+        typingService.startTypingDirect(socket.userId, targetId, chatId, io);
+      }
     });
 
     socket.on("typing_stop", ({ chatId, receiverId, userId }) => {
       const targetId = receiverId || userId;
-      if (chatId) socket.to(`chat:${chatId}`).emit("user_stopped_typing", { chatId, userId: socket.userId });
-      if (targetId) io.to(`user:${targetId}`).emit("user_stopped_typing", { chatId, userId: socket.userId });
 
-      const timerKey = `${socket.userId}:${chatId}`;
-      if (typingTimers.has(timerKey)) {
-        clearTimeout(typingTimers.get(timerKey));
-        typingTimers.delete(timerKey);
+      typingService.stopTyping(socket.userId, chatId, io);
+
+      if (targetId && targetId !== socket.userId) {
+        typingService.stopTypingDirect(socket.userId, targetId, chatId, io);
+      }
+    });
+
+    // ── Last Seen query ───────────────────────────────────────────────
+    socket.on("get_last_seen", async ({ targetUserId }) => {
+      if (!targetUserId) return;
+
+      try {
+        const { default: User } = await import("../models/user.js");
+        const user = await User.findById(targetUserId)
+          .select("isOnline lastSeen showOnlineStatus")
+          .lean();
+
+        if (!user) {
+          socket.emit("last_seen_response", { targetUserId, error: "User not found" });
+          return;
+        }
+
+        const visible = user.showOnlineStatus !== false;
+        socket.emit("last_seen_response", {
+          targetUserId,
+          isOnline: visible ? user.isOnline : false,
+          lastSeen: visible ? user.lastSeen : null,
+          showOnlineStatus: visible,
+        });
+      } catch (err) {
+        logger.debug(`[Socket] get_last_seen error: ${err.message}`);
       }
     });
 
@@ -306,60 +295,20 @@ export async function initSocket(httpServer) {
     socket.on("disconnect", async (reason) => {
       logger.info(`[Socket] Disconnected: ${socket.userId} (${reason})`, { requestId });
 
-      // Clean up typing timers
-      for (const [key, timer] of typingTimers) {
-        if (key.startsWith(`${socket.userId}:`)) {
-          clearTimeout(timer);
-          typingTimers.delete(key);
-        }
-      }
+      typingService.clearAllForUser(socket.userId);
 
-      if (redis.ready) {
-        try {
-          await redis.client.hdel(`sockets:${socket.userId}`, socket.id);
-          const remaining = await redis.client.hlen(`sockets:${socket.userId}`);
+      const remaining = await presenceService.removeSocket(socket.userId, socket.id);
 
-          if (remaining === 0) {
-            userOnlineBroadcast.delete(socket.userId);
-            try {
-              const { default: User } = await import("../models/user.js");
-              await User.findByIdAndUpdate(socket.userId, { isOnline: false, lastSeen: new Date() });
-              await broadcastPresence(socket.userId, false);
-            } catch (err) {
-              logger.debug("[Socket] Failed to update user offline status", { error: err.message });
-            }
-            await redis.client.del(`user_chats:${socket.userId}`).catch(() => {});
-          }
-        } catch (err) {
-          logger.debug(`[Socket] Redis cleanup failed for ${socket.userId}`, { error: err.message });
-        }
+      if (remaining === 0) {
+        await presenceService.clearBroadcast(socket.userId);
+        await presenceService.setOnline(socket.userId, false);
+        await presenceService.broadcastPresence(socket.userId, false, io);
+        await presenceService.clearUserChats(socket.userId);
       }
     });
   });
 
   return io;
-}
-
-// ── Presence broadcasting ─────────────────────────────────────────────
-async function broadcastPresence(userId, isOnline) {
-  try {
-    const { default: Chat } = await import("../models/chat.js");
-    const chats = await Chat.find({ members: userId }).select("members").lean();
-    const memberIds = new Set();
-    chats.forEach((chat) => {
-      chat.members.forEach((m) => {
-        const id = String(m);
-        if (id !== String(userId)) memberIds.add(id);
-      });
-    });
-
-    const event = isOnline ? "user_online" : "user_offline";
-    memberIds.forEach((id) => {
-      io.to(`user:${id}`).emit(event, { userId, timestamp: new Date() });
-    });
-  } catch (err) {
-    logger.debug(`[Socket] broadcastPresence failed for ${userId}: ${err.message}`);
-  }
 }
 
 /** Emit a notification to a specific user across all their sockets. */
