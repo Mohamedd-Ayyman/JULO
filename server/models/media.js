@@ -58,7 +58,6 @@ const mediaSchema = new mongoose.Schema(
 mediaSchema.index({ chatId: 1, createdAt: -1 });
 mediaSchema.index({ chatId: 1, mediaType: 1 });
 mediaSchema.index({ uploaderId: 1, createdAt: -1 });
-mediaSchema.index({ messageId: 1 });
 
 const Media = mongoose.model("media", mediaSchema);
 export default Media;

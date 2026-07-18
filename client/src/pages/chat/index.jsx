@@ -193,6 +193,7 @@ export default function ChatPage() {
     if (!activeChat.members || activeChat.members.length === 0) return;
     const partnerId = activeChat.members.find((m) => (m?._id || m) !== user?._id);
     if (!partnerId || typeof partnerId !== "string") return;
+    const chatId = activeChat._id;
     let cancelled = false;
     (async () => {
       try {
@@ -200,7 +201,7 @@ export default function ChatPage() {
         if (cancelled) return;
         if (res.success && res.data) {
           const u = res.data;
-          dispatch(setActiveChat({ ...activeChat, otherUser: { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic, isOnline: u.isOnline, lastSeen: u.lastSeen } }));
+          dispatch(updateActiveChatInfo({ chatId, updates: { otherUser: { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic, isOnline: u.isOnline, lastSeen: u.lastSeen } } }));
         }
       } catch {}
     })();
@@ -755,7 +756,9 @@ export default function ChatPage() {
     setSendingAudio(false);
   };
 
-  const otherMember = activeChat?.type === "group" ? null : (activeChat?.otherUser || activeChat?.members?.find((m) => m?._id !== user?._id));
+  const otherMemberBase = activeChat?.type === "group" ? null : (activeChat?.otherUser || activeChat?.members?.find((m) => m?._id !== user?._id));
+  const otherMemberLive = activeChat?.type === "group" ? null : activeChat?.members?.find((m) => (m?._id || m) === otherMemberBase?._id);
+  const otherMember = otherMemberBase ? { ...otherMemberBase, isOnline: otherMemberLive?.isOnline ?? otherMemberBase.isOnline, lastSeen: otherMemberLive?.lastSeen ?? otherMemberBase.lastSeen } : null;
   const isGroupChat = activeChat?.type === "group";
 
   const handleSearchInput = (value) => {

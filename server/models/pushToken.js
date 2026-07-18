@@ -46,7 +46,6 @@ const pushTokenSchema = new mongoose.Schema(
 );
 
 pushTokenSchema.index({ userId: 1, active: 1 });
-pushTokenSchema.index({ token: 1 });
 pushTokenSchema.index({ active: 1, lastUsedAt: -1 });
 
 const PushToken = mongoose.model("push_tokens", pushTokenSchema);

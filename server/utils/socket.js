@@ -133,6 +133,9 @@ export async function initSocket(httpServer) {
       logger.debug(`[Socket] send_message from ${socket.userId} to chat:${chatId}`, { requestId });
 
       try {
+        const { default: User } = await import("../models/user.js");
+        User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() }).exec().catch(() => {});
+
         const { default: Chat } = await import("../models/chat.js");
         const chat = await Chat.findById(chatId).lean();
         if (!chat || !chat.members.some((m) => String(m) === String(socket.userId))) {
@@ -244,6 +247,9 @@ export async function initSocket(httpServer) {
       if (!chatId) return;
 
       try {
+        const { default: User } = await import("../models/user.js");
+        User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() }).exec().catch(() => {});
+
         const { default: chatService } = await import("../services/chatService.js");
         await chatService.markRead(chatId, socket.userId);
 
@@ -335,7 +341,7 @@ export async function initSocket(httpServer) {
     });
 
     // ── Presence sync ───────────────────────────────────────────────────
-    socket.on("sync_presence", () => {
+    socket.on("presence_sync", () => {
       socket.emit("presence_sync", {
         userId: socket.userId,
         isOnline: true,

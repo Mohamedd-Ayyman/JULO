@@ -130,7 +130,8 @@ class PresenceService {
       if (memberIds.length === 0) return;
 
       const event = isOnline ? "user_online" : "user_offline";
-      const payload = { userId, timestamp: new Date() };
+      const lastSeen = !isOnline ? new Date() : undefined;
+      const payload = { userId, lastSeen, timestamp: new Date() };
 
       for (const id of memberIds) {
         const targetUser = user?.showOnlineStatus !== false ? payload : { ...payload, hidden: true };
