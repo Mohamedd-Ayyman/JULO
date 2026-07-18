@@ -97,6 +97,11 @@ export const SocketProvider = ({ children }) => {
       setTimeout(() => dispatch(reset()), 2000);
     });
 
+    newSocket.on(SOCKET_EVENTS.CALL_MISSED, () => {
+      dispatch(endCall());
+      setTimeout(() => dispatch(reset()), 2000);
+    });
+
     newSocket.on(SOCKET_EVENTS.CALL_ERROR, (data) => {
       console.error("[Socket] Call error:", data.message);
     });

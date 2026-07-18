@@ -17,6 +17,7 @@ import {
   ArchiveRestore,
   MoreHorizontal,
   Users,
+  Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { muteChat, pinChat, archiveChat } from "../../apiCalls/message.js";
@@ -917,6 +918,18 @@ export default function ChatPage() {
                                 >
                                   <Users className="w-4 h-4" />
                                   Group Info
+                                </button>
+                              )}
+                              {!isGroupChat && (
+                                <button
+                                  onClick={() => { setShowCallHistory(true); setShowChatMenu(false); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                                  style={{ color: "var(--ink)" }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper-3)"}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                >
+                                  <Clock className="w-4 h-4" />
+                                  Call History
                                 </button>
                               )}
                               <button
