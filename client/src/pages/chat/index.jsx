@@ -365,13 +365,26 @@ export default function ChatPage() {
     const el = scrollRef.current;
     if (!el) return;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const atBottom = distFromBottom < 50;
+    const atBottom = distFromBottom < 80;
     if (atBottom) {
-      el.scrollTop = el.scrollHeight;
+      // Scroll after the new message (and any media) has been laid out.
+      requestAnimationFrame(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      });
     } else {
       setUnseenCount((c) => c + 1);
     }
   }, [activeChat?.messages?.length]);
+
+  // Jump to the latest message once a conversation's history finishes loading.
+  useEffect(() => {
+    if (loadingMsgs) return;
+    const el = scrollRef.current;
+    if (!el || !(activeChat?.messages?.length)) return;
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
+  }, [loadingMsgs, activeChat?._id]);
 
   const handleRetrySend = async (messageId) => {
     if (!activeChat?._id) return;
@@ -745,6 +758,8 @@ export default function ChatPage() {
     // blob may be passed from the recorder's stop callback (already finalized).
     const audioBlob = blob || recorder.audioBlob;
     if (!audioBlob || !activeChat?._id) return;
+    // Capture the recorded duration before resetBlob() clears it.
+    const recordedDuration = Number.isFinite(recorder.duration) ? recorder.duration : 0;
     setSendingAudio(true);
     const receiverId = activeChat.type === "group" ? null : (activeChat.otherUser?._id || activeChat.members?.find((m) => m?._id !== user?._id)?._id);
     const tempId = `temp-audio-${Date.now()}`;
@@ -754,7 +769,7 @@ export default function ChatPage() {
       sender: user,
       text: "",
       audioUrl: URL.createObjectURL(blob),
-      audioDuration: recorder.duration,
+      audioDuration: recordedDuration,
       createdAt: new Date().toISOString(),
       pending: true,
     };
@@ -762,7 +777,7 @@ export default function ChatPage() {
     recorder.resetBlob();
     const uploadRes = await uploadAudio(blob);
     if (uploadRes.success) {
-      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recorder.duration, receiverId);
+      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recordedDuration, receiverId);
       if (res.success && socket) {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
         dispatch(markMessageSuccess({ tempId, realMessage: res.data }));

@@ -14,7 +14,7 @@ export default function AppLayout({ children, title, hideRightRail = false, full
       <div
         className={`lg:ml-[260px] ${fullWidth ? "" : "xl:mr-[320px]"} min-h-screen flex flex-col`}
       >
-        <main className={`flex-1 pb-24 lg:pb-6 ${fullWidth ? "overflow-hidden" : ""}`}>{children || <Outlet />}</main>
+        <main className={`flex-1 flex flex-col min-h-0 pb-24 lg:pb-6 ${fullWidth ? "overflow-hidden" : ""}`}>{children || <Outlet />}</main>
       </div>
       {!hideRightRail && !fullWidth && <RightRail />}
       <MobileNav />

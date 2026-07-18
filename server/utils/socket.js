@@ -376,7 +376,7 @@ export async function initSocket(httpServer) {
           if (u) caller = { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic };
         } catch (_) {}
 
-        io.to(`chat:${chatId}`).emit("call_invite", {
+        const invitePayload = {
           callId: call._id,
           initiator: call.initiator,
           caller,
@@ -386,7 +386,23 @@ export async function initSocket(httpServer) {
           participants: call.participants,
           status: "ringing",
           createdAt: call.createdAt,
-        });
+        };
+
+        io.to(`chat:${chatId}`).emit("call_invite", invitePayload);
+
+        // Also deliver to each recipient's personal room so the invite arrives
+        // even if they aren't currently joined to the chat room (mirrors how
+        // messages are delivered).
+        try {
+          const { default: Chat } = await import("../models/chat.js");
+          const chatDoc = await Chat.findById(chatId).lean();
+          if (chatDoc?.members?.length) {
+            for (const m of chatDoc.members) {
+              const mid = String(m);
+              if (mid !== String(socket.userId)) emitToUser(mid, "call_invite", invitePayload);
+            }
+          }
+        } catch (_) {}
 
         socket.emit("call_initiated", { callId: call._id, status: "ringing" });
       } catch (err) {
