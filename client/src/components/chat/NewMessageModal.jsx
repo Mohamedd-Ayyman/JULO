@@ -46,7 +46,7 @@ export default function NewMessageModal({ onClose, onChatCreated }) {
     try {
       const res = await createOrFindChat(user._id);
       if (res.success && res.data) {
-        onChatCreated(res.data._id);
+        onChatCreated(res.data);
       } else {
         toast.error(res.message || "Couldn't open chat");
       }

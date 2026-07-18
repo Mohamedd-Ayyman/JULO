@@ -279,6 +279,8 @@ export class ChatService {
             isOnline: partner.isOnline,
             lastSeen: partner.lastSeen,
           };
+        } else if (partnerId && !partnerMap[String(partnerId)]) {
+          logger.warn(`[Chat] _buildConversationResponse: partner ${partnerId} not in partnerMap for chat ${chat._id}. partnerMap keys: ${Object.keys(partnerMap).join(",")}`);
         }
       } else {
         base.memberCount = chat.members ? chat.members.length : 0;

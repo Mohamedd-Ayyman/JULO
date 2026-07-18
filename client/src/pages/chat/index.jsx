@@ -76,6 +76,7 @@ import {
   editMessage,
   sendReply,
 } from "../../apiCalls/message.js";
+import { getUserById } from "../../apiCalls/users.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 
@@ -186,6 +187,25 @@ export default function ChatPage() {
       setActiveThread(null);
     }
   }, [chatId, mobileAnim, mobileView, dispatch]);
+
+  useEffect(() => {
+    if (!activeChat?._id || activeChat.type !== "direct" || activeChat.otherUser) return;
+    if (!activeChat.members || activeChat.members.length === 0) return;
+    const partnerId = activeChat.members.find((m) => (m?._id || m) !== user?._id);
+    if (!partnerId || typeof partnerId !== "string") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getUserById(partnerId);
+        if (cancelled) return;
+        if (res.success && res.data) {
+          const u = res.data;
+          dispatch(setActiveChat({ ...activeChat, otherUser: { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic, isOnline: u.isOnline, lastSeen: u.lastSeen } }));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [activeChat?._id, activeChat?.type, activeChat?.otherUser, activeChat?.members, dispatch, user?._id]);
 
   useEffect(() => {
     if (!activeChat?._id || activeChat.messages?.length) return;
@@ -1130,16 +1150,22 @@ export default function ChatPage() {
           onClose={() => setShowCreateGroup(false)}
           onCreated={(cId) => {
             setShowCreateGroup(false);
-            navigate(ROUTES.CHAT_ID(cId));
+            if (cId) navigate(ROUTES.CHAT_ID(cId));
+            else navigate("/chat");
           }}
         />
       )}
       {showNewMessage && (
         <NewMessageModal
           onClose={() => setShowNewMessage(false)}
-          onChatCreated={(cId) => {
+          onChatCreated={(chatData) => {
             setShowNewMessage(false);
-            navigate(ROUTES.CHAT_ID(cId));
+            if (chatData?._id) {
+              dispatch(setActiveChat({ ...chatData, messages: [] }));
+              navigate(ROUTES.CHAT_ID(chatData._id));
+            } else {
+              navigate("/chat");
+            }
           }}
         />
       )}
