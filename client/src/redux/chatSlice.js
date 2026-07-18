@@ -45,6 +45,11 @@ const chatSlice = createSlice({
             }
           }
         }
+        // Direct chats carry presence on `otherUser`, not on `members`.
+        if (c.otherUser && String(c.otherUser._id) === String(userId)) {
+          c.otherUser.isOnline = isOnline;
+          if (lastSeen !== undefined) c.otherUser.lastSeen = lastSeen;
+        }
       });
       if (state.activeChat?.members) {
         for (let i = 0; i < state.activeChat.members.length; i++) {
@@ -58,6 +63,10 @@ const chatSlice = createSlice({
             }
           }
         }
+      }
+      if (state.activeChat?.otherUser && String(state.activeChat.otherUser._id) === String(userId)) {
+        state.activeChat.otherUser.isOnline = isOnline;
+        if (lastSeen !== undefined) state.activeChat.otherUser.lastSeen = lastSeen;
       }
     },
     toggleMuteChat: (state, action) => {
