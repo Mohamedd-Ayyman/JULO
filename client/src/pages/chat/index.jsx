@@ -50,6 +50,7 @@ import ScrollToBottom from "../../components/chat/ScrollToBottom.jsx";
 import ChatComposer from "../../components/chat/ChatComposer.jsx";
 import ThreadPanel from "../../components/chat/ThreadPanel.jsx";
 import CreateGroupModal from "../../components/chat/CreateGroupModal.jsx";
+import NewMessageModal from "../../components/chat/NewMessageModal.jsx";
 import GroupDetailsPanel from "../../components/chat/GroupDetailsPanel.jsx";
 import CallHistoryPanel from "../../components/chat/CallHistoryPanel.jsx";
 import IncomingCallModal from "../../components/chat/IncomingCallModal.jsx";
@@ -117,6 +118,7 @@ export default function ChatPage() {
   const [activeThread, setActiveThread] = useState(null);
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
   const [showGroupDetails, setShowGroupDetails] = useState(false);
   const [showCallHistory, setShowCallHistory] = useState(false);
   const scrollRef = useRef(null);
@@ -168,7 +170,6 @@ export default function ChatPage() {
       setActiveThread(null);
       return;
     }
-    setCurrentPage(1);
     setHasMore(true);
     setNextCursor(null);
     setLoadingOlder(false);
@@ -199,7 +200,6 @@ export default function ChatPage() {
           dispatch(setActiveChat({ ...activeChat, messages: (res.data?.messages || []).reverse() }));
           setHasMore(res.data?.hasMore || false);
           setNextCursor(res.data?.nextCursor || null);
-          setCurrentPage(1);
           setMsgError(null);
         } else {
           setMsgError("Failed to load messages");
@@ -807,6 +807,7 @@ export default function ChatPage() {
               onSelectChat={handleSelectChat}
               onCreateGroup={() => setShowCreateGroup(true)}
               onRetryLoad={() => { setLoadingChats(true); setChatError(null); window.location.reload(); }}
+              onNewMessage={() => setShowNewMessage(true)}
               onToggleMute={handleMuteToggleById}
               onTogglePin={handlePinToggleById}
               onArchive={handleArchiveById}
@@ -1120,6 +1121,15 @@ export default function ChatPage() {
           onClose={() => setShowCreateGroup(false)}
           onCreated={(cId) => {
             setShowCreateGroup(false);
+            navigate(ROUTES.CHAT_ID(cId));
+          }}
+        />
+      )}
+      {showNewMessage && (
+        <NewMessageModal
+          onClose={() => setShowNewMessage(false)}
+          onChatCreated={(cId) => {
+            setShowNewMessage(false);
             navigate(ROUTES.CHAT_ID(cId));
           }}
         />
