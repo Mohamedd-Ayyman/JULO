@@ -163,9 +163,11 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [dispatch, search, activeFilter]);
 
+  const loadedChatIdRef = useRef(null);
   useEffect(() => {
     if (!chatId) {
       if (isMobileView && mobileAnim === "leaving") return;
+      loadedChatIdRef.current = null;
       dispatch(setActiveChat(null));
       setReplyToMessage(null);
       setActiveThread(null);
@@ -216,16 +218,15 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [activeChat?._id, activeChat?.type, activeChat?.otherUser, activeChat?.members, dispatch, user?._id]);
 
-  const loadedChatIdRef = useRef(null);
   useEffect(() => {
     if (!activeChat?._id) return;
-    // Skip if we've already loaded this chat's history (prevents reload loops
-    // on empty chats and on every `chats`/`activeChat` reference change).
-    if (loadedChatIdRef.current === activeChat._id && activeChat.messages?.length) {
+    // Load history once per chat. Once attempted for this chatId we don't
+    // auto-retry (avoids infinite loops on empty/error responses), since the
+    // "Retry" button and socket events handle the rest.
+    if (loadedChatIdRef.current === activeChat._id) {
       setLoadingMsgs(false);
       return;
     }
-    if (loadingMsgs) return; // a load for this chat is already in flight
     let cancelled = false;
     loadedChatIdRef.current = activeChat._id;
     setLoadingMsgs(true);
@@ -250,7 +251,7 @@ export default function ChatPage() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChat?._id, activeChat?.messages?.length, loadingMsgs]);
+  }, [activeChat?._id]);
 
   useEffect(() => {
     if (!socket) return;
