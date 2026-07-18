@@ -614,13 +614,17 @@ export default function ChatPage() {
     const wasArchived = chat?.archived;
     if (!wasArchived && !confirm("Archive this chat?")) return;
     try {
-      await archiveChat(cId, !wasArchived);
-      if (!wasArchived) {
-        dispatch(archiveChatInList(cId));
-        toast.success("Chat archived");
+      const res = await archiveChat(cId, !wasArchived);
+      if (res.success) {
+        if (!wasArchived) {
+          dispatch(archiveChatInList(cId));
+          toast.success("Chat archived");
+        } else {
+          dispatch(updateActiveChatInfo({ chatId: cId, updates: { archived: false } }));
+          toast.success("Chat unarchived");
+        }
       } else {
-        dispatch(updateActiveChatInfo({ chatId: cId, updates: { archived: false } }));
-        toast.success("Chat unarchived");
+        toast.error(res.message || "Failed to update archive");
       }
     } catch {
       toast.error("Failed to update archive");
@@ -1040,9 +1044,13 @@ export default function ChatPage() {
                                   const wasArchived = activeChat.archived;
                                   if (!wasArchived && !confirm("Archive this chat?")) return;
                                   try {
-                                    await archiveChat(activeChat._id, !wasArchived);
-                                    if (!wasArchived) { dispatch(archiveChatInList(activeChat._id)); toast.success("Chat archived"); }
-                                    else { dispatch(updateActiveChatInfo({ chatId: activeChat._id, updates: { archived: false } })); toast.success("Chat unarchived"); }
+                                    const res = await archiveChat(activeChat._id, !wasArchived);
+                                    if (res.success) {
+                                      if (!wasArchived) { dispatch(archiveChatInList(activeChat._id)); toast.success("Chat archived"); }
+                                      else { dispatch(updateActiveChatInfo({ chatId: activeChat._id, updates: { archived: false } })); toast.success("Chat unarchived"); }
+                                    } else {
+                                      toast.error(res.message || "Failed to update archive");
+                                    }
                                   } catch { toast.error("Failed to update archive"); }
                                 }}
                                 className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"

@@ -33,6 +33,10 @@
   --riso-yellow: #e6c878;
   --riso-pink:   #d9a8b4;
 
+  /* WhatsApp-style outgoing bubble (deep teal) + readable text on it */
+  --bubble-sent:      #0a6b5e;
+  --bubble-sent-ink:  #eafff7;
+
   --color-background: var(--paper);
   --color-foreground: var(--ink);
   --color-primary: var(--accent);
@@ -93,6 +97,11 @@
   --line:       rgba(20, 17, 15, 0.08);
   --line-soft:  rgba(20, 17, 15, 0.04);
   --line-faint: rgba(20, 17, 15, 0.02);
+
+  /* WhatsApp-style outgoing bubble (pale green) + readable text on it */
+  --bubble-sent:      #d9fdd3;
+  --bubble-sent-ink:  #0a3b32;
+
   --glass-bg: rgba(243, 236, 217, 0.7);
   color-scheme: light;
 }

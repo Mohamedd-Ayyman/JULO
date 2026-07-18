@@ -345,8 +345,8 @@ export default function MessageBubble({
             pending && "opacity-60",
           )}
           style={{
-            background: isImageOnly || isFileOnly ? "transparent" : (isMine ? "var(--ink)" : "var(--paper-2)"),
-            color: isMine ? "var(--paper)" : "var(--ink)",
+            background: isImageOnly || isFileOnly ? "transparent" : (isMine ? "var(--bubble-sent)" : "var(--paper-2)"),
+            color: isMine ? "var(--bubble-sent-ink)" : "var(--ink)",
             borderRadius: "var(--r-lg)",
           }}
         >
