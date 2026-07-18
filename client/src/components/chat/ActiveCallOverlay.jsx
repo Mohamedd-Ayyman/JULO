@@ -16,7 +16,6 @@ export default function ActiveCallOverlay() {
   const {
     activeCall,
     callStatus,
-    callType,
     callDuration,
     formatDuration,
     end,

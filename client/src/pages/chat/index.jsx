@@ -88,7 +88,7 @@ export default function ChatPage() {
   const mutedChats = useSelector(selectMutedChats);
   const pinnedChats = useSelector(selectPinnedChats);
   const { socket } = useSocket();
-  const { incomingCall, activeCall, callStatus, callType, initiate, accept, reject, cancelOutgoing } = useCall();
+  const { callStatus, initiate } = useCall();
 
   const screenSize = useScreenSize();
   const isMobileView = screenSize === "mobile";
