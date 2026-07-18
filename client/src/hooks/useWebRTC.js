@@ -14,7 +14,7 @@ import { SOCKET_EVENTS } from "../lib/constants.js";
 
 export default function useWebRTC(localStreamRef) {
   const dispatch = useDispatch();
-  const socket = useSocket();
+  const { socket } = useSocket();
   const callId = useSelector(selectCallId);
   const peerConnectionsRef = useRef(new Map());
   const iceServersRef = useRef([]);
