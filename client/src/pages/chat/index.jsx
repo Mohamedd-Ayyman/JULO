@@ -176,9 +176,17 @@ export default function ChatPage() {
     setLoadingOlder(false);
     setReplyToMessage(null);
     setActiveThread(null);
+  }, [chatId, dispatch, isMobileView, mobileAnim]);
+
+  useEffect(() => {
+    if (!chatId || activeChat?._id === chatId) return;
     const found = chats.find((c) => c._id === chatId);
-    if (found) dispatch(setActiveChat({ ...found, messages: [] }));
-  }, [chatId, chats, dispatch, isMobileView, mobileAnim]);
+    if (found) {
+      // Preserve any messages already loaded for this chat instead of wiping them.
+      const existing = activeChat?._id === found._id ? activeChat.messages : undefined;
+      dispatch(setActiveChat({ ...found, messages: existing || [] }));
+    }
+  }, [chatId, chats, activeChat?._id, dispatch]);
 
   useEffect(() => {
     if (!chatId && !mobileAnim && mobileView === "list") {
@@ -208,9 +216,18 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [activeChat?._id, activeChat?.type, activeChat?.otherUser, activeChat?.members, dispatch, user?._id]);
 
+  const loadedChatIdRef = useRef(null);
   useEffect(() => {
-    if (!activeChat?._id || activeChat.messages?.length) return;
+    if (!activeChat?._id) return;
+    // Skip if we've already loaded this chat's history (prevents reload loops
+    // on empty chats and on every `chats`/`activeChat` reference change).
+    if (loadedChatIdRef.current === activeChat._id && activeChat.messages?.length) {
+      setLoadingMsgs(false);
+      return;
+    }
+    if (loadingMsgs) return; // a load for this chat is already in flight
     let cancelled = false;
+    loadedChatIdRef.current = activeChat._id;
     setLoadingMsgs(true);
     setMsgError(null);
     (async () => {
@@ -233,7 +250,7 @@ export default function ChatPage() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeChat?._id]);
+  }, [activeChat?._id, activeChat?.messages?.length, loadingMsgs]);
 
   useEffect(() => {
     if (!socket) return;

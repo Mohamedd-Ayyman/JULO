@@ -33,20 +33,31 @@ const chatSlice = createSlice({
     setOnlineStatus: (state, action) => {
       const { userId, isOnline, lastSeen } = action.payload;
       state.chats.forEach((c) => {
-        c.members?.forEach((m) => {
-          if (m._id === userId) {
-            m.isOnline = isOnline;
-            if (lastSeen !== undefined) m.lastSeen = lastSeen;
+        if (!c.members) return;
+        for (let i = 0; i < c.members.length; i++) {
+          const m = c.members[i];
+          if (String(m._id || m) === String(userId)) {
+            if (typeof m === "string") {
+              c.members[i] = { _id: m, isOnline, lastSeen };
+            } else {
+              m.isOnline = isOnline;
+              if (lastSeen !== undefined) m.lastSeen = lastSeen;
+            }
           }
-        });
+        }
       });
       if (state.activeChat?.members) {
-        state.activeChat.members.forEach((m) => {
-          if (m._id === userId) {
-            m.isOnline = isOnline;
-            if (lastSeen !== undefined) m.lastSeen = lastSeen;
+        for (let i = 0; i < state.activeChat.members.length; i++) {
+          const m = state.activeChat.members[i];
+          if (String(m._id || m) === String(userId)) {
+            if (typeof m === "string") {
+              state.activeChat.members[i] = { _id: m, isOnline, lastSeen };
+            } else {
+              m.isOnline = isOnline;
+              if (lastSeen !== undefined) m.lastSeen = lastSeen;
+            }
           }
-        });
+        }
       }
     },
     toggleMuteChat: (state, action) => {
