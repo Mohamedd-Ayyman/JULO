@@ -142,6 +142,7 @@ import mediaRouter from "./controllers/mediaController.js";
 import pushRouter from "./controllers/pushController.js";
 import presenceRouter from "./controllers/presenceController.js";
 import moderationRouter from "./controllers/moderationController.js";
+import iceRouter from "./controllers/iceController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);

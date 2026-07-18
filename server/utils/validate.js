@@ -203,7 +203,10 @@ export const profileUpdateSchema = z.object({
 export const callHistoryQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
-  type: z.enum(["missed", "incoming", "outgoing", "recorded"]).optional(),
+  type: z.enum(["all", "missed", "incoming", "outgoing", "recorded"]).optional(),
+  callType: z.enum(["audio", "video"]).optional(),
+  fromDate: z.string().datetime().optional(),
+  toDate: z.string().datetime().optional(),
 });
 
 // ── Consent ─────────────────────────────────────────────────────────────────────
@@ -408,4 +411,50 @@ export const reportReviewSchema = z.object({
   status: z.enum(["reviewed", "dismissed", "resolved"]),
   action: z.enum(["none", "warning", "message_deleted", "user_muted", "user_banned"]).optional().default("none"),
   actionNote: z.string().trim().max(500).optional(),
+});
+
+// ── WebRTC Signaling ────────────────────────────────────────────────────────
+export const callSignalingSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+  targetUserId: z.string().min(1, "targetUserId is required"),
+});
+
+export const callOfferSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+  targetUserId: z.string().min(1, "targetUserId is required"),
+  offer: z.object({}).passthrough(),
+});
+
+export const callAnswerSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+  targetUserId: z.string().min(1, "targetUserId is required"),
+  answer: z.object({}).passthrough(),
+});
+
+export const iceCandidateSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+  targetUserId: z.string().min(1, "targetUserId is required"),
+  candidate: z.object({}).passthrough(),
+});
+
+export const callRenegotiateSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+  targetUserId: z.string().min(1, "targetUserId is required"),
+  offer: z.object({}).passthrough(),
+});
+
+export const mediaStateSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+});
+
+export const qualityReportSchema = z.object({
+  callId: z.string().min(1, "callId is required"),
+  metrics: z.object({
+    bitrate: z.number().min(0).optional(),
+    packetLoss: z.number().min(0).max(100).optional(),
+    latency: z.number().min(0).optional(),
+    jitter: z.number().min(0).optional(),
+    resolution: z.string().max(20).optional(),
+    framerate: z.number().min(0).optional(),
+  }).passthrough(),
 });

@@ -15,6 +15,27 @@ const participantSchema = new mongoose.Schema(
     leftAt: { type: Date, default: null },
     consentToRecording: { type: Boolean, default: false },
     consentUpdatedAt: { type: Date, default: null },
+    isMuted: { type: Boolean, default: false },
+    isVideoOff: { type: Boolean, default: false },
+    isScreenSharing: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
+const qualityReportSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
+    bitrate: { type: Number, default: null },
+    packetLoss: { type: Number, default: null },
+    latency: { type: Number, default: null },
+    jitter: { type: Number, default: null },
+    resolution: { type: String, default: null },
+    framerate: { type: Number, default: null },
+    reportedAt: { type: Date, default: Date.now },
   },
   { _id: false }
 );
@@ -86,6 +107,12 @@ const callSessionSchema = new mongoose.Schema(
       enum: END_REASON,
       default: "normal",
     },
+
+    // ── Quality Metrics ────────────────────────────────────────────────
+    qualityReports: {
+      type: [qualityReportSchema],
+      default: [],
+    },
   },
   { timestamps: true }
 );
@@ -95,6 +122,7 @@ callSessionSchema.index({ "participants.userId": 1, createdAt: -1 });
 callSessionSchema.index({ status: 1 });
 callSessionSchema.index({ recordingId: 1 });
 callSessionSchema.index({ tenantId: 1 });
+callSessionSchema.index({ "qualityReports.reportedAt": 1 }, { expireAfterSeconds: 2592000 }); // 30 days TTL
 
 const CallSession = mongoose.model("call_sessions", callSessionSchema);
 export { CALL_STATUS, CALL_TYPE, END_REASON };

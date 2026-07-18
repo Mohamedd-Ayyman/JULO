@@ -10,6 +10,10 @@ import typingService from "../services/typingService.js";
 
 let io;
 
+// ── Reconnection grace period (ms) for active calls ───────────────────────
+const CALL_RECONNECT_GRACE_MS = 30_000;
+const reconnectTimers = new Map(); // userId -> { callId -> timer, ... }
+
 /**
  * Build Socket.IO server with optional Redis adapter for horizontal scaling.
  * Adapter is only activated when Redis is fully ready — otherwise runs
@@ -136,6 +140,34 @@ export async function initSocket(httpServer) {
           return;
         }
 
+        // ── Block enforcement ────────────────────────────────────────
+        try {
+          const { default: moderationService } = await import("../services/moderationService.js");
+
+          if (chat.type === "direct") {
+            const otherMemberId = chat.members.find((m) => String(m) !== String(socket.userId));
+            if (otherMemberId) {
+              const blocked = await moderationService.isBlocked(socket.userId, otherMemberId);
+              if (blocked) {
+                socket.emit("error", { message: "Cannot send message to this user", code: "USER_BLOCKED" });
+                return;
+              }
+            }
+          } else {
+            const blockedIds = await moderationService.getBlockedUserIds(socket.userId);
+            if (blockedIds.length > 0) {
+              const blockedSet = new Set(blockedIds);
+              const hasBlockedMember = chat.members.some(
+                (m) => String(m) !== String(socket.userId) && blockedSet.has(String(m))
+              );
+              if (hasBlockedMember) {
+                socket.emit("error", { message: "Cannot send message: one or more members are blocked", code: "USER_BLOCKED" });
+                return;
+              }
+            }
+          }
+        } catch (_) {}
+
         const messagePayload = {
           chatId,
           senderId: socket.userId,
@@ -157,6 +189,26 @@ export async function initSocket(httpServer) {
 
         if (receiverId) {
           io.to(`user:${receiverId}`).emit("receive_message", messagePayload);
+        }
+
+        // ── Async spam detection ─────────────────────────────────────
+        if (text) {
+          try {
+            const { default: moderationService } = await import("../services/moderationService.js");
+            const { default: Message } = await import("../models/message.js");
+            const lastMsg = await Message.findOne({ chatId, sender: socket.userId }).sort({ createdAt: -1 }).lean();
+            if (lastMsg) {
+              const [rateResult, repeatResult, contentResult] = await Promise.all([
+                moderationService.checkSpamRateLimit(socket.userId, chatId),
+                moderationService.checkRepeatedText(socket.userId, chatId, text),
+                moderationService.checkContentSpam(text),
+              ]);
+              const msg = await Message.findById(lastMsg._id);
+              if (msg) {
+                await moderationService.applySpamFlags(msg, [rateResult, repeatResult, contentResult]);
+              }
+            }
+          } catch (_) {}
         }
 
         await typingService.clearOnMessageSent(socket.userId, chatId, io);
@@ -416,6 +468,9 @@ export async function initSocket(httpServer) {
             leftAt: null,
             consentToRecording: false,
             consentUpdatedAt: null,
+            isMuted: false,
+            isVideoOff: false,
+            isScreenSharing: false,
           });
           participant = call.participants[call.participants.length - 1];
         } else if (!participant.joinedAt) {
@@ -426,6 +481,21 @@ export async function initSocket(httpServer) {
         }
 
         await call.save();
+
+        // Cancel any pending reconnection timer for this user in this call
+        const userTimers = reconnectTimers.get(socket.userId);
+        if (userTimers) {
+          const timer = userTimers.get(String(call._id));
+          if (timer) {
+            clearTimeout(timer);
+            userTimers.delete(String(call._id));
+            if (userTimers.size === 0) reconnectTimers.delete(socket.userId);
+            io.to(`chat:${call.chatId}`).emit("call_participant_reconnected", {
+              callId: call._id,
+              userId: socket.userId,
+            });
+          }
+        }
 
         const populated = await CallSession.findById(callId)
           .populate("participants.userId", "firstname lastname profilepic")
@@ -531,8 +601,10 @@ export async function initSocket(httpServer) {
 
     // ── WebRTC Signaling ──────────────────────────────────────────────
     socket.on("call_offer", async ({ callId, targetUserId, offer }) => {
-      if (!callId || !targetUserId || !offer) {
-        socket.emit("error", { message: "Missing callId, targetUserId, or offer" });
+      const { callOfferSchema } = await import("./validate.js");
+      const parsed = callOfferSchema.safeParse({ callId, targetUserId, offer });
+      if (!parsed.success) {
+        socket.emit("error", { message: parsed.error.errors[0]?.message || "Invalid signaling data" });
         return;
       }
 
@@ -548,8 +620,10 @@ export async function initSocket(httpServer) {
     });
 
     socket.on("call_answer", async ({ callId, targetUserId, answer }) => {
-      if (!callId || !targetUserId || !answer) {
-        socket.emit("error", { message: "Missing callId, targetUserId, or answer" });
+      const { callAnswerSchema } = await import("./validate.js");
+      const parsed = callAnswerSchema.safeParse({ callId, targetUserId, answer });
+      if (!parsed.success) {
+        socket.emit("error", { message: parsed.error.errors[0]?.message || "Invalid signaling data" });
         return;
       }
 
@@ -565,8 +639,10 @@ export async function initSocket(httpServer) {
     });
 
     socket.on("ice_candidate", async ({ callId, targetUserId, candidate }) => {
-      if (!callId || !targetUserId || !candidate) {
-        socket.emit("error", { message: "Missing callId, targetUserId, or candidate" });
+      const { iceCandidateSchema } = await import("./validate.js");
+      const parsed = iceCandidateSchema.safeParse({ callId, targetUserId, candidate });
+      if (!parsed.success) {
+        socket.emit("error", { message: parsed.error.errors[0]?.message || "Invalid ICE candidate data" });
         return;
       }
 
@@ -581,8 +657,10 @@ export async function initSocket(httpServer) {
     });
 
     socket.on("call_renegotiate", async ({ callId, targetUserId, offer }) => {
-      if (!callId || !targetUserId || !offer) {
-        socket.emit("error", { message: "Missing callId, targetUserId, or offer" });
+      const { callRenegotiateSchema } = await import("./validate.js");
+      const parsed = callRenegotiateSchema.safeParse({ callId, targetUserId, offer });
+      if (!parsed.success) {
+        socket.emit("error", { message: parsed.error.errors[0]?.message || "Invalid renegotiation data" });
         return;
       }
 
@@ -601,9 +679,14 @@ export async function initSocket(httpServer) {
       if (!callId) return;
 
       try {
+        const { default: CallSession } = await import("../models/callSession.js");
         const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
-        const state = webrtcService.handleMuteToggle(callId, socket.userId, isMuted);
-        socket.to(`chat:${callId}`).emit("call_mute", state);
+
+        const call = await CallSession.findById(callId);
+        if (!call || call.status !== "active") return;
+
+        const state = await webrtcService.handleMuteToggle(callId, socket.userId, isMuted);
+        io.to(`chat:${call.chatId}`).emit("call_mute", state);
       } catch (err) {
         logger.debug(`[Socket] call_mute error: ${err.message}`);
       }
@@ -613,9 +696,14 @@ export async function initSocket(httpServer) {
       if (!callId) return;
 
       try {
+        const { default: CallSession } = await import("../models/callSession.js");
         const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
-        const state = webrtcService.handleVideoToggle(callId, socket.userId, isVideoOff);
-        socket.to(`chat:${callId}`).emit("call_video_toggle", state);
+
+        const call = await CallSession.findById(callId);
+        if (!call || call.status !== "active") return;
+
+        const state = await webrtcService.handleVideoToggle(callId, socket.userId, isVideoOff);
+        io.to(`chat:${call.chatId}`).emit("call_video_toggle", state);
       } catch (err) {
         logger.debug(`[Socket] call_video_toggle error: ${err.message}`);
       }
@@ -625,9 +713,14 @@ export async function initSocket(httpServer) {
       if (!callId) return;
 
       try {
+        const { default: CallSession } = await import("../models/callSession.js");
         const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
-        const state = webrtcService.handleScreenShareToggle(callId, socket.userId, isScreenSharing);
-        socket.to(`chat:${callId}`).emit("call_screen_share_toggle", state);
+
+        const call = await CallSession.findById(callId);
+        if (!call || call.status !== "active") return;
+
+        const state = await webrtcService.handleScreenShareToggle(callId, socket.userId, isScreenSharing);
+        io.to(`chat:${call.chatId}`).emit("call_screen_share_toggle", state);
       } catch (err) {
         logger.debug(`[Socket] call_screen_share_toggle error: ${err.message}`);
       }
@@ -637,10 +730,15 @@ export async function initSocket(httpServer) {
       if (!callId) return;
 
       try {
+        const { default: CallSession } = await import("../models/callSession.js");
         const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
-        const state = webrtcService.handleJoinSession(callId, socket.userId);
+
+        const call = await CallSession.findById(callId);
+        if (!call || call.status !== "active") return;
+
+        const state = await webrtcService.handleJoinSession(callId, socket.userId);
         socket.emit("call_media_state", state);
-        socket.to(`chat:${callId}`).emit("call_participant_webcam_joined", {
+        io.to(`chat:${call.chatId}`).emit("call_participant_webcam_joined", {
           callId,
           userId: socket.userId,
           timestamp: state.timestamp,
@@ -654,9 +752,14 @@ export async function initSocket(httpServer) {
       if (!callId) return;
 
       try {
+        const { default: CallSession } = await import("../models/callSession.js");
         const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
-        const state = webrtcService.handleLeaveSession(callId, socket.userId);
-        socket.to(`chat:${callId}`).emit("call_participant_webcam_left", {
+
+        const call = await CallSession.findById(callId);
+        if (!call) return;
+
+        const state = await webrtcService.handleLeaveSession(callId, socket.userId);
+        io.to(`chat:${call.chatId}`).emit("call_participant_webcam_left", {
           callId,
           userId: socket.userId,
           remainingParticipants: state.remainingParticipants,
@@ -672,7 +775,7 @@ export async function initSocket(httpServer) {
 
       try {
         const { default: webrtcService } = await import("../services/webrtcSignalingService.js");
-        webrtcService.handleQualityReport(callId, socket.userId, metrics);
+        await webrtcService.handleQualityReport(callId, socket.userId, metrics);
       } catch (err) {
         logger.debug(`[Socket] call_quality_report error: ${err.message}`);
       }
@@ -684,9 +787,112 @@ export async function initSocket(httpServer) {
 
       typingService.clearAllForUser(socket.userId);
 
+      // Cancel any pending reconnection timers for this user
+      const userTimers = reconnectTimers.get(socket.userId);
+      if (userTimers) {
+        for (const timer of userTimers.values()) {
+          clearTimeout(timer);
+        }
+        reconnectTimers.delete(socket.userId);
+      }
+
       const remaining = await presenceService.removeSocket(socket.userId, socket.id);
 
       if (remaining === 0) {
+        // ── Handle active calls on disconnect ──────────────────────────
+        try {
+          const { default: CallSession } = await import("../models/callSession.js");
+
+          const activeCalls = await CallSession.find({
+            "participants.userId": socket.userId,
+            status: { $in: ["ringing", "active"] },
+          });
+
+          for (const call of activeCalls) {
+            const participant = call.participants.find(
+              (p) => String(p.userId) === String(socket.userId)
+            );
+
+            if (!participant || participant.leftAt) continue;
+
+            if (call.status === "ringing") {
+              // If the caller disconnects while ringing, cancel the call
+              if (String(call.initiator) === String(socket.userId)) {
+                const { default: callSessionService } = await import("../services/callSessionService.js");
+                const ended = await callSessionService.endCall(call._id, socket.userId, "cancelled");
+                io.to(`chat:${ended.chatId}`).emit("call_ended", {
+                  callId: ended._id,
+                  duration: ended.duration,
+                  endReason: ended.endReason,
+                  endedBy: socket.userId,
+                });
+                continue;
+              }
+            }
+
+            // Active call: start reconnection grace period
+            if (call.status === "active") {
+              if (!reconnectTimers.has(socket.userId)) {
+                reconnectTimers.set(socket.userId, new Map());
+              }
+
+              const timer = setTimeout(async () => {
+                try {
+                  const currentCall = await CallSession.findById(call._id);
+                  if (!currentCall || currentCall.status !== "active") return;
+
+                  const p = currentCall.participants.find(
+                    (pt) => String(pt.userId) === String(socket.userId)
+                  );
+                  if (!p || p.leftAt) return;
+
+                  p.leftAt = new Date();
+                  await currentCall.save();
+
+                  io.to(`chat:${currentCall.chatId}`).emit("call_participant_left", {
+                    callId: currentCall._id,
+                    userId: socket.userId,
+                    leftAt: p.leftAt,
+                  });
+
+                  // If no active participants remain, end the call
+                  const activeParticipants = currentCall.participants.filter(
+                    (pt) => pt.joinedAt && !pt.leftAt
+                  );
+                  if (activeParticipants.length === 0) {
+                    const { default: callSessionService } = await import("../services/callSessionService.js");
+                    const ended = await callSessionService.endCall(call._id, socket.userId, "timeout");
+                    io.to(`chat:${ended.chatId}`).emit("call_ended", {
+                      callId: ended._id,
+                      duration: ended.duration,
+                      endReason: ended.endReason,
+                      endedBy: socket.userId,
+                    });
+                  }
+                } catch (err) {
+                  logger.error(`[Socket] Call disconnect grace period error: ${err.message}`);
+                } finally {
+                  const timers = reconnectTimers.get(socket.userId);
+                  if (timers) {
+                    timers.delete(String(call._id));
+                    if (timers.size === 0) reconnectTimers.delete(socket.userId);
+                  }
+                }
+              }, CALL_RECONNECT_GRACE_MS);
+
+              reconnectTimers.get(socket.userId).set(String(call._id), timer);
+
+              io.to(`chat:${call.chatId}`).emit("call_participant_disconnected", {
+                callId: call._id,
+                userId: socket.userId,
+                gracePeriodMs: CALL_RECONNECT_GRACE_MS,
+              });
+            }
+          }
+        } catch (err) {
+          logger.error(`[Socket] Disconnect call cleanup error: ${err.message}`);
+        }
+
         await presenceService.clearBroadcast(socket.userId);
         await presenceService.setOnline(socket.userId, false);
         await presenceService.broadcastPresence(socket.userId, false, io);

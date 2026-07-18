@@ -19,6 +19,16 @@ const router = express.Router();
 
 // ── Blocking ──────────────────────────────────────────────────────────────────
 
+const REPORT_RATE_LIMIT = 5;
+const REPORT_RATE_WINDOW = 3600;
+
+async function reportRateLimit(userId) {
+  const key = `ratelimit:report:${userId}:${Math.floor(Date.now() / 1000 / REPORT_RATE_WINDOW)}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, REPORT_RATE_WINDOW + 1);
+  return { allowed: count <= REPORT_RATE_LIMIT, remaining: Math.max(0, REPORT_RATE_LIMIT - count) };
+}
+
 router.post(
   "/block",
   requireAuth,
@@ -26,7 +36,7 @@ router.post(
   validate(blockUserSchema),
   asyncHandler(async (req, res) => {
     const block = await moderationService.blockUser(req.user.userId, req.body.userId, req.tenantId);
-    await redis.del(`blocks:${req.user.userId}`);
+    try { await redis.del(`blocks:${req.user.userId}`); } catch (_) {}
     res.status(201).send({ success: true, data: block, statusCode: 201 });
   })
 );
@@ -36,7 +46,7 @@ router.delete(
   requireAuth,
   asyncHandler(async (req, res) => {
     await moderationService.unblockUser(req.user.userId, req.params.userId);
-    await redis.del(`blocks:${req.user.userId}`);
+    try { await redis.del(`blocks:${req.user.userId}`); } catch (_) {}
     res.send({ success: true, message: "User unblocked", statusCode: 200 });
   })
 );
@@ -68,6 +78,13 @@ router.post(
   tenantMiddleware,
   validate(reportMessageSchema),
   asyncHandler(async (req, res) => {
+    const rateCheck = await reportRateLimit(req.user.userId);
+    if (!rateCheck.allowed) {
+      const err = new Error("Too many reports. Please try again later.");
+      err.statusCode = 429;
+      throw err;
+    }
+
     const report = await moderationService.reportMessage(
       req.user.userId,
       req.body.messageId,
@@ -96,6 +113,13 @@ router.post(
   tenantMiddleware,
   validate(reportUserSchema),
   asyncHandler(async (req, res) => {
+    const rateCheck = await reportRateLimit(req.user.userId);
+    if (!rateCheck.allowed) {
+      const err = new Error("Too many reports. Please try again later.");
+      err.statusCode = 429;
+      throw err;
+    }
+
     const report = await moderationService.reportUser(
       req.user.userId,
       req.body.userId,
@@ -200,6 +224,15 @@ router.put(
         }
       } catch (_) {}
     }
+
+    try {
+      emitToUser(String(report.reporterId), "report_update", {
+        reportId: report._id,
+        status: report.status,
+        action: report.action,
+        actionNote: report.actionNote,
+      });
+    } catch (_) {}
 
     res.send({ success: true, data: report, statusCode: 200 });
   })

@@ -1,6 +1,7 @@
 import express from "express";
 import callSessionService from "../services/callSessionService.js";
 import webrtcSignalingService from "../services/webrtcSignalingService.js";
+import turnService from "../services/turnService.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
 import { auditAction } from "../middlewares/auditMiddleware.js";
 import { asyncHandler, AppError } from "../utils/AppError.js";
@@ -97,8 +98,8 @@ router.post(
 router.get(
   "/turn-config",
   requireAuth,
-  asyncHandler(async (_req, res) => {
-    const iceConfig = await webrtcSignalingService.getTurnCredentials();
+  asyncHandler(async (req, res) => {
+    const iceConfig = await turnService.getIceServers(req.user.userId);
     res.send({ success: true, data: iceConfig, statusCode: 200 });
   })
 );
@@ -119,11 +120,11 @@ router.get(
   requireAuth,
   validate(callHistoryQuerySchema, "query"),
   asyncHandler(async (req, res) => {
-    const { page, limit, type } = req.query;
+    const { page, limit, type, callType, fromDate, toDate } = req.query;
     const result = await callSessionService.getCallHistory(
       req.params.chatId,
       req.user.userId,
-      { page, limit, type }
+      { page, limit, type, callType, fromDate, toDate }
     );
     res.send({ success: true, data: result.calls, total: result.total, page: result.page, pages: result.pages, statusCode: 200 });
   })
@@ -135,14 +136,28 @@ router.get(
   requireAuth,
   validate(callHistoryQuerySchema, "query"),
   asyncHandler(async (req, res) => {
-    const { page, limit, type } = req.query;
+    const { page, limit, type, callType, fromDate, toDate } = req.query;
     const tenantId = req.user.tenantId || null;
     const result = await callSessionService.getUserCallHistory(
       req.user.userId,
       tenantId,
-      { page, limit, type }
+      { page, limit, type, callType, fromDate, toDate }
     );
     res.send({ success: true, data: result.calls, total: result.total, page: result.page, pages: result.pages, statusCode: 200 });
+  })
+);
+
+// ── Get missed calls count ────────────────────────────────────────────
+router.get(
+  "/missed-count",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const tenantId = req.user.tenantId || null;
+    const result = await callSessionService.getMissedCallCount(
+      req.user.userId,
+      tenantId
+    );
+    res.send({ success: true, data: result, statusCode: 200 });
   })
 );
 
@@ -214,6 +229,18 @@ router.get(
       req.params.callId
     );
     res.send({ success: true, data: status, statusCode: 200 });
+  })
+);
+
+// ── Get call quality metrics ───────────────────────────────────────────
+router.get(
+  "/:callId/quality",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const qualityReport = await webrtcSignalingService.getQualityReport(
+      req.params.callId
+    );
+    res.send({ success: true, data: qualityReport, statusCode: 200 });
   })
 );
 

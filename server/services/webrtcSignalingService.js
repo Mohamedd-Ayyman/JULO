@@ -116,9 +116,10 @@ class WebRtcSignalingService {
 
   // ── Quality Metrics ─────────────────────────────────────────────────────
 
-  handleQualityReport(callId, userId, metrics) {
+  async handleQualityReport(callId, userId, metrics) {
     if (!metrics || typeof metrics !== "object") return;
 
+    // In-memory cache for quick access
     const key = `${callId}:${userId}`;
     this._qualityMetrics.set(key, {
       callId,
@@ -132,6 +133,82 @@ class WebRtcSignalingService {
       const oldest = this._qualityMetrics.keys().next().value;
       this._qualityMetrics.delete(oldest);
     }
+
+    // Persist to database
+    try {
+      await CallSession.findByIdAndUpdate(callId, {
+        $push: {
+          qualityReports: {
+            userId,
+            bitrate: metrics.bitrate,
+            packetLoss: metrics.packetLoss,
+            latency: metrics.latency,
+            jitter: metrics.jitter,
+            resolution: metrics.resolution,
+            framerate: metrics.framerate,
+            reportedAt: new Date(),
+          },
+        },
+      });
+    } catch (err) {
+      logger.debug(`[WebRTC] Failed to persist quality report for ${callId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Get aggregated quality metrics for a call.
+   */
+  async getQualityReport(callId) {
+    const call = await CallSession.findById(callId)
+      .select("qualityReports participants callType status")
+      .lean();
+
+    if (!call) {
+      const err = new Error("Call not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const reports = call.qualityReports || [];
+    if (reports.length === 0) {
+      return { callId, reports: [], summary: null };
+    }
+
+    const summary = this._aggregateQuality(reports);
+
+    return {
+      callId,
+      reports: reports.map((r) => ({
+        userId: r.userId,
+        bitrate: r.bitrate,
+        packetLoss: r.packetLoss,
+        latency: r.latency,
+        jitter: r.jitter,
+        resolution: r.resolution,
+        framerate: r.framerate,
+        reportedAt: r.reportedAt,
+      })),
+      summary,
+    };
+  }
+
+  _aggregateQuality(reports) {
+    const nums = (field) => reports.filter((r) => r[field] != null).map((r) => r[field]);
+    const avg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    const max = (arr) => arr.length > 0 ? Math.max(...arr) : null;
+    const min = (arr) => arr.length > 0 ? Math.min(...arr) : null;
+
+    return {
+      avgBitrate: avg(nums("bitrate")),
+      maxBitrate: max(nums("bitrate")),
+      avgPacketLoss: avg(nums("packetLoss")),
+      maxPacketLoss: max(nums("packetLoss")),
+      avgLatency: avg(nums("latency")),
+      maxLatency: max(nums("latency")),
+      avgJitter: avg(nums("jitter")),
+      maxJitter: max(nums("jitter")),
+      totalReports: reports.length,
+    };
   }
 
   // ── Internal Helpers ────────────────────────────────────────────────────

@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
-import { useIsMobile } from "../../hooks/use-mobile.jsx";
+import { useIsMobile, useScreenSize } from "../../hooks/use-mobile.jsx";
 
 export default function EmojiPicker({ onSelect, onClose }) {
   const ref = useRef(null);
-  const isMobileView = useIsMobile();
+  const screenSize = useScreenSize();
+  const isMobileView = screenSize === "mobile";
+  const isTabletView = screenSize === "tablet";
 
   useEffect(() => {
     const handler = (e) => {

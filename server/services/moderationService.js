@@ -4,6 +4,7 @@ import Message from "../models/message.js";
 import Chat from "../models/chat.js";
 import Participant from "../models/participant.js";
 import User from "../models/user.js";
+import Notification from "../models/notification.js";
 import AuditLog from "../models/auditLog.js";
 import { redis } from "../config/redis.js";
 import logger from "../utils/logger.js";
@@ -335,6 +336,23 @@ export class ModerationService {
     }
 
     try {
+      const statusMessages = {
+        reviewed: "Your report has been reviewed",
+        dismissed: "Your report has been dismissed",
+        resolved: "Your report has been resolved — action was taken",
+      };
+      const notifMessage = statusMessages[status] || "Your report has been updated";
+
+      await Notification.create({
+        recipient: report.reporterId,
+        sender: moderatorId,
+        type: "mention",
+        message: notifMessage,
+        read: false,
+      });
+    } catch (_) {}
+
+    try {
       await AuditLog.create({
         userId: moderatorId,
         action: "update",
@@ -363,20 +381,23 @@ export class ModerationService {
         break;
       }
       case "user_muted": {
-        if (report.targetType === "user" && report.chatId) {
-          await Participant.findOneAndUpdate(
-            { chatId: report.chatId, userId: report.targetId, isDeleted: false },
-            { muted: true, mutedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) }
-          );
-          logger.info(`[Moderation] User ${report.targetId} muted in chat ${report.chatId} for 24h`);
-        } else if (report.targetType === "message") {
-          const msg = await Message.findById(report.targetId).lean();
-          if (msg) {
+        const muteUserId = report.targetType === "user"
+          ? report.targetId
+          : (await Message.findById(report.targetId).lean())?.sender;
+
+        if (muteUserId) {
+          if (report.chatId) {
             await Participant.findOneAndUpdate(
-              { chatId: msg.chatId, userId: msg.sender, isDeleted: false },
+              { chatId: report.chatId, userId: muteUserId, isDeleted: false },
               { muted: true, mutedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) }
             );
-            logger.info(`[Moderation] User ${msg.sender} muted in chat ${msg.chatId} for 24h`);
+            logger.info(`[Moderation] User ${muteUserId} muted in chat ${report.chatId} for 24h`);
+          } else {
+            const updated = await Participant.updateMany(
+              { userId: muteUserId, isDeleted: false },
+              { muted: true, mutedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+            );
+            logger.info(`[Moderation] User ${muteUserId} muted in ${updated.modifiedCount} chats for 24h`);
           }
         }
         break;
@@ -484,6 +505,41 @@ export class ModerationService {
 
     logger.info(`[Moderation] Message ${message._id} flagged as spam: ${reasons.join(", ")}`);
     return message;
+  }
+
+  async checkContentSpam(text) {
+    if (!text || text.length < 5) return { isSpam: false };
+
+    const reasons = [];
+
+    const urlPattern = /https?:\/\/[^\s]+/gi;
+    const urls = text.match(urlPattern);
+    if (urls && urls.length >= 3) {
+      reasons.push("excessive_urls");
+    }
+
+    const shortUrlPattern = /bit\.ly|tinyurl|goo\.gl|t\.co|is\.gd|buff\.ly|ow\.ly/i;
+    if (shortUrlPattern.test(text)) {
+      reasons.push("shortened_url");
+    }
+
+    const stripped = text.replace(/https?:\/\/[^\s]+/g, "").replace(/\s+/g, "");
+    if (stripped.length >= 10) {
+      const upperCount = (stripped.match(/[A-Z]/g) || []).length;
+      const alphaCount = (stripped.match(/[a-zA-Z]/g) || []).length;
+      if (alphaCount >= 10 && upperCount / alphaCount > 0.7) {
+        reasons.push("excessive_caps");
+      }
+    }
+
+    const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/gu;
+    const emojis = text.match(emojiPattern);
+    if (emojis && emojis.length > 10) {
+      reasons.push("excessive_emojis");
+    }
+
+    if (reasons.length === 0) return { isSpam: false };
+    return { isSpam: true, reason: reasons.join(","), reasons };
   }
 }
 

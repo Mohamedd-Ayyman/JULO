@@ -467,7 +467,10 @@ export class ChatService {
       moderationService.checkSpamRateLimit(senderId, chatId)
         .then((rateResult) =>
           moderationService.checkRepeatedText(senderId, chatId, messageData.text)
-            .then((repeatResult) => moderationService.applySpamFlags(message, [rateResult, repeatResult]))
+            .then((repeatResult) =>
+              moderationService.checkContentSpam(messageData.text)
+                .then((contentResult) => moderationService.applySpamFlags(message, [rateResult, repeatResult, contentResult]))
+            )
         )
         .catch(() => {});
 
@@ -501,7 +504,10 @@ export class ChatService {
       moderationService.checkSpamRateLimit(senderId, chatId)
         .then((rateResult) =>
           moderationService.checkRepeatedText(senderId, chatId, messageData.text)
-            .then((repeatResult) => moderationService.applySpamFlags(message, [rateResult, repeatResult]))
+            .then((repeatResult) =>
+              moderationService.checkContentSpam(messageData.text)
+                .then((contentResult) => moderationService.applySpamFlags(message, [rateResult, repeatResult, contentResult]))
+            )
         )
         .catch(() => {});
 

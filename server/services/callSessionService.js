@@ -36,6 +36,9 @@ export class CallSessionService {
       leftAt: null,
       consentToRecording: false,
       consentUpdatedAt: null,
+      isMuted: false,
+      isVideoOff: false,
+      isScreenSharing: false,
     }));
 
     const call = await CallSession.create({
@@ -193,7 +196,7 @@ export class CallSessionService {
     return this._populateCall(call._id);
   }
 
-  async getCallHistory(chatId, userId, { page = 1, limit = 20, type } = {}) {
+  async getCallHistory(chatId, userId, { page = 1, limit = 20, type, callType, fromDate, toDate } = {}) {
     const chat = await Chat.findById(chatId).lean();
     if (!chat) {
       const err = new Error("Chat not found");
@@ -208,7 +211,7 @@ export class CallSessionService {
     }
 
     const skip = (Number(page) - 1) * Number(limit);
-    const query = this._buildCallHistoryQuery(chatId, userId, type);
+    const query = this._buildCallHistoryQuery(chatId, userId, { type, callType, fromDate, toDate });
 
     const [calls, total] = await Promise.all([
       CallSession.find(query)
@@ -223,16 +226,16 @@ export class CallSessionService {
     ]);
 
     return {
-      calls,
+      calls: calls.map((c) => this._formatCallHistoryItem(c, userId)),
       total,
       page: Number(page),
       pages: Math.ceil(total / Number(limit)),
     };
   }
 
-  async getUserCallHistory(userId, tenantId, { page = 1, limit = 20, type } = {}) {
+  async getUserCallHistory(userId, tenantId, { page = 1, limit = 20, type, callType, fromDate, toDate } = {}) {
     const skip = (Number(page) - 1) * Number(limit);
-    const query = this._buildCallHistoryQuery(null, userId, type);
+    const query = this._buildCallHistoryQuery(null, userId, { type, callType, fromDate, toDate });
     query["participants.userId"] = userId;
     if (tenantId) query.tenantId = tenantId;
 
@@ -244,12 +247,13 @@ export class CallSessionService {
         .populate("initiator", "firstname lastname profilepic")
         .populate("participants.userId", "firstname lastname profilepic")
         .populate("chatId", "members")
+        .populate("recordingId", "fileUrl duration status")
         .lean(),
       CallSession.countDocuments(query),
     ]);
 
     return {
-      calls,
+      calls: calls.map((c) => this._formatCallHistoryItem(c, userId)),
       total,
       page: Number(page),
       pages: Math.ceil(total / Number(limit)),
@@ -423,31 +427,90 @@ export class CallSessionService {
     return call;
   }
 
-  _buildCallHistoryQuery(chatId, userId, type) {
+  async getMissedCallCount(userId, tenantId) {
+    const query = {
+      "participants.userId": userId,
+      status: "missed",
+    };
+    if (tenantId) query.tenantId = tenantId;
+
+    const count = await CallSession.countDocuments(query);
+    return { count };
+  }
+
+  _formatCallHistoryItem(call, userId) {
+    const initiatorId = String(call.initiator?._id || call.initiator);
+    const isOutgoing = initiatorId === String(userId);
+
+    const calleeParticipant = call.participants?.find(
+      (p) => String(p.userId?._id || p.userId) !== initiatorId
+    );
+    const callee = calleeParticipant?.userId || null;
+
+    let type;
+    if (call.status === "missed") {
+      type = "missed";
+    } else {
+      type = isOutgoing ? "outgoing" : "incoming";
+    }
+
+    const statusMap = {
+      ended: "answered",
+      missed: "missed",
+      rejected: "declined",
+    };
+    const status = statusMap[call.status] || "no_answer";
+
+    const hasRecording = !!(call.recordingId);
+    const recordingUrl = call.recordingId?.fileUrl || null;
+
+    return {
+      _id: call._id,
+      chatId: call.chatId,
+      caller: call.initiator,
+      callee,
+      type,
+      status,
+      duration: call.duration || 0,
+      hasRecording,
+      recordingUrl,
+      startedAt: call.startedAt,
+      endedAt: call.endedAt,
+    };
+  }
+
+  _buildCallHistoryQuery(chatId, userId, { type, callType, fromDate, toDate } = {}) {
     const query = {};
     if (chatId) query.chatId = chatId;
 
-    if (!type) {
+    if (!type || type === "all") {
       query.status = { $in: ["ended", "missed", "rejected"] };
-      return query;
+    } else {
+      switch (type) {
+        case "missed":
+          query.status = "missed";
+          break;
+        case "incoming":
+          query.status = { $in: ["ended", "missed", "rejected"] };
+          query.initiator = { $ne: userId };
+          break;
+        case "outgoing":
+          query.status = { $in: ["ended", "missed", "rejected"] };
+          query.initiator = userId;
+          break;
+        case "recorded":
+          query.status = { $in: ["ended", "missed", "rejected"] };
+          query.recordingId = { $ne: null };
+          break;
+      }
     }
 
-    switch (type) {
-      case "missed":
-        query.status = "missed";
-        break;
-      case "incoming":
-        query.status = { $in: ["ended", "missed", "rejected"] };
-        query.initiator = { $ne: userId };
-        break;
-      case "outgoing":
-        query.status = { $in: ["ended", "missed", "rejected"] };
-        query.initiator = userId;
-        break;
-      case "recorded":
-        query.status = { $in: ["ended", "missed", "rejected"] };
-        query.recordingId = { $ne: null };
-        break;
+    if (callType) query.callType = callType;
+
+    if (fromDate || toDate) {
+      query.createdAt = {};
+      if (fromDate) query.createdAt.$gte = new Date(fromDate);
+      if (toDate) query.createdAt.$lte = new Date(toDate);
     }
 
     return query;
