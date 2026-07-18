@@ -341,7 +341,7 @@ export const messageSchema = z.object({
     url: z.string().url().optional(),
     siteName: z.string().max(200).optional(),
   }).optional().nullable(),
-  receiverId: z.string().optional(),
+  receiverId: z.string().optional().nullable(),
   encryptedContent: z.string().optional(),
   iv: z.string().optional(),
   authTag: z.string().optional(),

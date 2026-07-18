@@ -340,7 +340,16 @@ export default function ChatPage() {
     if (!msg) return;
     dispatch(markMessageSuccess({ tempId: messageId, realMessage: { ...msg, pending: true, failed: false } }));
     const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
-    const res = await sendMessage(activeChat._id, msg.text, receiverId);
+    let res;
+    if (msg.audioUrl) {
+      res = await sendAudioMessage(activeChat._id, msg.audioUrl, msg.audioDuration, receiverId);
+    } else if (msg.imageUrl) {
+      res = await sendImageMessage(activeChat._id, msg.imageUrl, msg.text || "", receiverId);
+    } else if (msg.fileUrl) {
+      res = await sendFileMessage(activeChat._id, msg.fileUrl, msg.fileName, msg.fileSize, msg.mimeType, msg.text || "", receiverId);
+    } else {
+      res = await sendMessage(activeChat._id, msg.text, receiverId);
+    }
     if (res.success && socket) {
       socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
       dispatch(markMessageSuccess({ tempId: messageId, realMessage: res.data }));
