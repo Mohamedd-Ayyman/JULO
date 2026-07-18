@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ROUTES } from "../lib/constants.js";
 import { logout } from "../redux/usersSlice.js";
+import { selectTotalUnreadMessages } from "../redux/chatSlice.js";
 import Logo from "./Logo.jsx";
 import Avatar from "./Avatar.jsx";
 
@@ -34,6 +35,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const { user } = useSelector((s) => s.userReducer);
   const { unreadCount } = useSelector((s) => s.notificationReducer);
+  const totalUnread = useSelector(selectTotalUnreadMessages);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -84,6 +86,18 @@ export function Sidebar() {
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
+              {label === "Messages" && totalUnread > 0 && (
+                <span
+                  className="ml-auto font-mono text-[10px] font-bold px-1.5 py-0.5"
+                  style={{
+                    background: "var(--riso-red)",
+                    color: "var(--paper)",
+                    borderRadius: "var(--r-pill)",
+                  }}
+                >
+                  {totalUnread > 99 ? "99+" : totalUnread > 9 ? "9+" : totalUnread}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -127,6 +141,7 @@ export function Sidebar() {
 /* ─── Mobile bottom nav ────────────────────────────────────────────────── */
 export function MobileNav() {
   const { pathname } = useLocation();
+  const totalUnread = useSelector(selectTotalUnreadMessages);
   const items = [
     { to: ROUTES.HOME, icon: Home, label: "Home" },
     { to: ROUTES.EXPLORE, icon: Compass, label: "Explore" },
@@ -154,6 +169,19 @@ export function MobileNav() {
                 strokeWidth={active ? 2.6 : 2}
                 style={active ? { transform: "translateY(-2px)" } : undefined}
               />
+              {label === "Chat" && totalUnread > 0 && (
+                <span
+                  className="absolute top-0.5 right-1/2 translate-x-3 font-mono text-[8px] font-bold px-1 py-px"
+                  style={{
+                    background: "var(--riso-red)",
+                    color: "var(--paper)",
+                    borderRadius: "var(--r-pill)",
+                    lineHeight: "14px",
+                  }}
+                >
+                  {totalUnread > 99 ? "99+" : totalUnread > 9 ? "9+" : totalUnread}
+                </span>
+              )}
               <span
                 className="text-[10px] font-sans"
                 style={{ opacity: active ? 1 : 0.6 }}

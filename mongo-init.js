@@ -1,13 +1,13 @@
 # ── MongoDB init script (runs on first boot) ───────────────────────────────────
-db = db.getSiblingDB("nuvora");
+db = db.getSiblingDB("julo");
 
 // Create application user with read-write access
 db.createUser({
-  user: "nuvora",
-  pwd: "nuvora_secure_pass",
+  user: "julo",
+  pwd: "julo_secure_pass",
   roles: [
-    { role: "readWrite", db: "nuvora" },
-    { role: "dbAdmin", db: "nuvora" },
+    { role: "readWrite", db: "julo" },
+    { role: "dbAdmin", db: "julo" },
   ],
 });
 

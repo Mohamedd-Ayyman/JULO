@@ -96,6 +96,16 @@ app.use("/api", rateLimit({
   message: { success: false, message: "Too many requests, please try again later.", statusCode: 429 },
 }));
 
+// ICE endpoint — stricter limit since TURN creds are expensive to generate
+app.use("/api/ice", rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipOptions,
+  message: { success: false, message: "Too many ICE requests, please try again later.", statusCode: 429 },
+}));
+
 // ── 11. API v1 router ─────────────────────────────────────────────────
 const v1 = express.Router();
 
@@ -120,6 +130,19 @@ import notificationRouter from "./controllers/notificationController.js";
 import uploadRouter from "./controllers/uploadController.js";
 import billingRouter from "./controllers/billingController.js";
 import storyRouter from "./controllers/storyController.js";
+import consentRouter from "./controllers/consentController.js";
+import auditRouter from "./controllers/auditController.js";
+import recordingRouter from "./controllers/recordingController.js";
+import callSessionRouter from "./controllers/callSessionController.js";
+import keyExchangeRouter from "./controllers/keyExchangeController.js";
+import encryptionSessionRouter from "./controllers/encryptionSessionController.js";
+import linkPreviewRouter from "./controllers/linkPreviewController.js";
+import participantRouter from "./controllers/participantController.js";
+import mediaRouter from "./controllers/mediaController.js";
+import pushRouter from "./controllers/pushController.js";
+import presenceRouter from "./controllers/presenceController.js";
+import moderationRouter from "./controllers/moderationController.js";
+import iceRouter from "./controllers/iceController.js";
 import { stripeWebhookController } from "./controllers/stripeWebhookController.js";
 
 v1.use("/auth", authRouter);
@@ -132,6 +155,19 @@ v1.use("/notification", notificationRouter);
 v1.use("/upload", uploadRouter);
 v1.use("/billing", billingRouter);
 v1.use("/stories", storyRouter);
+v1.use("/consent", consentRouter);
+v1.use("/audit", auditRouter);
+v1.use("/recordings", recordingRouter);
+v1.use("/calls", callSessionRouter);
+v1.use("/link-preview", linkPreviewRouter);
+v1.use("/keys", keyExchangeRouter);
+v1.use("/encryption", encryptionSessionRouter);
+v1.use("/participants", participantRouter);
+v1.use("/media", mediaRouter);
+v1.use("/push", pushRouter);
+v1.use("/presence", presenceRouter);
+v1.use("/moderation", moderationRouter);
+v1.use("/ice", iceRouter);
 
 // Stripe webhook — raw body already parsed at step 4
 app.post("/webhooks/stripe", stripeWebhookController);

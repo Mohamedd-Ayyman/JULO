@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, Users, Bell, Search, Sparkles } from "lucide-react";
+import { MessageSquare, Users, Bell, Search, Sparkles, PhoneOff } from "lucide-react";
 import Sticker from "./ui-brutal/Sticker.jsx";
 
 function Empty({ icon: Icon, title, desc, badge }) {
@@ -47,4 +47,7 @@ export const EmptyCommentsState = () => (
 );
 export const EmptyProfilePostsState = () => (
   <Empty icon={Users} title="No clippings." desc="Posts will be archived here." />
+);
+export const EmptyCallHistoryState = () => (
+  <Empty icon={PhoneOff} title="No calls yet." desc="Start a voice or video call to see your history here." />
 );

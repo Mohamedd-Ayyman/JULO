@@ -118,16 +118,93 @@ describe("Message Routes", () => {
 
   // ── GET /api/message/retrieve-chat/:chatId ────────────────────────────────────
   describe("GET /api/message/retrieve-chat/:chatId", () => {
-    it("returns 200 with paginated messages", async () => {
+    it("returns 200 with cursor-paginated messages", async () => {
       const res = await request(app)
-        .get(`/api/message/retrieve-chat/${chatId}?page=1&limit=50`)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=50`)
         .set("Authorization", `Bearer ${aliceToken}`);
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body.data.length).toBeGreaterThan(0);
-      expect(typeof res.body.total).toBe("number");
+      expect(res.body.data.messages).toBeDefined();
+      expect(Array.isArray(res.body.data.messages)).toBe(true);
+      expect(res.body.data.messages.length).toBeGreaterThan(0);
+      expect(typeof res.body.data.hasMore).toBe("boolean");
+    });
+
+    it("returns correct cursor fields on first page", async () => {
+      const res = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=5`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      const { messages, nextCursor, prevCursor, hasMore } = res.body.data;
+      expect(messages.length).toBeLessThanOrEqual(5);
+      expect(prevCursor).toBeNull();
+      if (messages.length === 5) {
+        expect(typeof nextCursor).toBe("string");
+        expect(hasMore).toBe(true);
+      } else {
+        expect(nextCursor).toBeNull();
+        expect(hasMore).toBe(false);
+      }
+    });
+
+    it("fetches older messages using nextCursor", async () => {
+      const page1 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      const { nextCursor } = page1.body.data;
+      expect(nextCursor).toBeDefined();
+
+      const page2 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?cursor=${nextCursor}&limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(page2.status).toBe(200);
+      expect(page2.body.data.messages.length).toBeGreaterThan(0);
+      expect(page2.body.data.messages[0]._id).not.toBe(page1.body.data.messages[0]._id);
+    });
+
+    it("fetches newer messages using prevCursor + direction=forward", async () => {
+      const page1 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      const { nextCursor } = page1.body.data;
+      const page2 = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?cursor=${nextCursor}&limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      const { prevCursor } = page2.body.data;
+      expect(prevCursor).toBeDefined();
+
+      const page2Forward = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?cursor=${prevCursor}&direction=forward&limit=2`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(page2Forward.status).toBe(200);
+      expect(page2Forward.body.data.messages.length).toBeGreaterThan(0);
+      expect(page2Forward.body.data.messages[0]._id).toBe(page1.body.data.messages[0]._id);
+    });
+
+    it("returns hasMore=false when no more messages", async () => {
+      const res = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=100`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.hasMore).toBe(false);
+      expect(res.body.data.nextCursor).toBeNull();
+    });
+
+    it("caps limit at 100", async () => {
+      const res = await request(app)
+        .get(`/api/message/retrieve-chat/${chatId}?limit=999`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.messages.length).toBeLessThanOrEqual(100);
     });
 
     it("returns 403 for non-member", async () => {
@@ -267,6 +344,191 @@ describe("Message Routes", () => {
         .send({ chatId });
 
       expect(res.status).toBe(403);
+    });
+  });
+
+  // ── Message Status ────────────────────────────────────────────────────────
+  describe("Message status field", () => {
+    it("sets status to 'sent' on new message", async () => {
+      const res = await request(app)
+        .post("/api/message/new-message")
+        .set("Authorization", `Bearer ${aliceToken}`)
+        .send({ chatId, text: "Status test message" });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.status).toBe("sent");
+    });
+  });
+
+  // ── POST /api/chat/:chatId/messages/:messageId/deliver ─────────────────────
+  describe("POST /api/chat/:chatId/messages/:messageId/deliver", () => {
+    let messageId;
+
+    beforeAll(async () => {
+      const msgRes = await request(app)
+        .post("/api/message/new-message")
+        .set("Authorization", `Bearer ${aliceToken}`)
+        .send({ chatId, text: "Delivery receipt test" });
+      messageId = msgRes.body.data._id;
+    });
+
+    it("marks message as delivered", async () => {
+      const res = await request(app)
+        .post(`/api/chat/${chatId}/messages/${messageId}/deliver`)
+        .set("Authorization", `Bearer ${bobToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.status).toBe("delivered");
+      expect(res.body.data.deliveredTo.length).toBeGreaterThan(0);
+    });
+
+    it("does not double-deliver", async () => {
+      const res = await request(app)
+        .post(`/api/chat/${chatId}/messages/${messageId}/deliver`)
+        .set("Authorization", `Bearer ${bobToken}`);
+
+      expect(res.status).toBe(200);
+      const deliveredCount = res.body.data.deliveredTo.filter(
+        (d) => d.userId === bobId
+      ).length;
+      expect(deliveredCount).toBe(1);
+    });
+
+    it("sender delivery is a no-op (returns message unchanged)", async () => {
+      const res = await request(app)
+        .post(`/api/chat/${chatId}/messages/${messageId}/deliver`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+    });
+
+    it("returns 403 for non-member", async () => {
+      const hashed = await bcrypt.hash("DeliverStranger1", 12);
+      const stranger = await User.create({ firstname: "Del", lastname: "Stranger", email: "deliverstranger@example.com", password: hashed });
+      const loginRes = await request(app).post("/api/auth/login").send({ email: "deliverstranger@example.com", password: "DeliverStranger1" });
+
+      const res = await request(app)
+        .post(`/api/chat/${chatId}/messages/${messageId}/deliver`)
+        .set("Authorization", `Bearer ${loginRes.body.token}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ── POST /api/chat/:chatId/messages/batch-deliver ──────────────────────────
+  describe("POST /api/chat/:chatId/messages/batch-deliver", () => {
+    let messageIds;
+
+    beforeAll(async () => {
+      const msgs = await Promise.all([
+        request(app)
+          .post("/api/message/new-message")
+          .set("Authorization", `Bearer ${aliceToken}`)
+          .send({ chatId, text: "Batch deliver 1" }),
+        request(app)
+          .post("/api/message/new-message")
+          .set("Authorization", `Bearer ${aliceToken}`)
+          .send({ chatId, text: "Batch deliver 2" }),
+      ]);
+      messageIds = msgs.map((m) => m.body.data._id);
+    });
+
+    it("marks multiple messages as delivered", async () => {
+      const res = await request(app)
+        .post(`/api/chat/${chatId}/messages/batch-deliver`)
+        .set("Authorization", `Bearer ${bobToken}`)
+        .send({ messageIds, chatId });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.length).toBe(2);
+      for (const item of res.body.data) {
+        expect(item.status).toBe("ok");
+        expect(item.messageStatus).toBe("delivered");
+      }
+    });
+
+    it("returns 400 when messageIds is empty", async () => {
+      const res = await request(app)
+        .post(`/api/chat/${chatId}/messages/batch-deliver`)
+        .set("Authorization", `Bearer ${bobToken}`)
+        .send({ messageIds: [], chatId });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  // ── GET /api/chat/:chatId/messages/:messageId/receipts ─────────────────────
+  describe("GET /api/chat/:chatId/messages/:messageId/receipts", () => {
+    let messageId;
+
+    beforeAll(async () => {
+      const msgRes = await request(app)
+        .post("/api/message/new-message")
+        .set("Authorization", `Bearer ${aliceToken}`)
+        .send({ chatId, text: "Receipt detail test" });
+      messageId = msgRes.body.data._id;
+
+      await request(app)
+        .post(`/api/chat/${chatId}/messages/${messageId}/deliver`)
+        .set("Authorization", `Bearer ${bobToken}`);
+
+      await request(app)
+        .put("/api/message/mark-read")
+        .set("Authorization", `Bearer ${bobToken}`)
+        .send({ chatId });
+    });
+
+    it("returns delivery and read receipt details", async () => {
+      const res = await request(app)
+        .get(`/api/chat/${chatId}/messages/${messageId}/receipts`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.messageId).toBe(messageId);
+      expect(res.body.data.deliveredTo.length).toBeGreaterThan(0);
+      expect(res.body.data.readBy.length).toBeGreaterThan(0);
+      expect(res.body.data.deliveredTo[0].user).toBeDefined();
+      expect(res.body.data.readBy[0].user).toBeDefined();
+    });
+
+    it("returns 403 for non-member", async () => {
+      const hashed = await bcrypt.hash("ReceiptStranger1", 12);
+      const stranger = await User.create({ firstname: "Receipt", lastname: "Stranger", email: "receiptstranger@example.com", password: hashed });
+      const loginRes = await request(app).post("/api/auth/login").send({ email: "receiptstranger@example.com", password: "ReceiptStranger1" });
+
+      const res = await request(app)
+        .get(`/api/chat/${chatId}/messages/${messageId}/receipts`)
+        .set("Authorization", `Bearer ${loginRes.body.token}`);
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ── GET /api/chat/users/:userId/last-seen ──────────────────────────────────
+  describe("GET /api/chat/users/:userId/last-seen", () => {
+    it("returns last seen info for a user", async () => {
+      const res = await request(app)
+        .get(`/api/chat/users/${bobId}/last-seen`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.userId).toBe(bobId);
+      expect(typeof res.body.data.isOnline).toBe("boolean");
+      expect(res.body.data).toHaveProperty("lastSeen");
+      expect(typeof res.body.data.showOnlineStatus).toBe("boolean");
+    });
+
+    it("returns 404 for non-existent user", async () => {
+      const fakeId = "000000000000000000000000";
+      const res = await request(app)
+        .get(`/api/chat/users/${fakeId}/last-seen`)
+        .set("Authorization", `Bearer ${aliceToken}`);
+
+      expect(res.status).toBe(404);
     });
   });
 });

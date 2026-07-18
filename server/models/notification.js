@@ -28,6 +28,9 @@ const notificationSchema = new mongoose.Schema(
         "follow",
         "mention",
         "share",
+        "chat_mention",
+        "thread_reply",
+        "message_reaction",
       ],
       required: true,
     },
@@ -41,12 +44,22 @@ const notificationSchema = new mongoose.Schema(
       ref: "comments",
       default: null,
     },
+    chat: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "chats",
+      default: null,
+    },
+    messageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "messages",
+      default: null,
+    },
     read: {
       type: Boolean,
       default: false,
     },
     message: {
-      type: String, // human-readable text
+      type: String,
       default: null,
     },
   },

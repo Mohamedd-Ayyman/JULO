@@ -1,7 +1,7 @@
 import express from "express";
 import streamifier from "streamifier";
 import { requireAuth } from "../middlewares/authMiddleware.js";
-import { upload } from "../middlewares/upload.js";
+import { upload, uploadAudio, uploadChatFile } from "../middlewares/upload.js";
 import cloudinary from "../config/cloudinary.js";
 import User from "../models/user.js";
 import { asyncHandler, AppError } from "../utils/AppError.js";
@@ -157,6 +157,79 @@ router.post(
     }
 
     res.send({ success: true, url: mediaUrl, mediaType: req.file.mimetype?.startsWith("video") ? "video" : "image", statusCode: 201 });
+  })
+);
+
+/**
+ * POST /api/upload/audio
+ *
+ * Uploads an audio file (voice messages, recordings).
+ * Returns URL, file size, and MIME type.
+ */
+router.post(
+  "/audio",
+  requireAuth,
+  uploadAudio.single("audio"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new AppError("No audio file provided", 400);
+
+    let audioUrl;
+    if (req.file.path) {
+      audioUrl = req.file.path;
+    } else if (isCloudinaryConfigured) {
+      const result = await uploadToCloudinary(req.file.buffer, {
+        resource_type: "video",
+      });
+      audioUrl = result.secure_url;
+    } else {
+      throw new AppError("Audio upload requires Cloudinary configuration", 500);
+    }
+
+    const responseData = {
+      success: true,
+      url: audioUrl,
+      fileSize: req.file.size || 0,
+      mimeType: req.file.mimetype || "audio/webm",
+      message: "Audio uploaded",
+      statusCode: 201,
+    };
+
+    res.send(responseData);
+  })
+);
+
+/**
+ * POST /api/upload/chat-image
+ *
+ * Uploads a chat attachment (image or file).
+ * Returns URL, filename, file size, and MIME type.
+ */
+router.post(
+  "/chat-image",
+  requireAuth,
+  uploadChatFile.single("file"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new AppError("No file provided", 400);
+
+    let fileUrl;
+    if (req.file.path) {
+      fileUrl = req.file.path;
+    } else if (isCloudinaryConfigured) {
+      const result = await uploadToCloudinary(req.file.buffer);
+      fileUrl = result.secure_url;
+    } else {
+      throw new AppError("File upload requires Cloudinary configuration", 500);
+    }
+
+    res.status(201).send({
+      success: true,
+      url: fileUrl,
+      fileName: req.file.originalname || "file",
+      fileSize: req.file.size || 0,
+      mimeType: req.file.mimetype || "application/octet-stream",
+      message: "File uploaded",
+      statusCode: 201,
+    });
   })
 );
 

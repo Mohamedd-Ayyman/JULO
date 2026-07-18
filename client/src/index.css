@@ -417,3 +417,393 @@
 
 .glass { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 .glass-subtle { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+/* ─── Message bubble tails ─────────────────────────────────────────── */
+.msg-tail-sent {
+  position: relative;
+}
+.msg-tail-sent::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: -5px;
+  width: 10px;
+  height: 16px;
+  background: var(--ink);
+  clip-path: polygon(0 0, 0% 100%, 100% 100%);
+}
+
+.msg-tail-received {
+  position: relative;
+}
+.msg-tail-received::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  height: 16px;
+  background: var(--paper-2);
+  clip-path: polygon(100% 0, 0% 100%, 100% 100%);
+}
+
+/* ─── Context menu animation ───────────────────────────────────────── */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scaleIn 120ms var(--ease-out) both;
+}
+
+/* ─── Chat mobile transitions ──────────────────────────────────────── */
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes slideOutToRight {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes slideInFromLeft {
+  from { transform: translateX(-30%); opacity: 0.6; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOutToLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-30%); opacity: 0.6; }
+}
+@keyframes slideInFromBottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes slideOutToBottom {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+.animate-slide-in-right  { animation: slideInFromRight 320ms var(--ease-out) both; }
+.animate-slide-out-right { animation: slideOutToRight 320ms var(--ease-out) both; }
+.animate-slide-in-left   { animation: slideInFromLeft 320ms var(--ease-out) both; }
+.animate-slide-out-left  { animation: slideOutToLeft 320ms var(--ease-out) both; }
+.animate-slide-in-bottom { animation: slideInFromBottom 280ms var(--ease-out) both; }
+.animate-slide-out-bottom{ animation: slideOutToBottom 280ms var(--ease-out) both; }
+
+.chat-slide-enter  { transform: translateX(100%); }
+.chat-slide-active { transform: translateX(0); transition: transform 320ms var(--ease-out); }
+.chat-slide-exit   { transform: translateX(-30%); opacity: 0.6; transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
+
+.chat-list-active  { transform: translateX(0); transition: transform 320ms var(--ease-out); }
+.chat-list-exit    { transform: translateX(-30%); opacity: 0.6; transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
+.chat-list-enter   { transform: translateX(-30%); opacity: 0.6; }
+.chat-list-restore { transform: translateX(0); transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
+
+/* ─── Chat responsive layout ────────────────────────────────────────── */
+
+.chat-container {
+  display: flex;
+  height: calc(100dvh - 3.5rem - 4.5rem);
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .chat-container {
+    height: 100vh;
+  }
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--paper-2);
+  flex-shrink: 0;
+  min-height: 56px;
+}
+
+.chat-composer {
+  flex-shrink: 0;
+}
+
+/* Mobile: ensure full-width panels stack properly */
+@media (max-width: 767px) {
+  .chat-container > aside,
+  .chat-container > section {
+    position: absolute;
+    inset: 0;
+  }
+
+  .chat-container > aside {
+    z-index: 10;
+  }
+
+  .chat-container > section {
+    z-index: 20;
+  }
+
+  /* Larger touch targets on mobile */
+  .brutal-btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Prevent iOS zoom on input focus */
+  .chat-composer input[type="text"],
+  .chat-composer input:not([type]) {
+    font-size: 16px !important;
+  }
+
+  /* Safe area padding for notched devices */
+  .chat-composer {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .chat-header {
+    padding-top: max(12px, env(safe-area-inset-top, 0));
+  }
+
+  /* Thread panel takes full screen on mobile */
+  .thread-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+  }
+}
+
+/* Tablet: show narrower sidebar + conversation side by side */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .chat-container > aside {
+    flex-shrink: 0;
+  }
+
+  .chat-container > section {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+/* Desktop: standard two-panel with optional thread */
+@media (min-width: 1024px) {
+  .chat-container > section {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+/* Wide screens: cap conversation max-width for readability */
+@media (min-width: 1400px) {
+  .chat-container > section {
+    max-width: 900px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .chat-container .animate-slide-in-right,
+  .chat-container .animate-slide-in-left,
+  .chat-container .animate-fade-in {
+    animation: none !important;
+  }
+}
+
+/* ─── Call animations ────────────────────────────────────────────────── */
+@keyframes ringPulse {
+  0%   { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes callBounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+@keyframes callRingShake {
+  0%, 100% { transform: rotate(0deg); }
+  10%      { transform: rotate(12deg); }
+  20%      { transform: rotate(-10deg); }
+  30%      { transform: rotate(8deg); }
+  40%      { transform: rotate(-6deg); }
+  50%      { transform: rotate(0deg); }
+}
+
+.ring-pulse     { animation: ringPulse 1.4s var(--ease-out) infinite; }
+.ring-pulse-delay { animation: ringPulse 1.4s var(--ease-out) 0.4s infinite; }
+.ring-pulse-delay-2 { animation: ringPulse 1.4s var(--ease-out) 0.8s infinite; }
+.call-bounce    { animation: callBounce 1.2s ease-in-out infinite; }
+.call-ring-shake { animation: callRingShake 1s ease-in-out infinite; }
+
+.reduced-motion .ring-pulse,
+.reduced-motion .ring-pulse-delay,
+.reduced-motion .ring-pulse-delay-2,
+.reduced-motion .call-bounce,
+.reduced-motion .call-ring-shake {
+  animation: none !important;
+}
+
+/* ─── Voice call overlay ──────────────────────────────────────────── */
+@keyframes callWave {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes callGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184, 201, 138, 0.3); }
+  50%      { box-shadow: 0 0 24px 8px rgba(184, 201, 138, 0.15); }
+}
+@keyframes callPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.call-overlay-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, var(--paper-2) 0%, var(--paper) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.call-overlay-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.call-avatar-ring {
+  position: relative;
+  border-radius: 50%;
+  padding: 4px;
+  animation: callPulse 2s ease-in-out infinite;
+}
+.call-avatar-ring::before,
+.call-avatar-ring::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: callWave 2s ease-out infinite;
+}
+.call-avatar-ring::after {
+  animation-delay: 0.7s;
+}
+
+.call-avatar-ring-active {
+  position: relative;
+  border-radius: 50%;
+  padding: 4px;
+  animation: callGlow 3s ease-in-out infinite;
+}
+
+.call-ring-indicator {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.call-ring-wave {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: callWave 2s ease-out infinite;
+}
+.call-ring-wave-2 { animation-delay: 0.6s; }
+.call-ring-wave-3 { animation-delay: 1.2s; }
+
+/* ─── Control buttons ─────────────────────────────────────────────── */
+.call-control-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.call-control-btn:hover {
+  transform: scale(1.08);
+}
+.call-control-btn:active {
+  transform: scale(0.95);
+}
+
+.call-control-btn-accept {
+  background: var(--accent);
+  color: #1b1a22;
+  box-shadow: 0 4px 24px rgba(184, 201, 138, 0.35);
+}
+.call-control-btn-accept:hover {
+  box-shadow: 0 6px 32px rgba(184, 201, 138, 0.5);
+}
+
+.call-control-btn-reject,
+.call-control-btn-end {
+  background: var(--riso-red);
+  color: #fff;
+  box-shadow: 0 4px 24px rgba(217, 122, 108, 0.35);
+}
+.call-control-btn-reject:hover,
+.call-control-btn-end:hover {
+  box-shadow: 0 6px 32px rgba(217, 122, 108, 0.5);
+}
+
+.call-control-btn-toggle {
+  background: var(--paper-3);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.call-control-btn-toggle:hover {
+  background: var(--paper-2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.call-control-btn-muted {
+  background: var(--riso-red);
+  color: #fff;
+}
+.call-control-btn-muted:hover {
+  box-shadow: 0 4px 16px rgba(217, 122, 108, 0.4);
+}
+
+.call-control-btn-speaker-on {
+  background: var(--accent);
+  color: #1b1a22;
+}
+.call-control-btn-speaker-on:hover {
+  box-shadow: 0 4px 16px rgba(184, 201, 138, 0.4);
+}
+
+.call-control-btn-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.call-control-btn-sm:hover { transform: scale(1.1); }
+.call-control-btn-sm:active { transform: scale(0.95); }
+.call-control-btn-ghost {
+  background: var(--paper-3);
+  color: var(--ink);
+}

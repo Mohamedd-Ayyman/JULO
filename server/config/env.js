@@ -37,7 +37,23 @@ export const config = {
   // ── File uploads ───────────────────────────────────────────────────────────
   upload: {
     maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxChatFileSize: 50 * 1024 * 1024, // 50MB
+    maxChatFiles: 10,
     allowedMimeTypes: ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"],
+    chatImageMimes: ["image/jpeg", "image/png", "image/gif", "image/webp"],
+    chatAudioMimes: ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/webm", "audio/ogg", "audio/wav", "audio/x-m4a", "audio/aac", "audio/flac"],
+    chatFileMimes: [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "text/plain",
+      "text/csv",
+    ],
+    signedUrlTtl: 3600,
   },
 
   // ── Rate limits ────────────────────────────────────────────────────────────
@@ -64,6 +80,13 @@ export const config = {
     storiesFeed: 30,
   },
 
+  // ── Firebase / Push Notifications ─────────────────────────────────────────
+  firebase: {
+    FCM_PROJECT_ID: process.env.FCM_PROJECT_ID || "",
+    FCM_PRIVATE_KEY: process.env.FCM_PRIVATE_KEY || "",
+    FCM_CLIENT_EMAIL: process.env.FCM_CLIENT_EMAIL || "",
+  },
+
   // ── Stripe ────────────────────────────────────────────────────────────────
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || "",
@@ -78,6 +101,22 @@ export const config = {
     notificationConcurrency: 5,
     emailConcurrency: 3,
     storyConcurrency: 3,
+  },
+
+  // ── TURN / STUN (WebRTC media) ──────────────────────────────────────────────
+  turn: {
+    enabled: process.env.TURN_ENABLED !== "false",
+    secret: process.env.TURN_SECRET || "",
+    realm: process.env.TURN_REALM || "julo.app",
+    credentialTtl: Number(process.env.TURN_EXPIRES) || 86400,
+    turnUrls: (process.env.TURN_URL || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    stunUrls: (process.env.STUN_URL || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 
   // ── Circuit breaker defaults ───────────────────────────────────────────────
