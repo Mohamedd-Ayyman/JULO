@@ -110,9 +110,9 @@ export default function ChatPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [activeThread, setActiveThread] = useState(null);
   const [showChatMenu, setShowChatMenu] = useState(false);
@@ -170,6 +170,7 @@ export default function ChatPage() {
     }
     setCurrentPage(1);
     setHasMore(true);
+    setNextCursor(null);
     setLoadingOlder(false);
     setReplyToMessage(null);
     setActiveThread(null);
@@ -192,11 +193,12 @@ export default function ChatPage() {
     setMsgError(null);
     (async () => {
       try {
-        const res = await getMessages(activeChat._id, 1, 30);
+        const res = await getMessages(activeChat._id, { limit: 30 });
         if (cancelled) return;
         if (res.success) {
-          dispatch(setActiveChat({ ...activeChat, messages: (res.data || []).reverse() }));
-          setHasMore(res.page < res.pages);
+          dispatch(setActiveChat({ ...activeChat, messages: (res.data?.messages || []).reverse() }));
+          setHasMore(res.data?.hasMore || false);
+          setNextCursor(res.data?.nextCursor || null);
           setCurrentPage(1);
           setMsgError(null);
         } else {
@@ -361,18 +363,17 @@ export default function ChatPage() {
   };
 
   const loadOlderMessages = useCallback(async () => {
-    if (!activeChat?._id || loadingOlder || !hasMore) return;
+    if (!activeChat?._id || loadingOlder || !hasMore || !nextCursor) return;
     setLoadingOlder(true);
     const el = scrollRef.current;
     const prevHeight = el?.scrollHeight || 0;
-    const nextPage = currentPage + 1;
     try {
-      const res = await getMessages(activeChat._id, nextPage, 30);
-      if (res.success && res.data?.length) {
-        const older = (res.data || []).reverse();
+      const res = await getMessages(activeChat._id, { cursor: nextCursor, limit: 30 });
+      if (res.success && res.data?.messages?.length) {
+        const older = res.data.messages.reverse();
         dispatch(prependMessages({ chatId: activeChat._id, messages: older }));
-        setCurrentPage(nextPage);
-        setHasMore(nextPage < res.pages);
+        setHasMore(res.data.hasMore || false);
+        setNextCursor(res.data.nextCursor || null);
       } else {
         setHasMore(false);
       }
@@ -386,7 +387,7 @@ export default function ChatPage() {
       }
       setLoadingOlder(false);
     });
-  }, [activeChat?._id, currentPage, hasMore, loadingOlder, dispatch]);
+  }, [activeChat?._id, nextCursor, hasMore, loadingOlder, dispatch]);
 
   const loadOlderRef = useRef(loadOlderMessages);
   loadOlderRef.current = loadOlderMessages;
