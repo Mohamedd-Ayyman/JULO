@@ -95,7 +95,7 @@ export default function useCall() {
     }
   }, []);
 
-  const initiate = useCallback(async (chatId, type = "audio") => {
+  const initiate = useCallback(async (chatId, type = "audio", callee = {}) => {
     await webrtc.fetchIceConfig();
 
     const stream = await media.getLocalStream(type === "video");
@@ -104,9 +104,23 @@ export default function useCall() {
 
     const res = await initiateCall(chatId, type);
     if (res.success && res.data) {
-      callIdRef.current = res.data._id || res.data.callId;
-      dispatch(setOutgoingCall(res.data));
+      const callId = res.data._id || res.data.callId;
+      callIdRef.current = callId;
+      dispatch(setOutgoingCall({
+        ...res.data,
+        callId,
+        chatId,
+        callType: type,
+        calleeId: callee.calleeId,
+        calleeName: callee.calleeName,
+        calleeAvatar: callee.calleeAvatar,
+      }));
       socket?.emit(SOCKET_EVENTS.CALL_INITIATE, { chatId, callType: type });
+
+      // Start the WebRTC offer to the callee so the call actually connects.
+      if (callee.calleeId && socket) {
+        webrtc.createOffer(callee.calleeId);
+      }
     }
     return res;
   }, [dispatch, socket, media, webrtc]);

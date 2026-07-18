@@ -12,7 +12,9 @@ export default function AudioMessage({ audioUrl, duration: totalDuration, isMine
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(totalDuration || 0);
+  // Guard against non-finite durations (e.g. legacy messages stored as Infinity).
+  const safeTotal = Number.isFinite(totalDuration) ? totalDuration : 0;
+  const [duration, setDuration] = useState(safeTotal);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -20,7 +22,8 @@ export default function AudioMessage({ audioUrl, duration: totalDuration, isMine
     if (!el) return;
 
     const onLoaded = () => {
-      setDuration(el.duration || totalDuration || 0);
+      const d = Number.isFinite(el.duration) ? el.duration : safeTotal;
+      setDuration(d || 0);
       setReady(true);
     };
     const onTime = () => setCurrentTime(el.currentTime);
@@ -56,14 +59,15 @@ export default function AudioMessage({ audioUrl, duration: totalDuration, isMine
   const handleSeek = useCallback(
     (ratio) => {
       const el = audioRef.current;
-      if (!el || !duration) return;
-      el.currentTime = ratio * duration;
+      if (!el || !(duration > 0)) return;
+      const clamped = Math.min(Math.max(ratio, 0), 1);
+      el.currentTime = clamped * duration;
       setCurrentTime(el.currentTime);
     },
     [duration]
   );
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const progress = duration > 0 ? Math.min(Math.max(currentTime / duration, 0), 1) : 0;
 
   const playedColor = isMine ? "var(--paper)" : "var(--acid)";
   const unplayedColor = isMine ? "rgba(236,230,216,0.3)" : "var(--ink-soft)";

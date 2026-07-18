@@ -133,6 +133,9 @@ export async function initSocket(httpServer) {
       logger.debug(`[Socket] send_message from ${socket.userId} to chat:${chatId}`, { requestId });
 
       try {
+        const { default: User } = await import("../models/user.js");
+        User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() }).exec().catch(() => {});
+
         const { default: Chat } = await import("../models/chat.js");
         const chat = await Chat.findById(chatId).lean();
         if (!chat || !chat.members.some((m) => String(m) === String(socket.userId))) {
@@ -244,6 +247,9 @@ export async function initSocket(httpServer) {
       if (!chatId) return;
 
       try {
+        const { default: User } = await import("../models/user.js");
+        User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() }).exec().catch(() => {});
+
         const { default: chatService } = await import("../services/chatService.js");
         await chatService.markRead(chatId, socket.userId);
 
@@ -335,7 +341,7 @@ export async function initSocket(httpServer) {
     });
 
     // ── Presence sync ───────────────────────────────────────────────────
-    socket.on("sync_presence", () => {
+    socket.on("presence_sync", () => {
       socket.emit("presence_sync", {
         userId: socket.userId,
         isOnline: true,
@@ -362,14 +368,41 @@ export async function initSocket(httpServer) {
           callType || "audio"
         );
 
-        io.to(`chat:${chatId}`).emit("call_invite", {
+        // Resolve the initiator's display info so the receiver isn't shown "Unknown".
+        let caller = null;
+        try {
+          const { default: User } = await import("../models/user.js");
+          const u = await User.findById(socket.userId).select("firstname lastname profilepic").lean();
+          if (u) caller = { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic };
+        } catch (_) {}
+
+        const invitePayload = {
           callId: call._id,
           initiator: call.initiator,
+          caller,
+          callerName: caller ? `${caller.firstname || ""} ${caller.lastname || ""}`.trim() : undefined,
+          callerAvatar: caller?.profilepic,
           callType: call.callType,
           participants: call.participants,
           status: "ringing",
           createdAt: call.createdAt,
-        });
+        };
+
+        io.to(`chat:${chatId}`).emit("call_invite", invitePayload);
+
+        // Also deliver to each recipient's personal room so the invite arrives
+        // even if they aren't currently joined to the chat room (mirrors how
+        // messages are delivered).
+        try {
+          const { default: Chat } = await import("../models/chat.js");
+          const chatDoc = await Chat.findById(chatId).lean();
+          if (chatDoc?.members?.length) {
+            for (const m of chatDoc.members) {
+              const mid = String(m);
+              if (mid !== String(socket.userId)) emitToUser(mid, "call_invite", invitePayload);
+            }
+          }
+        } catch (_) {}
 
         socket.emit("call_initiated", { callId: call._id, status: "ringing" });
       } catch (err) {

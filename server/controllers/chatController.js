@@ -111,6 +111,24 @@ router.post(
         tempId: req.body.tempId || null,
       });
 
+      // Also deliver to each recipient's personal room so messages arrive in
+      // real time even if the recipient isn't currently joined to the chat room.
+      try {
+        const { default: Chat } = await import("../models/chat.js");
+        const chatDoc = await Chat.findById(req.body.chatId).lean();
+        if (chatDoc?.members?.length) {
+          const payload = {
+            ...msgObj,
+            senderId: req.user.userId,
+            tempId: req.body.tempId || null,
+          };
+          for (const m of chatDoc.members) {
+            const mid = String(m);
+            if (mid !== String(req.user.userId)) emitToUser(mid, "receive_message", payload);
+          }
+        }
+      } catch (_) {}
+
       const io = getIO();
       await typingService.clearOnMessageSent(req.user.userId, req.body.chatId, io);
 

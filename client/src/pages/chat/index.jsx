@@ -50,6 +50,7 @@ import ScrollToBottom from "../../components/chat/ScrollToBottom.jsx";
 import ChatComposer from "../../components/chat/ChatComposer.jsx";
 import ThreadPanel from "../../components/chat/ThreadPanel.jsx";
 import CreateGroupModal from "../../components/chat/CreateGroupModal.jsx";
+import NewMessageModal from "../../components/chat/NewMessageModal.jsx";
 import GroupDetailsPanel from "../../components/chat/GroupDetailsPanel.jsx";
 import CallHistoryPanel from "../../components/chat/CallHistoryPanel.jsx";
 import IncomingCallModal from "../../components/chat/IncomingCallModal.jsx";
@@ -75,6 +76,7 @@ import {
   editMessage,
   sendReply,
 } from "../../apiCalls/message.js";
+import { getUserById } from "../../apiCalls/users.js";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { SOCKET_EVENTS, ROUTES } from "../../lib/constants.js";
 
@@ -110,13 +112,14 @@ export default function ChatPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [nextCursor, setNextCursor] = useState(null);
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [activeThread, setActiveThread] = useState(null);
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
   const [showGroupDetails, setShowGroupDetails] = useState(false);
   const [showCallHistory, setShowCallHistory] = useState(false);
   const scrollRef = useRef(null);
@@ -160,22 +163,32 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [dispatch, search, activeFilter]);
 
+  const loadedChatIdRef = useRef(null);
   useEffect(() => {
     if (!chatId) {
       if (isMobileView && mobileAnim === "leaving") return;
+      loadedChatIdRef.current = null;
       dispatch(setActiveChat(null));
       setReplyToMessage(null);
       setActiveThread(null);
       return;
     }
-    setCurrentPage(1);
     setHasMore(true);
+    setNextCursor(null);
     setLoadingOlder(false);
     setReplyToMessage(null);
     setActiveThread(null);
+  }, [chatId, dispatch, isMobileView, mobileAnim]);
+
+  useEffect(() => {
+    if (!chatId || activeChat?._id === chatId) return;
     const found = chats.find((c) => c._id === chatId);
-    if (found) dispatch(setActiveChat({ ...found, messages: [] }));
-  }, [chatId, chats, dispatch, isMobileView, mobileAnim]);
+    if (found) {
+      // Preserve any messages already loaded for this chat instead of wiping them.
+      const existing = activeChat?._id === found._id ? activeChat.messages : undefined;
+      dispatch(setActiveChat({ ...found, messages: existing || [] }));
+    }
+  }, [chatId, chats, activeChat?._id, dispatch]);
 
   useEffect(() => {
     if (!chatId && !mobileAnim && mobileView === "list") {
@@ -186,18 +199,46 @@ export default function ChatPage() {
   }, [chatId, mobileAnim, mobileView, dispatch]);
 
   useEffect(() => {
-    if (!activeChat?._id || activeChat.messages?.length) return;
+    if (!activeChat?._id || activeChat.type !== "direct" || activeChat.otherUser) return;
+    if (!activeChat.members || activeChat.members.length === 0) return;
+    const partnerId = activeChat.members.find((m) => (m?._id || m) !== user?._id);
+    if (!partnerId || typeof partnerId !== "string") return;
+    const chatId = activeChat._id;
     let cancelled = false;
+    (async () => {
+      try {
+        const res = await getUserById(partnerId);
+        if (cancelled) return;
+        if (res.success && res.data) {
+          const u = res.data;
+          dispatch(updateActiveChatInfo({ chatId, updates: { otherUser: { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic, isOnline: u.isOnline, lastSeen: u.lastSeen } } }));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [activeChat?._id, activeChat?.type, activeChat?.otherUser, activeChat?.members, dispatch, user?._id]);
+
+  useEffect(() => {
+    if (!activeChat?._id) return;
+    // Load history once per chat. Once attempted for this chatId we don't
+    // auto-retry (avoids infinite loops on empty/error responses), since the
+    // "Retry" button and socket events handle the rest.
+    if (loadedChatIdRef.current === activeChat._id) {
+      setLoadingMsgs(false);
+      return;
+    }
+    let cancelled = false;
+    loadedChatIdRef.current = activeChat._id;
     setLoadingMsgs(true);
     setMsgError(null);
     (async () => {
       try {
-        const res = await getMessages(activeChat._id, 1, 30);
+        const res = await getMessages(activeChat._id, { limit: 30 });
         if (cancelled) return;
         if (res.success) {
-          dispatch(setActiveChat({ ...activeChat, messages: (res.data || []).reverse() }));
-          setHasMore(res.page < res.pages);
-          setCurrentPage(1);
+          dispatch(setActiveChat({ ...activeChat, messages: (res.data?.messages || []).reverse() }));
+          setHasMore(res.data?.hasMore || false);
+          setNextCursor(res.data?.nextCursor || null);
           setMsgError(null);
         } else {
           setMsgError("Failed to load messages");
@@ -324,21 +365,43 @@ export default function ChatPage() {
     const el = scrollRef.current;
     if (!el) return;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const atBottom = distFromBottom < 50;
+    const atBottom = distFromBottom < 80;
     if (atBottom) {
-      el.scrollTop = el.scrollHeight;
+      // Scroll after the new message (and any media) has been laid out.
+      requestAnimationFrame(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      });
     } else {
       setUnseenCount((c) => c + 1);
     }
   }, [activeChat?.messages?.length]);
+
+  // Jump to the latest message once a conversation's history finishes loading.
+  useEffect(() => {
+    if (loadingMsgs) return;
+    const el = scrollRef.current;
+    if (!el || !(activeChat?.messages?.length)) return;
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
+  }, [loadingMsgs, activeChat?._id]);
 
   const handleRetrySend = async (messageId) => {
     if (!activeChat?._id) return;
     const msg = activeChat.messages?.find((m) => m._id === messageId);
     if (!msg) return;
     dispatch(markMessageSuccess({ tempId: messageId, realMessage: { ...msg, pending: true, failed: false } }));
-    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
-    const res = await sendMessage(activeChat._id, msg.text, receiverId);
+    const receiverId = activeChat.type === "group" ? null : (otherMember?._id || activeChat.otherUser?._id);
+    let res;
+    if (msg.audioUrl) {
+      res = await sendAudioMessage(activeChat._id, msg.audioUrl, msg.audioDuration, receiverId);
+    } else if (msg.imageUrl) {
+      res = await sendImageMessage(activeChat._id, msg.imageUrl, msg.text || "", receiverId);
+    } else if (msg.fileUrl) {
+      res = await sendFileMessage(activeChat._id, msg.fileUrl, msg.fileName, msg.fileSize, msg.mimeType, msg.text || "", receiverId);
+    } else {
+      res = await sendMessage(activeChat._id, msg.text, receiverId);
+    }
     if (res.success && socket) {
       socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
       dispatch(markMessageSuccess({ tempId: messageId, realMessage: res.data }));
@@ -361,18 +424,17 @@ export default function ChatPage() {
   };
 
   const loadOlderMessages = useCallback(async () => {
-    if (!activeChat?._id || loadingOlder || !hasMore) return;
+    if (!activeChat?._id || loadingOlder || !hasMore || !nextCursor) return;
     setLoadingOlder(true);
     const el = scrollRef.current;
     const prevHeight = el?.scrollHeight || 0;
-    const nextPage = currentPage + 1;
     try {
-      const res = await getMessages(activeChat._id, nextPage, 30);
-      if (res.success && res.data?.length) {
-        const older = (res.data || []).reverse();
+      const res = await getMessages(activeChat._id, { cursor: nextCursor, limit: 30 });
+      if (res.success && res.data?.messages?.length) {
+        const older = res.data.messages.reverse();
         dispatch(prependMessages({ chatId: activeChat._id, messages: older }));
-        setCurrentPage(nextPage);
-        setHasMore(nextPage < res.pages);
+        setHasMore(res.data.hasMore || false);
+        setNextCursor(res.data.nextCursor || null);
       } else {
         setHasMore(false);
       }
@@ -386,7 +448,7 @@ export default function ChatPage() {
       }
       setLoadingOlder(false);
     });
-  }, [activeChat?._id, currentPage, hasMore, loadingOlder, dispatch]);
+  }, [activeChat?._id, nextCursor, hasMore, loadingOlder, dispatch]);
 
   const loadOlderRef = useRef(loadOlderMessages);
   loadOlderRef.current = loadOlderMessages;
@@ -552,13 +614,17 @@ export default function ChatPage() {
     const wasArchived = chat?.archived;
     if (!wasArchived && !confirm("Archive this chat?")) return;
     try {
-      await archiveChat(cId, !wasArchived);
-      if (!wasArchived) {
-        dispatch(archiveChatInList(cId));
-        toast.success("Chat archived");
+      const res = await archiveChat(cId, !wasArchived);
+      if (res.success) {
+        if (!wasArchived) {
+          dispatch(archiveChatInList(cId));
+          toast.success("Chat archived");
+        } else {
+          dispatch(updateActiveChatInfo({ chatId: cId, updates: { archived: false } }));
+          toast.success("Chat unarchived");
+        }
       } else {
-        dispatch(updateActiveChatInfo({ chatId: cId, updates: { archived: false } }));
-        toast.success("Chat unarchived");
+        toast.error(res.message || "Failed to update archive");
       }
     } catch {
       toast.error("Failed to update archive");
@@ -609,7 +675,7 @@ export default function ChatPage() {
 
   const handleSendWithAttachments = async () => {
     if (!activeChat?._id) return;
-    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
+    const receiverId = activeChat.type === "group" ? null : (activeChat.otherUser?._id || activeChat.members?.find((m) => m?._id !== user?._id)?._id);
     const text = draft.trim();
     const hasAttachments = attachments.length > 0;
     const hasText = text.length > 0;
@@ -692,11 +758,14 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendAudio = async () => {
-    const blob = recorder.audioBlob;
-    if (!blob || !activeChat?._id) return;
+  const handleSendAudio = async (blob) => {
+    // blob may be passed from the recorder's stop callback (already finalized).
+    const audioBlob = blob || recorder.audioBlob;
+    if (!audioBlob || !activeChat?._id) return;
+    // Capture the recorded duration before resetBlob() clears it.
+    const recordedDuration = Number.isFinite(recorder.duration) ? recorder.duration : 0;
     setSendingAudio(true);
-    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
+    const receiverId = activeChat.type === "group" ? null : (activeChat.otherUser?._id || activeChat.members?.find((m) => m?._id !== user?._id)?._id);
     const tempId = `temp-audio-${Date.now()}`;
     const tempMsg = {
       _id: tempId,
@@ -704,7 +773,7 @@ export default function ChatPage() {
       sender: user,
       text: "",
       audioUrl: URL.createObjectURL(blob),
-      audioDuration: recorder.duration,
+      audioDuration: recordedDuration,
       createdAt: new Date().toISOString(),
       pending: true,
     };
@@ -712,7 +781,7 @@ export default function ChatPage() {
     recorder.resetBlob();
     const uploadRes = await uploadAudio(blob);
     if (uploadRes.success) {
-      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recorder.duration, receiverId);
+      const res = await sendAudioMessage(activeChat._id, uploadRes.url, uploadRes.duration || recordedDuration, receiverId);
       if (res.success && socket) {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, res.data);
         dispatch(markMessageSuccess({ tempId, realMessage: res.data }));
@@ -725,7 +794,9 @@ export default function ChatPage() {
     setSendingAudio(false);
   };
 
-  const otherMember = activeChat?.members?.find((m) => m._id !== user?._id);
+  const otherMemberBase = activeChat?.type === "group" ? null : (activeChat?.otherUser || activeChat?.members?.find((m) => m?._id !== user?._id));
+  const otherMemberLive = activeChat?.type === "group" ? null : activeChat?.members?.find((m) => (m?._id || m) === otherMemberBase?._id);
+  const otherMember = otherMemberBase ? { ...otherMemberBase, isOnline: otherMemberLive?.isOnline ?? otherMemberBase.isOnline, lastSeen: otherMemberLive?.lastSeen ?? otherMemberBase.lastSeen } : null;
   const isGroupChat = activeChat?.type === "group";
 
   const handleSearchInput = (value) => {
@@ -806,6 +877,7 @@ export default function ChatPage() {
               onSelectChat={handleSelectChat}
               onCreateGroup={() => setShowCreateGroup(true)}
               onRetryLoad={() => { setLoadingChats(true); setChatError(null); window.location.reload(); }}
+              onNewMessage={() => setShowNewMessage(true)}
               onToggleMute={handleMuteToggleById}
               onTogglePin={handlePinToggleById}
               onArchive={handleArchiveById}
@@ -815,7 +887,7 @@ export default function ChatPage() {
           )}
 
           {showConversation && (
-            <section className={`flex-col min-w-0 ${conversationClassName}`}>
+            <section className={`flex flex-col min-w-0 min-h-0 overflow-hidden ${conversationClassName}`}>
               {!activeChat?._id ? (
                 <div className="flex-1 grid place-items-center text-center p-8">
                   <div className="animate-fade-in-up">
@@ -868,7 +940,11 @@ export default function ChatPage() {
                           <button
                             onClick={() => {
                               if (callStatus !== "idle") return toast.error("You're already in a call");
-                              initiate(activeChat._id, "audio");
+                              initiate(activeChat._id, "audio", {
+                                calleeId: otherMember?._id,
+                                calleeName: otherMember ? `${otherMember.firstname || ""} ${otherMember.lastname || ""}`.trim() : undefined,
+                                calleeAvatar: otherMember?.profilepic,
+                              });
                             }}
                             disabled={callStatus !== "idle"}
                             className="brutal-btn brutal-btn-ghost brutal-btn-icon hidden sm:inline-flex"
@@ -879,7 +955,11 @@ export default function ChatPage() {
                           <button
                             onClick={() => {
                               if (callStatus !== "idle") return toast.error("You're already in a call");
-                              initiate(activeChat._id, "video");
+                              initiate(activeChat._id, "video", {
+                                calleeId: otherMember?._id,
+                                calleeName: otherMember ? `${otherMember.firstname || ""} ${otherMember.lastname || ""}`.trim() : undefined,
+                                calleeAvatar: otherMember?.profilepic,
+                              });
                             }}
                             disabled={callStatus !== "idle"}
                             className="brutal-btn brutal-btn-ghost brutal-btn-icon hidden sm:inline-flex"
@@ -964,9 +1044,13 @@ export default function ChatPage() {
                                   const wasArchived = activeChat.archived;
                                   if (!wasArchived && !confirm("Archive this chat?")) return;
                                   try {
-                                    await archiveChat(activeChat._id, !wasArchived);
-                                    if (!wasArchived) { dispatch(archiveChatInList(activeChat._id)); toast.success("Chat archived"); }
-                                    else { dispatch(updateActiveChatInfo({ chatId: activeChat._id, updates: { archived: false } })); toast.success("Chat unarchived"); }
+                                    const res = await archiveChat(activeChat._id, !wasArchived);
+                                    if (res.success) {
+                                      if (!wasArchived) { dispatch(archiveChatInList(activeChat._id)); toast.success("Chat archived"); }
+                                      else { dispatch(updateActiveChatInfo({ chatId: activeChat._id, updates: { archived: false } })); toast.success("Chat unarchived"); }
+                                    } else {
+                                      toast.error(res.message || "Failed to update archive");
+                                    }
                                   } catch { toast.error("Failed to update archive"); }
                                 }}
                                 className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
@@ -1081,7 +1165,7 @@ export default function ChatPage() {
                     <RecordingPanel
                       duration={recorder.duration}
                       onCancel={recorder.cancelRecording}
-                      onStop={handleSendAudio}
+                      onStop={() => recorder.stopRecording(handleSendAudio)}
                       error={recorder.error}
                     />
                   ) : (
@@ -1119,7 +1203,22 @@ export default function ChatPage() {
           onClose={() => setShowCreateGroup(false)}
           onCreated={(cId) => {
             setShowCreateGroup(false);
-            navigate(ROUTES.CHAT_ID(cId));
+            if (cId) navigate(ROUTES.CHAT_ID(cId));
+            else navigate("/chat");
+          }}
+        />
+      )}
+      {showNewMessage && (
+        <NewMessageModal
+          onClose={() => setShowNewMessage(false)}
+          onChatCreated={(chatData) => {
+            setShowNewMessage(false);
+            if (chatData?._id) {
+              dispatch(setActiveChat({ ...chatData, messages: [] }));
+              navigate(ROUTES.CHAT_ID(chatData._id));
+            } else {
+              navigate("/chat");
+            }
           }}
         />
       )}

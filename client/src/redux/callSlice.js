@@ -42,6 +42,10 @@ const callSlice = createSlice({
 
     setIncomingCall(state, action) {
       state.incomingCall = action.payload;
+      state.callStatus = "ringing";
+      state.callId = action.payload?.callId || state.callId;
+      state.chatId = action.payload?.chatId || state.chatId;
+      state.callType = action.payload?.callType || state.callType;
     },
 
     clearIncomingCall(state) {

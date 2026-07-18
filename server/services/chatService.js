@@ -64,7 +64,11 @@ export class ChatService {
       let baseQuery = Chat.findOne({ members: { $all: [currentUserId, ...members] }, type: "direct" });
       baseQuery = scopeByTenant(baseQuery, tenantId);
       const existing = await baseQuery;
-      if (existing) return existing;
+      if (existing) {
+        const chatObj = existing.toObject();
+        chatObj.otherUser = await this._resolveOtherUser(currentUserId, chatObj);
+        return chatObj;
+      }
     }
 
     const chat = new Chat({
@@ -96,8 +100,24 @@ export class ChatService {
       });
     }
 
+    const chatObj = chat.toObject();
+    chatObj.otherUser = await this._resolveOtherUser(currentUserId, chatObj);
     logger.info(`[Chat] Created: ${chat._id} (${chatType})`);
-    return chat;
+    return chatObj;
+  }
+
+  async _resolveOtherUser(currentUserId, chatObj) {
+    if (chatObj.type !== "direct" || !Array.isArray(chatObj.members)) return null;
+    const partnerId = chatObj.members.find((m) => String(m) !== String(currentUserId));
+    if (!partnerId) return null;
+    try {
+      const User = (await import("../models/user.js")).default;
+      const partner = await User.findById(partnerId).select("firstname lastname profilepic isOnline lastSeen").lean();
+      if (!partner) return null;
+      return { _id: partner._id, firstname: partner.firstname, lastname: partner.lastname, profilepic: partner.profilepic, isOnline: partner.isOnline, lastSeen: partner.lastSeen };
+    } catch (_) {
+      return null;
+    }
   }
 
   async getAllForUser(userId, tenantId, { page = 1, limit = 20, type, archived = false, search } = {}) {
@@ -259,6 +279,8 @@ export class ChatService {
             isOnline: partner.isOnline,
             lastSeen: partner.lastSeen,
           };
+        } else if (partnerId && !partnerMap[String(partnerId)]) {
+          logger.warn(`[Chat] _buildConversationResponse: partner ${partnerId} not in partnerMap for chat ${chat._id}. partnerMap keys: ${Object.keys(partnerMap).join(",")}`);
         }
       } else {
         base.memberCount = chat.members ? chat.members.length : 0;

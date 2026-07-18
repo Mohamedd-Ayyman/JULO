@@ -33,20 +33,40 @@ const chatSlice = createSlice({
     setOnlineStatus: (state, action) => {
       const { userId, isOnline, lastSeen } = action.payload;
       state.chats.forEach((c) => {
-        c.members?.forEach((m) => {
-          if (m._id === userId) {
-            m.isOnline = isOnline;
-            if (lastSeen !== undefined) m.lastSeen = lastSeen;
+        if (!c.members) return;
+        for (let i = 0; i < c.members.length; i++) {
+          const m = c.members[i];
+          if (String(m._id || m) === String(userId)) {
+            if (typeof m === "string") {
+              c.members[i] = { _id: m, isOnline, lastSeen };
+            } else {
+              m.isOnline = isOnline;
+              if (lastSeen !== undefined) m.lastSeen = lastSeen;
+            }
           }
-        });
+        }
+        // Direct chats carry presence on `otherUser`, not on `members`.
+        if (c.otherUser && String(c.otherUser._id) === String(userId)) {
+          c.otherUser.isOnline = isOnline;
+          if (lastSeen !== undefined) c.otherUser.lastSeen = lastSeen;
+        }
       });
       if (state.activeChat?.members) {
-        state.activeChat.members.forEach((m) => {
-          if (m._id === userId) {
-            m.isOnline = isOnline;
-            if (lastSeen !== undefined) m.lastSeen = lastSeen;
+        for (let i = 0; i < state.activeChat.members.length; i++) {
+          const m = state.activeChat.members[i];
+          if (String(m._id || m) === String(userId)) {
+            if (typeof m === "string") {
+              state.activeChat.members[i] = { _id: m, isOnline, lastSeen };
+            } else {
+              m.isOnline = isOnline;
+              if (lastSeen !== undefined) m.lastSeen = lastSeen;
+            }
           }
-        });
+        }
+      }
+      if (state.activeChat?.otherUser && String(state.activeChat.otherUser._id) === String(userId)) {
+        state.activeChat.otherUser.isOnline = isOnline;
+        if (lastSeen !== undefined) state.activeChat.otherUser.lastSeen = lastSeen;
       }
     },
     toggleMuteChat: (state, action) => {
@@ -86,7 +106,12 @@ const chatSlice = createSlice({
         }
       }
       if (state.activeChat?._id === msg.chatId) {
-        state.activeChat.messages = [...(state.activeChat.messages || []), msg];
+        const msgs = state.activeChat.messages || [];
+        // Avoid duplicates when the same message arrives via both the chat room
+        // and the recipient's personal room.
+        if (!msg._id || !msgs.some((m) => m._id === msg._id)) {
+          state.activeChat.messages = [...msgs, msg];
+        }
       }
       const chat = state.chats.find((c) => c._id === msg.chatId);
       if (chat) {

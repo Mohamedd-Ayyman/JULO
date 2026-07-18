@@ -122,9 +122,11 @@ export const sendMessage = async (chatId, text, receiverId = null) => {
   }
 };
 
-export const getMessages = async (chatId, page = 1, limit = 30) => {
+export const getMessages = async (chatId, { cursor, limit = 30, direction = "backward" } = {}) => {
   try {
-    const response = await axiosInstance.get(`/api/chat/${chatId}/messages?page=${page}&limit=${limit}`);
+    const params = new URLSearchParams({ limit: String(limit), direction });
+    if (cursor) params.set("cursor", cursor);
+    const response = await axiosInstance.get(`/api/chat/${chatId}/messages?${params}`);
     return response.data;
   } catch (error) {
     return error.response?.data || { success: false };

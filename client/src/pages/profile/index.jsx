@@ -12,8 +12,9 @@ import {
   getFollowStatus,
 } from "../../apiCalls/follow.js";
 import { createOrFindChat } from "../../apiCalls/message.js";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { setActiveChat } from "../../redux/chatSlice.js";
 import {
   MessageCircle,
   UserPlus,
@@ -36,6 +37,7 @@ import toast from "react-hot-toast";
 export default function ProfilePage() {
   const { userId: rawUserId } = useParams();
   const { user } = useSelector((s) => s.userReducer);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -92,8 +94,12 @@ export default function ProfilePage() {
   const startChat = async () => {
     if (!targetId) return;
     const res = await createOrFindChat(targetId);
-    if (res.success) navigate(ROUTES.CHAT_ID(res.data._id));
-    else toast.error("Couldn't open chat");
+    if (res.success && res.data) {
+      dispatch(setActiveChat({ ...res.data, messages: [] }));
+      navigate(ROUTES.CHAT_ID(res.data._id));
+    } else {
+      toast.error("Couldn't open chat");
+    }
   };
 
   if (loading) {

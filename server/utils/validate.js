@@ -140,10 +140,9 @@ export const mentionedMessagesQuerySchema = z.object({
 });
 
 export const messageQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional().default(1),
+  cursor: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).optional().default(50),
-  before: z.string().optional(),
-  after: z.string().optional(),
+  direction: z.enum(["forward", "backward"]).optional().default("backward"),
   includeDeleted: z.coerce.boolean().optional().default(false),
   messageType: z.enum(["text", "encrypted", "file", "system", "key_exchange"]).optional(),
   search: z.string().trim().max(200).optional(),
@@ -342,7 +341,7 @@ export const messageSchema = z.object({
     url: z.string().url().optional(),
     siteName: z.string().max(200).optional(),
   }).optional().nullable(),
-  receiverId: z.string().optional(),
+  receiverId: z.string().optional().nullable(),
   encryptedContent: z.string().optional(),
   iv: z.string().optional(),
   authTag: z.string().optional(),
@@ -374,7 +373,8 @@ export const validate = (schema, mode = "body") => (req, res, next) => {
     return res.status(400).send({ success: false, message: msg, statusCode: 400 });
   }
   if (mode === "query") {
-    req.query = result.data;
+    for (const key of Object.keys(req.query)) delete req.query[key];
+    Object.assign(req.query, result.data);
   } else {
     req.body = result.data;
   }
