@@ -106,7 +106,12 @@ const chatSlice = createSlice({
         }
       }
       if (state.activeChat?._id === msg.chatId) {
-        state.activeChat.messages = [...(state.activeChat.messages || []), msg];
+        const msgs = state.activeChat.messages || [];
+        // Avoid duplicates when the same message arrives via both the chat room
+        // and the recipient's personal room.
+        if (!msg._id || !msgs.some((m) => m._id === msg._id)) {
+          state.activeChat.messages = [...msgs, msg];
+        }
       }
       const chat = state.chats.find((c) => c._id === msg.chatId);
       if (chat) {

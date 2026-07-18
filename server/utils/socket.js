@@ -368,9 +368,20 @@ export async function initSocket(httpServer) {
           callType || "audio"
         );
 
+        // Resolve the initiator's display info so the receiver isn't shown "Unknown".
+        let caller = null;
+        try {
+          const { default: User } = await import("../models/user.js");
+          const u = await User.findById(socket.userId).select("firstname lastname profilepic").lean();
+          if (u) caller = { _id: u._id, firstname: u.firstname, lastname: u.lastname, profilepic: u.profilepic };
+        } catch (_) {}
+
         io.to(`chat:${chatId}`).emit("call_invite", {
           callId: call._id,
           initiator: call.initiator,
+          caller,
+          callerName: caller ? `${caller.firstname || ""} ${caller.lastname || ""}`.trim() : undefined,
+          callerAvatar: caller?.profilepic,
           callType: call.callType,
           participants: call.participants,
           status: "ringing",

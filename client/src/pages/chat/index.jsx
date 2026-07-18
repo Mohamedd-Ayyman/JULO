@@ -741,9 +741,10 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendAudio = async () => {
-    const blob = recorder.audioBlob;
-    if (!blob || !activeChat?._id) return;
+  const handleSendAudio = async (blob) => {
+    // blob may be passed from the recorder's stop callback (already finalized).
+    const audioBlob = blob || recorder.audioBlob;
+    if (!audioBlob || !activeChat?._id) return;
     setSendingAudio(true);
     const receiverId = activeChat.type === "group" ? null : (activeChat.otherUser?._id || activeChat.members?.find((m) => m?._id !== user?._id)?._id);
     const tempId = `temp-audio-${Date.now()}`;
@@ -867,7 +868,7 @@ export default function ChatPage() {
           )}
 
           {showConversation && (
-            <section className={`flex-col min-w-0 ${conversationClassName}`}>
+            <section className={`flex flex-col min-w-0 min-h-0 overflow-hidden ${conversationClassName}`}>
               {!activeChat?._id ? (
                 <div className="flex-1 grid place-items-center text-center p-8">
                   <div className="animate-fade-in-up">
@@ -920,7 +921,11 @@ export default function ChatPage() {
                           <button
                             onClick={() => {
                               if (callStatus !== "idle") return toast.error("You're already in a call");
-                              initiate(activeChat._id, "audio");
+                              initiate(activeChat._id, "audio", {
+                                calleeId: otherMember?._id,
+                                calleeName: otherMember ? `${otherMember.firstname || ""} ${otherMember.lastname || ""}`.trim() : undefined,
+                                calleeAvatar: otherMember?.profilepic,
+                              });
                             }}
                             disabled={callStatus !== "idle"}
                             className="brutal-btn brutal-btn-ghost brutal-btn-icon hidden sm:inline-flex"
@@ -931,7 +936,11 @@ export default function ChatPage() {
                           <button
                             onClick={() => {
                               if (callStatus !== "idle") return toast.error("You're already in a call");
-                              initiate(activeChat._id, "video");
+                              initiate(activeChat._id, "video", {
+                                calleeId: otherMember?._id,
+                                calleeName: otherMember ? `${otherMember.firstname || ""} ${otherMember.lastname || ""}`.trim() : undefined,
+                                calleeAvatar: otherMember?.profilepic,
+                              });
                             }}
                             disabled={callStatus !== "idle"}
                             className="brutal-btn brutal-btn-ghost brutal-btn-icon hidden sm:inline-flex"
@@ -1133,7 +1142,7 @@ export default function ChatPage() {
                     <RecordingPanel
                       duration={recorder.duration}
                       onCancel={recorder.cancelRecording}
-                      onStop={handleSendAudio}
+                      onStop={() => recorder.stopRecording(handleSendAudio)}
                       error={recorder.error}
                     />
                   ) : (

@@ -9,27 +9,34 @@ export default function useAudioRecorder() {
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
+  const mimeTypeRef = useRef("audio/webm");
   const timerRef = useRef(null);
   const startTimeRef = useRef(0);
+  const blobRef = useRef(null);
 
-  const cleanup = useCallback(() => {
+  const stopTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  const cleanup = useCallback(() => {
+    stopTimer();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     mediaRecorderRef.current = null;
     chunksRef.current = [];
-  }, []);
+  }, [stopTimer]);
 
   useEffect(() => cleanup, [cleanup]);
 
   const startRecording = useCallback(async () => {
     setError(null);
     setAudioBlob(null);
+    blobRef.current = null;
     setDuration(0);
 
     try {
@@ -39,6 +46,7 @@ export default function useAudioRecorder() {
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
+      mimeTypeRef.current = mimeType;
 
       const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
@@ -49,7 +57,8 @@ export default function useAudioRecorder() {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
+        blobRef.current = blob;
         setAudioBlob(blob);
         cleanup();
       };
@@ -75,23 +84,30 @@ export default function useAudioRecorder() {
     }
   }, [cleanup]);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
+  // Stop recording and (optionally) hand the finalized blob back via onComplete.
+  // The blob is only available after MediaRecorder's `onstop` fires, so we
+  // finalize here and invoke onComplete with it instead of relying on async state.
+  const stopRecording = useCallback((onComplete) => {
     setIsRecording(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    stopTimer();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop(); // triggers recorder.onstop → sets blobRef + audioBlob
     }
-  }, []);
+    if (onComplete) {
+      // Defer so the synchronous onstop handler can run first.
+      setTimeout(() => onComplete(blobRef.current), 0);
+    }
+  }, [stopTimer]);
 
   const cancelRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.stop();
     }
+    blobRef.current = null;
     cleanup();
     setIsRecording(false);
     setAudioBlob(null);
@@ -99,6 +115,7 @@ export default function useAudioRecorder() {
   }, [cleanup]);
 
   const resetBlob = useCallback(() => {
+    blobRef.current = null;
     setAudioBlob(null);
     setDuration(0);
   }, []);
