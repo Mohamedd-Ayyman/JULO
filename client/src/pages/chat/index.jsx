@@ -339,7 +339,7 @@ export default function ChatPage() {
     const msg = activeChat.messages?.find((m) => m._id === messageId);
     if (!msg) return;
     dispatch(markMessageSuccess({ tempId: messageId, realMessage: { ...msg, pending: true, failed: false } }));
-    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
+    const receiverId = activeChat.type === "group" ? null : (otherMember?._id || activeChat.otherUser?._id);
     let res;
     if (msg.audioUrl) {
       res = await sendAudioMessage(activeChat._id, msg.audioUrl, msg.audioDuration, receiverId);
@@ -619,7 +619,7 @@ export default function ChatPage() {
 
   const handleSendWithAttachments = async () => {
     if (!activeChat?._id) return;
-    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
+    const receiverId = activeChat.type === "group" ? null : (activeChat.otherUser?._id || activeChat.members?.find((m) => m?._id !== user?._id)?._id);
     const text = draft.trim();
     const hasAttachments = attachments.length > 0;
     const hasText = text.length > 0;
@@ -706,7 +706,7 @@ export default function ChatPage() {
     const blob = recorder.audioBlob;
     if (!blob || !activeChat?._id) return;
     setSendingAudio(true);
-    const receiverId = activeChat.type === "group" ? null : activeChat.members?.find((m) => m._id !== user?._id)?._id;
+    const receiverId = activeChat.type === "group" ? null : (activeChat.otherUser?._id || activeChat.members?.find((m) => m?._id !== user?._id)?._id);
     const tempId = `temp-audio-${Date.now()}`;
     const tempMsg = {
       _id: tempId,
@@ -735,7 +735,7 @@ export default function ChatPage() {
     setSendingAudio(false);
   };
 
-  const otherMember = activeChat?.members?.find((m) => m._id !== user?._id);
+  const otherMember = activeChat?.type === "group" ? null : (activeChat?.otherUser || activeChat?.members?.find((m) => m?._id !== user?._id));
   const isGroupChat = activeChat?.type === "group";
 
   const handleSearchInput = (value) => {

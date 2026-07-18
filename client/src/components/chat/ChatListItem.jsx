@@ -31,7 +31,7 @@ function getPreviewText(message, currentUserId, isGroupChat) {
 
 export default function ChatListItem({ chat, currentUserId, isActive, isTyping, isMuted, isPinned, onClick, onToggleMute, onTogglePin, onArchive, onOpenGroupInfo }) {
   const isGroupChat = chat.type === "group";
-  const other = chat.members?.find((m) => m._id !== currentUserId);
+  const other = isGroupChat ? null : (chat.otherUser || chat.members?.find((m) => m?._id !== currentUserId));
   const name = isGroupChat
     ? (chat.name || "Unnamed Group")
     : `${other?.firstname || ""} ${other?.lastname || ""}`.trim();
