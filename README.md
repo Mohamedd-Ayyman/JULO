@@ -20,6 +20,8 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![CI](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
+<a href="https://julo-blush.vercel.app/"><img src="https://img.shields.io/badge/🚀_Live_Demo-julo--blush.vercel.app-6C63FF?style=for-the-badge" alt="Live demo"/></a>
+
 ![JULO hero](docs/assets/julo-hero.svg)
 
 </div>
